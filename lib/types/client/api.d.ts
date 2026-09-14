@@ -1,5 +1,5 @@
 /**
- * Browser-side client for the `/api/dsh-skills-mcp` route family.
+ * Browser-side client for the `/api/dsh-s-m-c-center` route family.
  *
  * The only data path the tabs use: plain `fetch`, same origin, JSON in and
  * out. Every call funnels through {@link call} so the two failure modes a

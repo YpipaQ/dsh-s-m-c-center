@@ -19,12 +19,12 @@
   <text x="462" y="124" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="12" fill="#5F5E5A">cordis.patch.yml（bundle patch）</text>
 
   <rect x="30" y="140" width="840" height="192" rx="14" fill="#E6F1FB" stroke="#85B7EB"/>
-  <text x="50" y="164" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="14" font-weight="500" fill="#0C447C">dsh-skills-mcp-cli-manager 插件包（双面）</text>
+  <text x="50" y="164" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="14" font-weight="500" fill="#0C447C">dsh-s-m-c-center 插件包（双面）</text>
 
   <rect x="50" y="176" width="396" height="140" rx="10" fill="#FFFFFF" stroke="#378ADD"/>
   <text x="68" y="198" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="13" font-weight="500" fill="#0C447C">Host 半区 · lib/index.js（ESM, node）</text>
-  <text x="68" y="222" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="12" fill="#1F2937">· settings 命名空间：skills-mcp-manager</text>
-  <text x="68" y="242" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="12" fill="#1F2937">· /api/dsh-skills-mcp/* 路由（仅 loopback）</text>
+  <text x="68" y="222" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="12" fill="#1F2937">· settings 命名空间：dsh-s-m-c-center</text>
+  <text x="68" y="242" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="12" fill="#1F2937">· /api/dsh-s-m-c-center/* 路由（仅 loopback）</text>
   <text x="68" y="262" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="12" fill="#1F2937">· systemPrompt.section 向每个 agent 公告</text>
   <text x="68" y="282" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="12" fill="#1F2937">· MCP 真连接 → 注册 mcp__&lt;server&gt;__&lt;tool&gt;</text>
   <text x="68" y="302" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="12" fill="#1F2937">· 技能引擎 / CLI 探测引擎</text>
@@ -32,7 +32,7 @@
   <rect x="466" y="176" width="384" height="140" rx="10" fill="#FFFFFF" stroke="#378ADD"/>
   <text x="484" y="198" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="13" font-weight="500" fill="#0C447C">Client 半区 · lib/client.js（浏览器）</text>
   <text x="484" y="222" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="12" fill="#1F2937">· 设置页「Web UI 插件 → 工具管理」</text>
-  <text x="484" y="242" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="12" fill="#1F2937">· 三个页签：技能 / MCP / CLI</text>
+  <text x="484" y="242" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="12" fill="#1F2937">· 四个页签：技能 / MCP / CLI / 使用说明</text>
   <text x="484" y="262" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="12" fill="#1F2937">· react 为运行时外部依赖</text>
   <text x="484" y="282" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="12" fill="#1F2937">· 只通过 /api 与 host 通信</text>
 

@@ -59,7 +59,7 @@
 <div align="center">
   <img src="./docs/arch-overview.svg" alt="挂载与双面架构" width="88%" />
 </div>
-<p align="center"><i>Host 半区注册路由、公告 agent、真连 MCP；Client 半区只提供设置页，两者通过 <code>/api/dsh-skills-mcp/*</code> 通信。</i></p>
+<p align="center"><i>Host 半区注册路由、公告 agent、真连 MCP；Client 半区只提供设置页，两者通过 <code>/api/dsh-s-m-c-center/*</code> 通信。</i></p>
 
 **储存库布局** —— 插件的数据全部收在 `~/.dsh/S-M-C`，而 dsh 扫描的两个目录刻意留在库外（插件只往里面注入 / 移除联接）：
 
@@ -130,7 +130,7 @@ dsh-s-m-c-center/
 │   ├── skills.ts       # 技能文件系统引擎
 │   ├── mcp.ts          # MCP 配置存储 + 真连接管理器
 │   ├── cli.ts          # CLI 发现 / 探测 / 注册表 + cli-state 解析
-│   ├── routes.ts       # /api/dsh-skills-mcp 路由族
+│   ├── routes.ts       # /api/dsh-s-m-c-center 路由族
 │   ├── protocol.ts     # 共享类型 + API 路径
 │   └── client/         # 浏览器半区（入口、SettingsCard、manager、api、locales、css）
 ├── lib/                # 构建产物（宿主：index.js；客户端：client.js；types/*）

@@ -1,5 +1,5 @@
 /**
- * Browser-side client for the `/api/dsh-skills-mcp` route family.
+ * Browser-side client for the `/api/dsh-s-m-c-center` route family.
  *
  * The only data path the tabs use: plain `fetch`, same origin, JSON in and
  * out. Every call funnels through {@link call} so the two failure modes a
@@ -7,7 +7,7 @@
  * — surface the same way, and a failure never arrives as a silent `undefined`.
  */
 
-import { SKILLS_MCP_API } from '../protocol.ts'
+import { SMC_API } from '../protocol.ts'
 import type {
   CliRegistryEntry, CliStateDetail, CliSubcommands, CliSummary,
   ImportItem, ImportResult, ManagerSettings, McpServerConfig, McpServerSummary,
@@ -67,114 +67,114 @@ export class SkillsMcpApi {
   // ── skills ───────────────────────────────────────────────────────────────
 
   async listSkills(cwd: string): Promise<SkillSummary[]> {
-    const body = await call<{ items: SkillSummary[] }>('GET', withCwd(SKILLS_MCP_API.skills, cwd))
+    const body = await call<{ items: SkillSummary[] }>('GET', withCwd(SMC_API.skills, cwd))
     return body.items
   }
 
   async readSkill(path: string): Promise<SkillDetail> {
-    const body = await call<{ skill: SkillDetail }>('POST', SKILLS_MCP_API.skillRead, { path })
+    const body = await call<{ skill: SkillDetail }>('POST', SMC_API.skillRead, { path })
     return body.skill
   }
 
   async toggleSkill(path: string, enabled: boolean): Promise<void> {
-    await call('POST', SKILLS_MCP_API.skillToggle, { path, enabled })
+    await call('POST', SMC_API.skillToggle, { path, enabled })
   }
 
   async deleteSkill(path: string, kind: 'bundle' | 'file'): Promise<void> {
-    await call('POST', SKILLS_MCP_API.skillDelete, { path, kind })
+    await call('POST', SMC_API.skillDelete, { path, kind })
   }
 
   async scanSkills(dir: string): Promise<ScannedSkill[]> {
-    const body = await call<{ items: ScannedSkill[] }>('POST', SKILLS_MCP_API.skillScan, { dir })
+    const body = await call<{ items: ScannedSkill[] }>('POST', SMC_API.skillScan, { dir })
     return body.items
   }
 
   async importSkills(items: ImportItem[]): Promise<ImportResult[]> {
-    const body = await call<{ results: ImportResult[] }>('POST', SKILLS_MCP_API.skillImport, { items })
+    const body = await call<{ results: ImportResult[] }>('POST', SMC_API.skillImport, { items })
     return body.results
   }
 
   async storeStatus(): Promise<StoreStatus> {
-    const body = await call<{ store: StoreStatus }>('GET', SKILLS_MCP_API.skillStore)
+    const body = await call<{ store: StoreStatus }>('GET', SMC_API.skillStore)
     return body.store
   }
 
   /** Undo the one-shot migration: every stored skill returns to its origin. */
   async rollbackStore(): Promise<StoreOperation> {
-    const body = await call<{ result: StoreOperation }>('POST', SKILLS_MCP_API.skillRollback, {})
+    const body = await call<{ result: StoreOperation }>('POST', SMC_API.skillRollback, {})
     return body.result
   }
 
   /** Run the one-shot migration again — the undo for {@link rollbackStore}. */
   async reMigrateStore(): Promise<StoreOperation> {
-    const body = await call<{ result: StoreOperation }>('POST', SKILLS_MCP_API.skillRemigrate, {})
+    const body = await call<{ result: StoreOperation }>('POST', SMC_API.skillRemigrate, {})
     return body.result
   }
 
   // ── mcp ──────────────────────────────────────────────────────────────────
 
   async listMcp(): Promise<McpServerSummary[]> {
-    const body = await call<{ servers: McpServerSummary[] }>('GET', SKILLS_MCP_API.mcp)
+    const body = await call<{ servers: McpServerSummary[] }>('GET', SMC_API.mcp)
     return body.servers
   }
 
   async saveMcp(server: McpServerConfig): Promise<void> {
-    await call('POST', SKILLS_MCP_API.mcpSave, { server })
+    await call('POST', SMC_API.mcpSave, { server })
   }
 
   /** Activate (true) or archive (false) one definition. */
   async setMcpEnabled(name: string, enabled: boolean): Promise<void> {
-    await call('POST', SKILLS_MCP_API.mcpEnabled, { name, enabled })
+    await call('POST', SMC_API.mcpEnabled, { name, enabled })
   }
 
   async deleteMcp(name: string): Promise<void> {
-    await call('POST', SKILLS_MCP_API.mcpDelete, { name })
+    await call('POST', SMC_API.mcpDelete, { name })
   }
 
   /** Restore the whole archive at once; returns how many came back. */
   async restoreAllMcp(): Promise<number> {
-    const body = await call<{ restored: number }>('POST', SKILLS_MCP_API.mcpRestoreAll, {})
+    const body = await call<{ restored: number }>('POST', SMC_API.mcpRestoreAll, {})
     return body.restored
   }
 
   async testMcp(server: McpServerConfig): Promise<{ ok: boolean; error?: string }> {
-    const body = await call<{ test: { ok: boolean; error?: string } }>('POST', SKILLS_MCP_API.mcpTest, { server })
+    const body = await call<{ test: { ok: boolean; error?: string } }>('POST', SMC_API.mcpTest, { server })
     return body.test
   }
 
   // ── cli ──────────────────────────────────────────────────────────────────
 
   async listCli(cwd: string): Promise<CliSummary[]> {
-    const body = await call<{ items: CliSummary[] }>('GET', withCwd(SKILLS_MCP_API.cli, cwd))
+    const body = await call<{ items: CliSummary[] }>('GET', withCwd(SMC_API.cli, cwd))
     return body.items
   }
 
   async cliState(name: string, cwd: string): Promise<CliStateDetail> {
-    const body = await call<{ state: CliStateDetail }>('GET', withName(SKILLS_MCP_API.cliState, name, cwd))
+    const body = await call<{ state: CliStateDetail }>('GET', withName(SMC_API.cliState, name, cwd))
     return body.state
   }
 
   async cliSubcommands(name: string, cwd: string): Promise<CliSubcommands> {
-    const body = await call<{ subcommands: CliSubcommands }>('GET', withName(SKILLS_MCP_API.cliSubcommands, name, cwd))
+    const body = await call<{ subcommands: CliSubcommands }>('GET', withName(SMC_API.cliSubcommands, name, cwd))
     return body.subcommands
   }
 
   async saveCli(entry: CliRegistryEntry): Promise<void> {
-    await call('POST', SKILLS_MCP_API.cliSave, { entry })
+    await call('POST', SMC_API.cliSave, { entry })
   }
 
   async setCliEnabled(name: string, enabled: boolean): Promise<void> {
-    await call('POST', SKILLS_MCP_API.cliEnabled, { name, enabled })
+    await call('POST', SMC_API.cliEnabled, { name, enabled })
   }
 
   async deleteCli(name: string): Promise<void> {
-    await call('POST', SKILLS_MCP_API.cliDelete, { name })
+    await call('POST', SMC_API.cliDelete, { name })
   }
 
   /** Both probe halves in one round trip (state + subcommands). */
   async probeCli(name: string, cwd: string): Promise<{ state: CliStateDetail; subcommands: CliSubcommands }> {
     const body = await call<{ state: CliStateDetail; subcommands: CliSubcommands }>(
-      'POST', SKILLS_MCP_API.cliProbe, { name, cwd },
+      'POST', SMC_API.cliProbe, { name, cwd },
     )
     return { state: body.state, subcommands: body.subcommands }
   }
@@ -182,12 +182,12 @@ export class SkillsMcpApi {
   // ── settings ─────────────────────────────────────────────────────────────
 
   async getSettings(): Promise<ManagerSettings> {
-    const body = await call<{ settings: ManagerSettings }>('GET', SKILLS_MCP_API.settings)
+    const body = await call<{ settings: ManagerSettings }>('GET', SMC_API.settings)
     return body.settings
   }
 
   async saveSettings(settings: Partial<ManagerSettings>): Promise<ManagerSettings> {
-    const body = await call<{ settings: ManagerSettings }>('POST', SKILLS_MCP_API.settingsSave, { settings })
+    const body = await call<{ settings: ManagerSettings }>('POST', SMC_API.settingsSave, { settings })
     return body.settings
   }
 }

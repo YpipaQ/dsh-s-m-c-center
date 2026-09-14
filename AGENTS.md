@@ -27,7 +27,7 @@ dsh-s-m-c-center/
 │   ├── skills.ts       # skills filesystem engine
 │   ├── mcp.ts          # MCP config store + real connection manager
 │   ├── cli.ts          # CLI discovery / probe / registry + cli-state parsing
-│   ├── routes.ts       # /api/dsh-skills-mcp route family
+│   ├── routes.ts       # /api/dsh-s-m-c-center route family
 │   ├── protocol.ts     # shared types + API paths
 │   ├── store.ts        # unified store root (S-M-C) — single source of truth for paths
 │   ├── migrate.ts      # one-shot migration into the store root
@@ -56,7 +56,7 @@ dsh-s-m-c-center/
 - **Install as a normal package, not a junction.** A junction breaks Node dependency resolution (the plugin's deps like `schemastery`/`react` fail to resolve upward) and desyncs the package name from `cordis.patch.yml`. Install via `dsh plugin --profile <name> add <path>` or `file:<tarball>`.
 - **The package name must match `cordis.patch.yml`'s `name`** (`dsh-s-m-c-center`). Do not rename one without the other, or DSH boot fails with `Cannot find package ...`.
 - `lib/` is the shipped artifact. It is **built from `src/`** (this repo has a source tree). To change behavior, edit `src/*`, then rebuild — `pnpm build` runs both steps: `tsc -p tsconfig.build.json` for `lib/types/**` (declarations + `.d.ts.map`) and `tsdown` for `lib/index.js` / `lib/client.js` — and commit the regenerated `lib/`. Running only `tsdown` leaves `lib/types/` stale, which is how an earlier release shipped without `reMigrate()` / `activateAll()` in its declarations.
-- The **host half** registers the `/api/dsh-skills-mcp/*` route family on the loopback-only `webServer`; the **client half** registers the settings page. Keep the shared `SKILLS_MCP_API` path constants in `src/protocol.ts` as the single source of truth for both halves.
+- The **host half** registers the `/api/dsh-s-m-c-center/*` route family on the loopback-only `webServer`; the **client half** registers the settings page. Keep the shared `SMC_API` path constants in `src/protocol.ts` as the single source of truth for both halves.
 - **Never hard-code a `~/.dsh/...` path in `src/`** — every store path comes from `src/store.ts`
 (`storeRoot()` / `storeSkillsDir()` / `storeMcpPath()` / `storeMcpArchivePath()` / `storeCliPath()`),
 which honours `$DSH_HOME` and `$DSH_STORE_ROOT`. Tests depend on that indirection.

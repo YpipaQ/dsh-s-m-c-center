@@ -18,7 +18,7 @@
   <text x="449" y="72" text-anchor="middle" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="13" font-weight="500" fill="#0C447C">MCP：激活 / 归档</text>
 
   <rect x="602" y="48" width="266" height="40" rx="8" fill="#E6F1FB" stroke="#378ADD"/>
-  <text x="735" y="72" text-anchor="middle" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="13" font-weight="500" fill="#0C447C">CLI：提供 / 不提供</text>
+  <text x="735" y="72" text-anchor="middle" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="13" font-weight="500" fill="#0C447C">CLI：公告 / 隐藏</text>
 
   <rect x="30" y="100" width="266" height="76" rx="8" fill="#E1F5EE" stroke="#1D9E75"/>
   <text x="48" y="122" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="13" font-weight="500" fill="#085041">启用</text>
@@ -31,8 +31,8 @@
   <text x="334" y="164" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="12" fill="#0F6E56">注册 mcp__&lt;s&gt;__&lt;t&gt; 工具</text>
 
   <rect x="602" y="100" width="266" height="76" rx="8" fill="#E1F5EE" stroke="#1D9E75"/>
-  <text x="620" y="122" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="13" font-weight="500" fill="#085041">提供</text>
-  <text x="620" y="144" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="12" fill="#0F6E56">cli.json 中 available = true</text>
+  <text x="620" y="122" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="13" font-weight="500" fill="#085041">公告</text>
+  <text x="620" y="144" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="12" fill="#0F6E56">cli.json 中 enabled = true</text>
   <text x="620" y="164" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="12" fill="#0F6E56">agent 可见</text>
 
   <path d="M163 180 V208" fill="none" stroke="#5F5E5A" stroke-width="1.5" marker-start="url(#ar)" marker-end="url(#ar)"/>
@@ -50,8 +50,8 @@
   <text x="334" y="276" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="12" fill="#5F5E5A">不连接、不公告</text>
 
   <rect x="602" y="212" width="266" height="76" rx="8" fill="#F1EFE8" stroke="#888780"/>
-  <text x="620" y="234" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="13" font-weight="500" fill="#2C2C2A">不提供</text>
-  <text x="620" y="256" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="12" fill="#5F5E5A">available = false</text>
+  <text x="620" y="234" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="13" font-weight="500" fill="#2C2C2A">隐藏</text>
+  <text x="620" y="256" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="12" fill="#5F5E5A">enabled = false</text>
   <text x="620" y="276" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="12" fill="#5F5E5A">agent 看不到，登记项仍在</text>
 
   <rect x="30" y="300" width="266" height="40" rx="8" fill="#F1EFE8" stroke="#B4B2A9"/>

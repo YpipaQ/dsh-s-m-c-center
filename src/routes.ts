@@ -1,5 +1,5 @@
 /**
- * The /api/dsh-skills-mcp route family — the browser half's only data path.
+ * The /api/dsh-s-m-c-center route family — the browser half's only data path.
  * Skills CRUD, MCP CRUD (plus a one-shot connection test), the local CLI
  * registry, and the plugin's own settings block. Every route sits behind a
  * loopback-only trust fence with browser same-origin markers: these endpoints
@@ -13,7 +13,7 @@ import type { WebRoute } from '@deepseek-ai/dsh-host-webserver'
 import { CliManager, validateCliEntry } from './cli.ts'
 import { McpManager, readMcpArchive, readMcpConfig, validateMcpServer } from './mcp.ts'
 import { SkillsManager } from './skills.ts'
-import { SKILLS_MCP_API } from './protocol.ts'
+import { SMC_API } from './protocol.ts'
 import type { CliRegistryEntry, ManagerSettings, McpServerConfig } from './protocol.ts'
 
 /** Requests may not exceed this much JSON (definitions and import lists are small). */
@@ -135,7 +135,7 @@ function bodyFlag(body: Record<string, unknown>, key: string): boolean {
 }
 
 /**
- * Build every /api/dsh-skills-mcp route (exact paths).
+ * Build every /api/dsh-s-m-c-center route (exact paths).
  * @param deps - skills engine, MCP connection manager, and CLI manager.
  * @returns the route registrations.
  */
@@ -188,11 +188,11 @@ export function makeRoutes(deps: RoutesDeps): { routes: WebRoute[] } {
   return {
     routes: [
       // ── skills ───────────────────────────────────────────────────────────
-      handle('GET', SKILLS_MCP_API.skills, async (_req, res, _body, url) => {
+      handle('GET', SMC_API.skills, async (_req, res, _body, url) => {
         writeJson(res, 200, ok({ items: skills.listSkills(queryParam(url, 'cwd')) }))
       }),
 
-      handle('POST', SKILLS_MCP_API.skillRead, async (_req, res, body, _url) => {
+      handle('POST', SMC_API.skillRead, async (_req, res, body, _url) => {
         const path = bodyText(body, 'path')
         if (!path) { writeJson(res, 400, { ok: false, error: 'path required' }); return }
         const skill = skills.readSkill(path)
@@ -200,7 +200,7 @@ export function makeRoutes(deps: RoutesDeps): { routes: WebRoute[] } {
         writeJson(res, 200, ok({ skill }))
       }),
 
-      handle('POST', SKILLS_MCP_API.skillToggle, async (_req, res, body, _url) => {
+      handle('POST', SMC_API.skillToggle, async (_req, res, body, _url) => {
         const path = bodyText(body, 'path')
         if (!path) { writeJson(res, 400, { ok: false, error: 'path required' }); return }
         const enabled = bodyFlag(body, 'enabled')
@@ -208,7 +208,7 @@ export function makeRoutes(deps: RoutesDeps): { routes: WebRoute[] } {
         writeJson(res, 200, ok({ path, enabled }))
       }),
 
-      handle('POST', SKILLS_MCP_API.skillDelete, async (_req, res, body, _url) => {
+      handle('POST', SMC_API.skillDelete, async (_req, res, body, _url) => {
         const path = bodyText(body, 'path')
         if (!path) { writeJson(res, 400, { ok: false, error: 'path required' }); return }
         const kind = body.kind === 'bundle' ? 'bundle' : 'file'
@@ -216,27 +216,27 @@ export function makeRoutes(deps: RoutesDeps): { routes: WebRoute[] } {
         writeJson(res, 200, ok({ path, removed }))
       }),
 
-      handle('POST', SKILLS_MCP_API.skillScan, async (_req, res, body, _url) => {
+      handle('POST', SMC_API.skillScan, async (_req, res, body, _url) => {
         const dir = bodyText(body, 'dir')
         if (!dir) { writeJson(res, 400, { ok: false, error: 'directory is required' }); return }
         writeJson(res, 200, ok({ items: skills.scanSkills(dir) }))
       }),
 
-      handle('GET', SKILLS_MCP_API.skillStore, async (_req, res, _body, _url) => {
+      handle('GET', SMC_API.skillStore, async (_req, res, _body, _url) => {
         writeJson(res, 200, ok({ store: skills.storeStatus() }))
       }),
 
-      handle('POST', SKILLS_MCP_API.skillRollback, async (_req, res, _body, _url) => {
+      handle('POST', SMC_API.skillRollback, async (_req, res, _body, _url) => {
         writeJson(res, 200, ok({ result: skills.rollbackMigration() }))
       }),
 
       // Uninstall page's undo: put user-level skills back into the store after
       // a rollback gave them to their original locations.
-      handle('POST', SKILLS_MCP_API.skillRemigrate, async (_req, res, _body, _url) => {
+      handle('POST', SMC_API.skillRemigrate, async (_req, res, _body, _url) => {
         writeJson(res, 200, ok({ result: skills.reMigrate() }))
       }),
 
-      handle('POST', SKILLS_MCP_API.skillImport, async (_req, res, body, _url) => {
+      handle('POST', SMC_API.skillImport, async (_req, res, body, _url) => {
         const items = Array.isArray(body?.items) ? body.items as Array<{ sourcePath?: unknown; kind?: unknown }> : []
         if (items.length === 0) { writeJson(res, 400, { ok: false, error: 'nothing selected' }); return }
         const results = skills.importSkills(items.map((it) => ({
@@ -247,11 +247,11 @@ export function makeRoutes(deps: RoutesDeps): { routes: WebRoute[] } {
       }),
 
       // ── mcp ──────────────────────────────────────────────────────────────
-      handle('GET', SKILLS_MCP_API.mcp, async (_req, res, _body, _url) => {
+      handle('GET', SMC_API.mcp, async (_req, res, _body, _url) => {
         writeJson(res, 200, ok({ servers: mcp.listForUi() }))
       }),
 
-      handle('POST', SKILLS_MCP_API.mcpSave, async (_req, res, body, _url) => {
+      handle('POST', SMC_API.mcpSave, async (_req, res, body, _url) => {
         const server = body?.server as McpServerConfig | undefined
         const err = validateMcpServer(server)
         if (err) { writeJson(res, 400, { ok: false, error: err }); return }
@@ -263,7 +263,7 @@ export function makeRoutes(deps: RoutesDeps): { routes: WebRoute[] } {
       // Activating moves the definition back into ~/.dsh/S-M-C/mcp.json; archiving
       // moves it out to ~/.dsh/S-M-C/mcp-archive.json. Either way the live fiber set
       // is re-converged, so an archived server is really disconnected.
-      handle('POST', SKILLS_MCP_API.mcpEnabled, async (_req, res, body, _url) => {
+      handle('POST', SMC_API.mcpEnabled, async (_req, res, body, _url) => {
         const name = bodyText(body, 'name')
         const enabled = bodyFlag(body, 'enabled')
         if (!name) { writeJson(res, 400, { ok: false, error: 'name required' }); return }
@@ -276,7 +276,7 @@ export function makeRoutes(deps: RoutesDeps): { routes: WebRoute[] } {
         writeJson(res, 200, ok({ name, enabled }))
       }),
 
-      handle('POST', SKILLS_MCP_API.mcpDelete, async (_req, res, body, _url) => {
+      handle('POST', SMC_API.mcpDelete, async (_req, res, body, _url) => {
         const name = bodyText(body, 'name')
         if (!name) { writeJson(res, 400, { ok: false, error: 'name required' }); return }
         if (!allKnownNames().includes(name)) {
@@ -289,13 +289,13 @@ export function makeRoutes(deps: RoutesDeps): { routes: WebRoute[] } {
 
       // Uninstall page's 归还 for the MCP half: every archived definition goes
       // back into the active document and is re-connected on the next sync.
-      handle('POST', SKILLS_MCP_API.mcpRestoreAll, async (_req, res, _body, _url) => {
+      handle('POST', SMC_API.mcpRestoreAll, async (_req, res, _body, _url) => {
         const restored = mcp.activateAll()
         await mcp.sync(readMcpConfig().servers)
         writeJson(res, 200, ok({ restored }))
       }),
 
-      handle('POST', SKILLS_MCP_API.mcpTest, async (_req, res, body, _url) => {
+      handle('POST', SMC_API.mcpTest, async (_req, res, body, _url) => {
         const server = body?.server as McpServerConfig | undefined
         const err = validateMcpServer(server)
         if (err) { writeJson(res, 400, { ok: false, error: err }); return }
@@ -304,25 +304,25 @@ export function makeRoutes(deps: RoutesDeps): { routes: WebRoute[] } {
       }),
 
       // ── cli ──────────────────────────────────────────────────────────────
-      handle('GET', SKILLS_MCP_API.cli, async (_req, res, _body, url) => {
+      handle('GET', SMC_API.cli, async (_req, res, _body, url) => {
         writeJson(res, 200, ok({ items: cli.list(queryParam(url, 'cwd')) }))
       }),
 
-      handle('GET', SKILLS_MCP_API.cliState, async (_req, res, _body, url) => {
+      handle('GET', SMC_API.cliState, async (_req, res, _body, url) => {
         const name = queryParam(url, 'name') ?? ''
         if (!name) { writeJson(res, 400, { ok: false, error: 'name required' }); return }
         const state = await cli.readState(name, queryParam(url, 'cwd'))
         writeJson(res, 200, ok({ state }))
       }),
 
-      handle('GET', SKILLS_MCP_API.cliSubcommands, async (_req, res, _body, url) => {
+      handle('GET', SMC_API.cliSubcommands, async (_req, res, _body, url) => {
         const name = queryParam(url, 'name') ?? ''
         if (!name) { writeJson(res, 400, { ok: false, error: 'name required' }); return }
         const subcommands = await cli.listSubcommands(name, queryParam(url, 'cwd'))
         writeJson(res, 200, ok({ subcommands }))
       }),
 
-      handle('POST', SKILLS_MCP_API.cliSave, async (_req, res, body, _url) => {
+      handle('POST', SMC_API.cliSave, async (_req, res, body, _url) => {
         const entry = body?.entry as CliRegistryEntry | undefined
         const err = validateCliEntry(entry)
         if (err) { writeJson(res, 400, { ok: false, error: err }); return }
@@ -330,7 +330,7 @@ export function makeRoutes(deps: RoutesDeps): { routes: WebRoute[] } {
         writeJson(res, 200, ok({ entry: normalized }))
       }),
 
-      handle('POST', SKILLS_MCP_API.cliEnabled, async (_req, res, body, _url) => {
+      handle('POST', SMC_API.cliEnabled, async (_req, res, body, _url) => {
         const name = bodyText(body, 'name')
         const enabled = bodyFlag(body, 'enabled')
         if (!name) { writeJson(res, 400, { ok: false, error: 'name required' }); return }
@@ -338,14 +338,14 @@ export function makeRoutes(deps: RoutesDeps): { routes: WebRoute[] } {
         writeJson(res, 200, ok({ name, enabled }))
       }),
 
-      handle('POST', SKILLS_MCP_API.cliDelete, async (_req, res, body, _url) => {
+      handle('POST', SMC_API.cliDelete, async (_req, res, body, _url) => {
         const name = bodyText(body, 'name')
         if (!name) { writeJson(res, 400, { ok: false, error: 'name required' }); return }
         cli.removeEntry(name)
         writeJson(res, 200, ok({ name }))
       }),
 
-      handle('POST', SKILLS_MCP_API.cliProbe, async (_req, res, body, _url) => {
+      handle('POST', SMC_API.cliProbe, async (_req, res, body, _url) => {
         const name = bodyText(body, 'name')
         if (!name) { writeJson(res, 400, { ok: false, error: 'name required' }); return }
         const cwd = typeof body?.cwd === 'string' ? body.cwd : undefined
@@ -355,11 +355,11 @@ export function makeRoutes(deps: RoutesDeps): { routes: WebRoute[] } {
       }),
 
       // ── settings ─────────────────────────────────────────────────────────
-      handle('GET', SKILLS_MCP_API.settings, async (_req, res, _body, _url) => {
+      handle('GET', SMC_API.settings, async (_req, res, _body, _url) => {
         writeJson(res, 200, ok({ settings: readOwnSettings() }))
       }),
 
-      handle('POST', SKILLS_MCP_API.settingsSave, async (_req, res, body, _url) => {
+      handle('POST', SMC_API.settingsSave, async (_req, res, body, _url) => {
         const raw = body?.settings
         if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
           writeJson(res, 400, { ok: false, error: 'settings object required' }); return

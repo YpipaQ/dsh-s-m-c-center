@@ -1,7 +1,7 @@
 /**
  * Host half of dsh-s-m-c-center: three engines (skills on the
  * filesystem, MCP over real @deepseek-ai/dsh-mcp-client connections, the local
- * CLI registry), the /api/dsh-skills-mcp route family the browser half drives,
+ * CLI registry), the /api/dsh-s-m-c-center route family the browser half drives,
  * and the system-prompt announcement.
  *
  * The browser half contributes a first-class settings PAGE — not a card inside
@@ -40,7 +40,7 @@ export const inject = ['webServer', 'tools', 'systemPrompt']
  * string because the `settingsNamespace()` branding helper was dropped from
  * `@deepseek-ai/dsh-settings` in DSH 0.1.2-alpha.2.
  */
-export const SKILLS_MCP_NAMESPACE = 'dsh-s-m-c-center'
+export const SMC_NAMESPACE = 'dsh-s-m-c-center'
 
 /** Fields a user may put in that block. */
 export interface Config {
@@ -84,7 +84,7 @@ function workspaceCwd(): string | undefined {
  * {@link renderAnnouncement} instead, which splices in the actual skills, MCP
  * servers and CLI tools — see `src/announce.ts` for why that matters.
  */
-export const SKILLS_MCP_GUIDANCE = '本机已安装 dsh-s-m-c-center 插件（工具管理：技能 / MCP / CLI 管理器）：设置页「Web UI 插件 → 工具管理」。能力：浏览/启用/不启用/删除/导入技能（项目级 .dsh/skills、.agents/skills 与用户级 ~/.dsh/skills、~/.agents/skills）；管理 MCP 服务器（stdio 与 streamable-http，激活/归档）；以及本地 CLI 工具清单与状态（发现 skill 内嵌的 CLI 包装脚本如 scripts/run-cli、以及系统 CLI 如 gh/git/tencent-news-cli，报告是否安装/版本/需更新/子命令/API-Key 状态）。MCP 是真实连接：激活的服务器经 @deepseek-ai/dsh-mcp-client 真正连接并把工具注册为 mcp__<server>__<tool>，激活/归档会实际连接/断开。限制：本插件的数据统一存 ~/.dsh/S-M-C（MCP 激活 mcp.json、归档 mcp-archive.json、CLI 注册表 cli.json；密码/env 明文、权限 0600 由用户自行保证）；用户级技能正本在 ~/.dsh/S-M-C/skills，启用/不启用等于在 skills 目录增删联接（不改写 SKILL.md）；删除为物理删除，不可恢复。用户提到「技能管理 / 技能导入 / MCP 服务器 / MCP 连接 / CLI 工具 / CLI 状态」时即指本插件，请据此协作。'
+export const SMC_GUIDANCE = '本机已安装 dsh-s-m-c-center 插件（工具管理：技能 / MCP / CLI 管理器）：设置页「Web UI 插件 → 工具管理」。能力：浏览/启用/不启用/删除/导入技能（项目级 .dsh/skills、.agents/skills 与用户级 ~/.dsh/skills、~/.agents/skills）；管理 MCP 服务器（stdio 与 streamable-http，激活/归档）；以及本地 CLI 工具清单与状态（发现 skill 内嵌的 CLI 包装脚本如 scripts/run-cli、以及系统 CLI 如 gh/git/tencent-news-cli，报告是否安装/版本/需更新/子命令/API-Key 状态）。MCP 是真实连接：激活的服务器经 @deepseek-ai/dsh-mcp-client 真正连接并把工具注册为 mcp__<server>__<tool>，激活/归档会实际连接/断开。限制：本插件的数据统一存 ~/.dsh/S-M-C（MCP 激活 mcp.json、归档 mcp-archive.json、CLI 注册表 cli.json；密码/env 明文、权限 0600 由用户自行保证）；用户级技能正本在 ~/.dsh/S-M-C/skills，启用/不启用等于在 skills 目录增删联接（不改写 SKILL.md）；删除为物理删除，不可恢复。用户提到「技能管理 / 技能导入 / MCP 服务器 / MCP 连接 / CLI 工具 / CLI 状态」时即指本插件，请据此协作。'
 
 /**
  * Wire this plugin into a host context: adopt any legacy on-disk layout, build
@@ -176,7 +176,7 @@ export function apply(ctx: Context, config?: Config): void {
           try {
             return renderAnnouncement({ skills, mcp, cli }, workspaceCwd())
           } catch {
-            return SKILLS_MCP_GUIDANCE
+            return SMC_GUIDANCE
           }
         },
       })
@@ -213,7 +213,7 @@ export function apply(ctx: Context, config?: Config): void {
   // a deployment without the settings surface still runs routes + MCP, with
   // the composition entry (`config ?? {}`) as the authoritative config.
   ctx.inject(['settings'], (settingsCtx) => {
-    settingsCtx.settings.installSection(ctx, SKILLS_MCP_NAMESPACE, Config, config ?? {}, {
+    settingsCtx.settings.installSection(ctx, SMC_NAMESPACE, Config, config ?? {}, {
       setSource: (source) => {
         current = source
         sync()

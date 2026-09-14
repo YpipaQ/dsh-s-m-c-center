@@ -15,7 +15,7 @@ Two halves, both built from `src/` into `lib/` by a single `tsdown` run:
 - **Host half** (`index.ts`, `skills.ts`, `mcp.ts`, `cli.ts`, `routes.ts`, `protocol.ts`, plus the
   supporting `store.ts`, `migrate.ts`, `announce.ts`, `settings.ts`) uses `node:fs`, `node:os`,
   `node:path`, `node:child_process`, `@deepseek-ai/dsh-settings`, `schemastery`,
-  `@deepseek-ai/dsh-mcp-client`. It registers the `/api/dsh-skills-mcp/*` route family on the
+  `@deepseek-ai/dsh-mcp-client`. It registers the `/api/dsh-s-m-c-center/*` route family on the
   **loopback-only** `webServer` and announces itself to every agent via `systemPrompt.section`.
 - **Client half** (`client/index.ts`, `client/SettingsCard.tsx`, `client/locales.ts`,
   `client/api.ts`, `client/settings-card.module.css`, over the `client/components/**`,
@@ -23,7 +23,7 @@ Two halves, both built from `src/` into `lib/` by a single `tsdown` run:
   `@deepseek-ai/dsh-client-*` imports are **type-only** (erased at build). It registers a
   first-class `settings.section` page — one panel per tab (`SkillsPanel`, `McpPanel`, `CliPanel`,
   `GuidePanel`) sharing the hooks in `client/hooks/`.
-- `src/protocol.ts` holds the shared `SKILLS_MCP_API` path constants both halves import — a route
+- `src/protocol.ts` holds the shared `SMC_API` path constants both halves import — a route
   rename is a single edit.
 
 ## Build

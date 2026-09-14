@@ -7,5 +7,5 @@
  */
 import { SkillsMcpApi } from '../api.ts'
 
-/** Stateless fetch client over the /api/dsh-skills-mcp routes. */
+/** Stateless fetch client over the /api/dsh-s-m-c-center routes. */
 export const api = new SkillsMcpApi()

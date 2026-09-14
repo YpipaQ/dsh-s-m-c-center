@@ -4,7 +4,7 @@
 #
 # The row is a bare plugin by package name: the node half (exports ".") runs
 # in the host process (skills filesystem engine, MCP connection manager via
-# @deepseek-ai/dsh-mcp-client, /api/dsh-skills-mcp routes), and the
+# @deepseek-ai/dsh-mcp-client, /api/dsh-s-m-c-center routes), and the
 # `dsh.client` declaration in package.json makes the browser half
 # (exports "./client", served at /plugins/<id>/client.js) load in the web GUI.
 #

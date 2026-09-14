@@ -1,5 +1,5 @@
 /**
- * The /api/dsh-skills-mcp route family — the browser half's only data path.
+ * The /api/dsh-s-m-c-center route family — the browser half's only data path.
  * Skills CRUD, MCP CRUD (plus a one-shot connection test), the local CLI
  * registry, and the plugin's own settings block. Every route sits behind a
  * loopback-only trust fence with browser same-origin markers: these endpoints
@@ -22,7 +22,7 @@ export interface RoutesDeps {
     writeOwnSettings: (next: ManagerSettings) => ManagerSettings;
 }
 /**
- * Build every /api/dsh-skills-mcp route (exact paths).
+ * Build every /api/dsh-s-m-c-center route (exact paths).
  * @param deps - skills engine, MCP connection manager, and CLI manager.
  * @returns the route registrations.
  */

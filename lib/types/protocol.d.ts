@@ -1,6 +1,6 @@
 /**
  * Wire contract shared by the two halves of the plugin: every type that crosses
- * /api/dsh-skills-mcp, plus the path constants for that route family — the one
+ * /api/dsh-s-m-c-center, plus the path constants for that route family — the one
  * place a route rename has to be applied. Types only otherwise; the browser
  * half imports no Host value from here.
  * @module
@@ -234,33 +234,33 @@ export interface ManagerSettings {
     announceToAgent: boolean;
 }
 /** API paths shared by the host routes and the browser api client. */
-export declare const SKILLS_MCP_API: {
-    readonly skills: "/api/dsh-skills-mcp/skills";
-    readonly skillRead: "/api/dsh-skills-mcp/skills/read";
-    readonly skillToggle: "/api/dsh-skills-mcp/skills/toggle";
-    readonly skillDelete: "/api/dsh-skills-mcp/skills/delete";
-    readonly skillScan: "/api/dsh-skills-mcp/skills/scan";
-    readonly skillImport: "/api/dsh-skills-mcp/skills/import";
-    readonly skillStore: "/api/dsh-skills-mcp/skills/store";
-    readonly skillRollback: "/api/dsh-skills-mcp/skills/rollback";
+export declare const SMC_API: {
+    readonly skills: "/api/dsh-s-m-c-center/skills";
+    readonly skillRead: "/api/dsh-s-m-c-center/skills/read";
+    readonly skillToggle: "/api/dsh-s-m-c-center/skills/toggle";
+    readonly skillDelete: "/api/dsh-s-m-c-center/skills/delete";
+    readonly skillScan: "/api/dsh-s-m-c-center/skills/scan";
+    readonly skillImport: "/api/dsh-s-m-c-center/skills/import";
+    readonly skillStore: "/api/dsh-s-m-c-center/skills/store";
+    readonly skillRollback: "/api/dsh-s-m-c-center/skills/rollback";
     /** Re-run the one-shot migration after a rollback (the uninstall page's undo). */
-    readonly skillRemigrate: "/api/dsh-skills-mcp/skills/remigrate";
-    readonly mcp: "/api/dsh-skills-mcp/mcp";
-    readonly mcpSave: "/api/dsh-skills-mcp/mcp/save";
+    readonly skillRemigrate: "/api/dsh-s-m-c-center/skills/remigrate";
+    readonly mcp: "/api/dsh-s-m-c-center/mcp";
+    readonly mcpSave: "/api/dsh-s-m-c-center/mcp/save";
     /** Activate (true) or archive (false) a definition — see McpServerSummary.archived. */
-    readonly mcpEnabled: "/api/dsh-skills-mcp/mcp/enabled";
+    readonly mcpEnabled: "/api/dsh-s-m-c-center/mcp/enabled";
     /** Move every archived definition back into the active document (uninstall page). */
-    readonly mcpRestoreAll: "/api/dsh-skills-mcp/mcp/restore-all";
-    readonly mcpDelete: "/api/dsh-skills-mcp/mcp/delete";
-    readonly mcpTest: "/api/dsh-skills-mcp/mcp/test";
-    readonly cli: "/api/dsh-skills-mcp/cli";
-    readonly cliState: "/api/dsh-skills-mcp/cli/state";
-    readonly cliSubcommands: "/api/dsh-skills-mcp/cli/subcommands";
-    readonly cliSave: "/api/dsh-skills-mcp/cli/save";
-    readonly cliEnabled: "/api/dsh-skills-mcp/cli/enabled";
-    readonly cliDelete: "/api/dsh-skills-mcp/cli/delete";
-    readonly cliProbe: "/api/dsh-skills-mcp/cli/probe";
-    readonly settings: "/api/dsh-skills-mcp/settings";
-    readonly settingsSave: "/api/dsh-skills-mcp/settings/save";
+    readonly mcpRestoreAll: "/api/dsh-s-m-c-center/mcp/restore-all";
+    readonly mcpDelete: "/api/dsh-s-m-c-center/mcp/delete";
+    readonly mcpTest: "/api/dsh-s-m-c-center/mcp/test";
+    readonly cli: "/api/dsh-s-m-c-center/cli";
+    readonly cliState: "/api/dsh-s-m-c-center/cli/state";
+    readonly cliSubcommands: "/api/dsh-s-m-c-center/cli/subcommands";
+    readonly cliSave: "/api/dsh-s-m-c-center/cli/save";
+    readonly cliEnabled: "/api/dsh-s-m-c-center/cli/enabled";
+    readonly cliDelete: "/api/dsh-s-m-c-center/cli/delete";
+    readonly cliProbe: "/api/dsh-s-m-c-center/cli/probe";
+    readonly settings: "/api/dsh-s-m-c-center/settings";
+    readonly settingsSave: "/api/dsh-s-m-c-center/settings/save";
 };
 //# sourceMappingURL=protocol.d.ts.map

@@ -63,7 +63,7 @@ patch line; zero changes to dsh source:
 <div align="center">
   <img src="./docs/arch-overview.svg" alt="Mounting and dual-half architecture" width="88%" />
 </div>
-<p align="center"><i>Labels are in Chinese (file names, routes and API paths are verbatim): the host half registers the routes, announces every agent and really connects MCP; the client half only renders the settings page. They talk over <code>/api/dsh-skills-mcp/*</code>.</i></p>
+<p align="center"><i>Labels are in Chinese (file names, routes and API paths are verbatim): the host half registers the routes, announces every agent and really connects MCP; the client half only renders the settings page. They talk over <code>/api/dsh-s-m-c-center/*</code>.</i></p>
 
 **Store layout** — everything the plugin owns lives in `~/.dsh/S-M-C`; the two directories dsh
 scans deliberately stay outside it (the plugin only injects / removes links inside them):
@@ -142,7 +142,7 @@ dsh-s-m-c-center/
 │   ├── skills.ts       # skills filesystem engine
 │   ├── mcp.ts          # MCP config store + real connection manager
 │   ├── cli.ts          # CLI discovery / probe / registry + cli-state parsing
-│   ├── routes.ts       # /api/dsh-skills-mcp route family
+│   ├── routes.ts       # /api/dsh-s-m-c-center route family
 │   ├── protocol.ts     # shared types + API paths
 │   └── client/         # browser half (entry, SettingsCard, manager, api, locales, css)
 ├── lib/                # built plugin (host: index.js; client: client.js; types/*)

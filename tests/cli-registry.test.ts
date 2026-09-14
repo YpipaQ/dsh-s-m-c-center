@@ -1,7 +1,7 @@
 /**
  * CLI registry save/read consistency.
  *
- * The provided flag (提供 / 不提供) is the only control on a local CLI, so it
+ * The announce flag (公告 / 隐藏) is the only control on a local CLI, so it
  * has to survive a round trip through ~/.dsh/S-M-C/cli.json no matter what a
  * hand-edited document contains. These tests pin the invariant that reading and
  * writing agree: every persisted `enabled` is a real boolean, and the set the

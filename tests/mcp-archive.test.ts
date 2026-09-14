@@ -5,7 +5,7 @@
  * The promise being pinned here is that "not active" has exactly one spelling:
  * an archived definition is *absent* from the active document, not present with
  * a flag on it. That is what makes archiving equivalent to the skill store's
- * unlinked state and to a CLI's 不提供 — and what guarantees the agent never
+ * unlinked state and to a CLI's 「隐藏」 state — and what guarantees the agent never
  * sees a tool from a server the user switched off.
  *
  * Only the document-level methods are exercised; none of them touch the cordis

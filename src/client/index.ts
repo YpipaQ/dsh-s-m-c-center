@@ -4,7 +4,7 @@
  * Registers this plugin's locale dictionary and contributes one
  * `settings.section` — a whole page, sibling to the Plugins page, not a card
  * inside a group. The manager UI lives behind that page and reaches the host
- * through the `/api/dsh-skills-mcp` routes.
+ * through the `/api/dsh-s-m-c-center` routes.
  *
  * The settings scope is deliberately left unbound: third-party namespaces are
  * not exposed to the browser's configuration surface, so a scope-backed

@@ -6,6 +6,6 @@
  * the component file, which mixed transport concerns into the view layer).
  */
 import { SkillsMcpApi } from '../api.ts';
-/** Stateless fetch client over the /api/dsh-skills-mcp routes. */
+/** Stateless fetch client over the /api/dsh-s-m-c-center routes. */
 export declare const api: SkillsMcpApi;
 //# sourceMappingURL=useApi.d.ts.map

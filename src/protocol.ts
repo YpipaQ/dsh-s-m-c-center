@@ -1,6 +1,6 @@
 /**
  * Wire contract shared by the two halves of the plugin: every type that crosses
- * /api/dsh-skills-mcp, plus the path constants for that route family — the one
+ * /api/dsh-s-m-c-center, plus the path constants for that route family — the one
  * place a route rename has to be applied. Types only otherwise; the browser
  * half imports no Host value from here.
  * @module
@@ -250,32 +250,32 @@ export interface ManagerSettings {
 }
 
 /** API paths shared by the host routes and the browser api client. */
-export const SKILLS_MCP_API = {
-  skills: '/api/dsh-skills-mcp/skills',
-  skillRead: '/api/dsh-skills-mcp/skills/read',
-  skillToggle: '/api/dsh-skills-mcp/skills/toggle',
-  skillDelete: '/api/dsh-skills-mcp/skills/delete',
-  skillScan: '/api/dsh-skills-mcp/skills/scan',
-  skillImport: '/api/dsh-skills-mcp/skills/import',
-  skillStore: '/api/dsh-skills-mcp/skills/store',
-  skillRollback: '/api/dsh-skills-mcp/skills/rollback',
+export const SMC_API = {
+  skills: '/api/dsh-s-m-c-center/skills',
+  skillRead: '/api/dsh-s-m-c-center/skills/read',
+  skillToggle: '/api/dsh-s-m-c-center/skills/toggle',
+  skillDelete: '/api/dsh-s-m-c-center/skills/delete',
+  skillScan: '/api/dsh-s-m-c-center/skills/scan',
+  skillImport: '/api/dsh-s-m-c-center/skills/import',
+  skillStore: '/api/dsh-s-m-c-center/skills/store',
+  skillRollback: '/api/dsh-s-m-c-center/skills/rollback',
   /** Re-run the one-shot migration after a rollback (the uninstall page's undo). */
-  skillRemigrate: '/api/dsh-skills-mcp/skills/remigrate',
-  mcp: '/api/dsh-skills-mcp/mcp',
-  mcpSave: '/api/dsh-skills-mcp/mcp/save',
+  skillRemigrate: '/api/dsh-s-m-c-center/skills/remigrate',
+  mcp: '/api/dsh-s-m-c-center/mcp',
+  mcpSave: '/api/dsh-s-m-c-center/mcp/save',
   /** Activate (true) or archive (false) a definition — see McpServerSummary.archived. */
-  mcpEnabled: '/api/dsh-skills-mcp/mcp/enabled',
+  mcpEnabled: '/api/dsh-s-m-c-center/mcp/enabled',
   /** Move every archived definition back into the active document (uninstall page). */
-  mcpRestoreAll: '/api/dsh-skills-mcp/mcp/restore-all',
-  mcpDelete: '/api/dsh-skills-mcp/mcp/delete',
-  mcpTest: '/api/dsh-skills-mcp/mcp/test',
-  cli: '/api/dsh-skills-mcp/cli',
-  cliState: '/api/dsh-skills-mcp/cli/state',
-  cliSubcommands: '/api/dsh-skills-mcp/cli/subcommands',
-  cliSave: '/api/dsh-skills-mcp/cli/save',
-  cliEnabled: '/api/dsh-skills-mcp/cli/enabled',
-  cliDelete: '/api/dsh-skills-mcp/cli/delete',
-  cliProbe: '/api/dsh-skills-mcp/cli/probe',
-  settings: '/api/dsh-skills-mcp/settings',
-  settingsSave: '/api/dsh-skills-mcp/settings/save',
+  mcpRestoreAll: '/api/dsh-s-m-c-center/mcp/restore-all',
+  mcpDelete: '/api/dsh-s-m-c-center/mcp/delete',
+  mcpTest: '/api/dsh-s-m-c-center/mcp/test',
+  cli: '/api/dsh-s-m-c-center/cli',
+  cliState: '/api/dsh-s-m-c-center/cli/state',
+  cliSubcommands: '/api/dsh-s-m-c-center/cli/subcommands',
+  cliSave: '/api/dsh-s-m-c-center/cli/save',
+  cliEnabled: '/api/dsh-s-m-c-center/cli/enabled',
+  cliDelete: '/api/dsh-s-m-c-center/cli/delete',
+  cliProbe: '/api/dsh-s-m-c-center/cli/probe',
+  settings: '/api/dsh-s-m-c-center/settings',
+  settingsSave: '/api/dsh-s-m-c-center/settings/save',
 } as const
