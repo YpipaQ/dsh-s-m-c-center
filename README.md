@@ -133,6 +133,33 @@ Runtime state:
 - MCP: active servers in `S-M-C/mcp.json`, archived ones in `S-M-C/mcp-archive.json` (credentials/headers stored **plaintext** — keep both files at `0600`).
 - CLI registry: `S-M-C/cli.json`.
 
+## 🔒 Capability & dependency disclosure
+
+The plugin runs with the DSH process's privileges and touches files, network,
+commands and credentials. What each is used for, and where it stops:
+
+| Capability | What it does | Scope and bounds |
+|---|---|---|
+| **Files** | reads/writes the store `~/.dsh/S-M-C/**` (`skills/`, `mcp.json`, `mcp-archive.json`, `cli.json`); creates and removes directory junctions in the skill roots; reads `SKILL.md` and skill-embedded scripts | only the store and the four roots dsh scans (project/user `.dsh/skills`, `.agents/skills`); in-place skills get their frontmatter rewritten and nothing else; no other path is touched |
+| **Network** | connects to the MCP servers the user configures (a child process for stdio, HTTP for streamable-http) | only the addresses typed into the management page; the plugin itself has **no** built-in external service, **no** telemetry, and uploads nothing |
+| **Commands** | probes local CLI tools: runs their `--help` / `--version` or the probe command declared in `cli-state`, to report installed / version / subcommands | only commands that are in the registry and visible in the management page; nothing the user did not register |
+| **Credentials** | persists MCP `env` / headers / API keys and reads a CLI's `cli-state` | plaintext, local only, in `~/.dsh/S-M-C/*.json`; never sent anywhere. Keep both files at `0600` |
+
+**External dependencies**: `schemastery` is the only runtime dependency (settings
+validation); `@deepseek-ai/*` and `react` are peer dependencies provided by DSH.
+No native modules and **no** postinstall / prepare lifecycle scripts.
+
+**Failure bounds**: a directory scan or route failure degrades to an empty list
+with a placeholder; a failed migration is recorded in `failures` and startup
+continues; a failed MCP connection only changes the displayed status and leaves
+files alone; a failed announcement render falls back to the static blurb. None
+of them can stop DSH from starting.
+
+**Known risks**: deleting a skill is a physical, unrecoverable delete; MCP
+credentials are stored in plaintext; enabling depends on junctions, so moving
+the store by hand breaks them (relocate with `DSH_STORE_ROOT` instead — the
+plugin rebuilds the junctions itself).
+
 ## 🗂️ Repository structure
 
 ```

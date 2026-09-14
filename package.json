@@ -37,6 +37,11 @@
         "@deepseek-ai/dsh-api-remotes"
       ],
       "platform": "web"
+    },
+    "compatibility": {
+      "dshReleases": {
+        "0.1.5-rc.2": "compatible"
+      }
     }
   },
   "dependencies": {
