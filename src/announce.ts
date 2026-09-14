@@ -29,7 +29,7 @@ const INTRO = '本机装有 dsh-s-m-c-center 插件（技能/MCP/CLI 管理器�
 /** Imperative rules — the token-dense core the agent must obey. */
 const RULES = [
   '协作规则：',
-  '1. 新建用户级技能 → 写到 ~/.dsh/S-M-C/skills/<名>/（含 SKILL.md，frontmatter 需 name+description）。禁写 ~/.dsh/skills、~/.agents/skills 等库外目录。写入后为「未启用」，用户启用后可用。项目技能放 <项目>/.dsh/skills/。',
+  '1. 新建用户级技能 → 写到 ~/.dsh/S-M-C/skills/<名>/（含 SKILL.md，frontmatter 需 name+description）。禁写 ~/.dsh/skills、~/.agents/skills 等库外目录。写入后为「未启用」，用户启用后可用。项目专用技能放当前项目的 .dsh/skills/。',
   '2. 技能加载：仅用 `skill` 工具加载上方可用技能；未列出/已禁用不可用。',
   '3. MCP：仅调已连接服务器的 mcp__<server>__<tool>；未连接/归档不可用，需用户激活。',
   '4. CLI：未注册为工具，经终端按名调用；「未找到」先装；未列出（隐藏）勿理会。',
