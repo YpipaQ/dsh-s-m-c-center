@@ -5,15 +5,15 @@
 ## What this is
 
 A **self-contained** DeepSeek Harness (DSH) web plugin that adds a first-class **settings page**
-(「Web UI 插件 → 工具管理」) managing the agent's tool families — Skills / MCP / CLI, plus an
-uninstall-prep page that gives the managed data back before the plugin is removed:
+(「Web UI 插件 → 工具管理」) managing the agent's tool families — Skills / MCP / CLI, plus a
+guide page that explains how each works and gives the managed data back before the plugin is removed:
 
 | Tab | What it manages | Backing |
 |---|---|---|
 | Skills 技能 | browse / enable / disable / delete / import skills (project + user roots) | user-level canonical copy in `~/.dsh/S-M-C/skills` + directory junction; project-level `SKILL.md` frontmatter rewrite |
 | MCP 服务 | create / edit / test / **enable / archive** / delete MCP servers | real `@deepseek-ai/dsh-mcp-client` connections (`mcp__<server>__<tool>`); archived → `S-M-C/mcp-archive.json` |
 | CLI 工具 | discover / probe local CLI tools; register system CLIs | skill-embedded `scripts/run-cli` + `S-M-C/cli.json` |
-| 卸载准备 (Uninstall prep) | give the managed data back before removing the plugin: rollback ↔ re-migrate skills (red / green conditional button), inject all archived MCP back, list the files to delete by hand | `skills.reMigrate()` / `mcp.activateAll()`, plus the store paths read from `src/store.ts` |
+| 使用说明 (Guide) | how each tool family works (store & junctions, real connections & archiving, CLI discovery & announcement), then giving the managed data back before removing the plugin: rollback ↔ re-migrate skills (red / green conditional button), inject all archived MCP back, list the files to delete by hand | `skills.reMigrate()` / `mcp.activateAll()`, plus the store paths read from `src/store.ts` |
 
 It mounts purely as a profile bundle patch + package. **It does NOT modify DeepSeek Harness (DSH)
 source** — the plugin is a standalone package, installed alongside the harness.
@@ -35,7 +35,7 @@ dsh-s-m-c-center/
 │   ├── settings.ts     # read/write this plugin's block in ~/.dsh/settings.yaml
 │   ├── tsconfig.json / tsconfig.build.json / tsdown.config.ts  # type-check + declarations + two-half build
 │   ├── client/         # browser half
-│   │   ├── components/ # SettingsCard, ManagerShell, one panel per tab (Skills/Mcp/Cli/Uninstall), ui/ atoms
+│   │   ├── components/ # SettingsCard, ManagerShell, one panel per tab (Skills/Mcp/Cli/Guide), ui/ atoms
 │   │   ├── hooks/      # useApi, useAsyncList, useSkills, useMcp, useCli, useManagerSettings
 │   │   ├── utils/      # tab constants + formatting helpers
 │   │   └── index.ts / api.ts / locales.ts / settings-card.module.css

@@ -3,7 +3,7 @@
 </div>
 
 <div align="center">
-  <b style="font-size: 1.15em;">A DeepSeek Harness (DSH) web plugin: a Skill + MCP + CLI manager in one settings page, plus an uninstall-prep page that gives everything back.</b><br /><br />
+  <b style="font-size: 1.15em;">A DeepSeek Harness (DSH) web plugin: a Skill + MCP + CLI manager in one settings page, plus a guide page that explains how it all works and hands everything back.</b><br /><br />
   <a href="https://github.com/YpipaQ/dsh-s-m-c-center/releases"><img alt="release" src="https://img.shields.io/github/package-json/v/YpipaQ/dsh-s-m-c-center?style=flat-square&amp;label=release&amp;color=fe7d37&amp;labelColor=555" /></a>
   <a href="https://github.com/YpipaQ/dsh-s-m-c-center/stargazers"><img alt="stars" src="https://img.shields.io/github/stars/YpipaQ/dsh-s-m-c-center?style=flat-square&amp;label=stars&amp;color=f0a01e&amp;labelColor=555" /></a>
   <a href="https://github.com/YpipaQ/dsh-s-m-c-center/forks"><img alt="forks" src="https://img.shields.io/github/forks/YpipaQ/dsh-s-m-c-center?style=flat-square&amp;label=forks&amp;color=2b8df5&amp;labelColor=555" /></a>
@@ -17,15 +17,15 @@
 # dsh-s-m-c-center
 
 > **Tool Manager** — a self-contained DSH web plugin that adds a first-class **settings page** for the
-> agent's three tool families: **Skills**, **MCP servers**, and **local CLI tools** — plus an
-> uninstall-prep page that gives all of it back cleanly.
+> agent's three tool families: **Skills**, **MCP servers**, and **local CLI tools** — plus a guide
+> page that explains how each works and gives all of it back cleanly.
 >
 > Mounted purely as a profile bundle patch + package — **no DeepSeek Harness source changes**.
 
 ## ✨ What it is
 
-One settings page (「Web UI 插件 → 工具管理」) that manages the agent's tool families — and gives
-them all back cleanly when you want to uninstall:
+One settings page (「Web UI 插件 → 工具管理」) covering the agent's three tool families — plus a
+guide page that doubles as the manual and as the escape hatch when you want to uninstall:
 
 | Tab | Manages | Backing |
 |---|---|---|
@@ -38,11 +38,11 @@ them all back cleanly when you want to uninstall:
 
 ## 💡 Features
 
-- **Skills** — group by project/user level & source (`.dsh/skills`, `.agents/skills`, `~/.dsh/skills`, `~/.agents/skills`); user-level skills are adopted into the **unified store** `~/.dsh/S-M-C/skills` — enable = inject a directory junction into the skills root, disable = remove it (`SKILL.md` is never rewritten); project-level skills stay in place and still use frontmatter; two-step physical delete; detail (description / whenToUse / body); import from an arbitrary directory (native picker or typed path) into the store and enable it.
+- **Skills** — group by project/user level & source (`.dsh/skills`, `.agents/skills`, `~/.dsh/skills`, `~/.agents/skills`); user-level skills are adopted into the **unified store** `~/.dsh/S-M-C/skills` — enable = inject a directory junction into the skills root, disable = remove it (`SKILL.md` is never rewritten); project-level skills stay in place and still use frontmatter; deletion is two-step and physical; a detail view (description / whenToUse / body); import from an arbitrary directory (native picker or typed path) straight into the store, enabled.
 - **MCP** — two sub-pages (manage / create): the list gives each server one switch (**enable / archive**) plus delete, the create page holds the form or JSON editor with **test connection** (one-shot real probe) before saving; **enable / archive** actually connects/disconnects and registers `mcp__<server>__<tool>` tools (an archived definition moves to `S-M-C/mcp-archive.json` — not connected, not announced, kept whole so it can be moved back); live status (`connecting` / `running` / `failed` / `stopped`).
-- **CLI** — auto-discovers the CLI a skill wraps (its `scripts/run-cli.*` / `scripts/cli-state.*`, the tencent-news pattern); probes whether it is installed / its version / needs-update / API-key state (parsing `cli-state` JSON) and lists its subcommands (from `help`); a `S-M-C/cli.json` registry for system CLIs (`gh`, `git`, `tencent-news-cli` …) with an **announce / hide** switch (**hidden by default** — it only decides whether the CLI is written into the agent announcement, since the plugin cannot start or stop a system CLI) and delete; every row shows its origin and location (`Skill CLI · <path>` / `System CLI · <path>`).
-- **Guide** — how the three tool families work, with the escape hatch before removing the plugin at the bottom. "撤销迁移" (red) moves every stored skill back to its original location; when the store is empty but skills still sit in the skills directories, the same button turns into a green "迁移" to bring them back into the store — **reversible in both directions**. "MCP 全部注入" moves every archived server back into `mcp.json` in one pass and reconnects it. The page also lists exactly which store directory and config block must be removed by hand.
-- **UI** — fully bilingual copy (zh / en, 160 keys each; an English shell renders no Chinese); the announce section folds its long explanation behind an inline toggle, collapsed by default; destructive actions use two-step confirmation.
+- **CLI** — auto-discovers the CLI a skill wraps (`scripts/run-cli.*` / `cli-state.*`, the tencent-news pattern) and keeps a `S-M-C/cli.json` registry for system CLIs (`gh`, `git`, `tencent-news-cli` …). Every entry reports: installed? / version / update due? / API-key state (parsed from `cli-state` JSON) / subcommands (parsed from `help`) — and each row shows its origin and location (`Skill CLI · <path>` / `System CLI · <path>`). The **announce / hide** switch only decides whether the CLI goes into the agent announcement — the plugin cannot start or stop a system CLI — so entries are **hidden by default**; the ones a skill ships (labelled "Skill CLI") are best kept hidden, since their own skill is what calls them.
+- **Guide** — how the three tool families work, with the escape hatch before removing the plugin at the bottom. "Undo migration" (撤销迁移, red) moves every stored skill back to its original location; when the store is empty but skills still sit in the skills directories, the same button turns green and reads "Migrate" (迁移), bringing them back into the store — **reversible in both directions**. "Inject all MCP" (MCP 全部注入) moves every archived server back into `mcp.json` in one pass and reconnects it. The page also lists exactly which store directory and config block must be removed by hand.
+- **UI** — fully bilingual copy (zh / en, 176 keys each; an English shell renders no Chinese); the announce section folds its long explanation behind an inline toggle, collapsed by default; destructive actions use two-step confirmation.
 
 ## 📷 Screenshots
 
@@ -96,8 +96,7 @@ changes:
 > source or from the tarball below.
 
 ```sh
-# From npm: https://www.npmjs.com/package/dsh-s-m-c-center
-# Note: not on npm yet (publish deferred past Sep 17 for personal reasons) — use source or tarball
+# From npm (live after Sep 17): https://www.npmjs.com/package/dsh-s-m-c-center
 dsh plugin --profile web add dsh-s-m-c-center
 # or: npm install dsh-s-m-c-center
 
@@ -112,7 +111,7 @@ bash scripts/install.sh                                        # macOS / Linux /
 powershell -ExecutionPolicy Bypass -File scripts/install.ps1   # Windows
 ```
 
-After installing, **restart DSH and hard-refresh the browser** (Cmd/Ctrl+Shift+R). Then open
+The first install needs a **DSH restart plus a hard browser refresh** (Cmd/Ctrl+Shift+R). Then open
 「设置 → Web UI 插件 → **工具管理**」 (Settings → Web UI Plugins → Tool Manager).
 
 > **No restart needed to update**: once the plugin is installed, later upgrades **should not require

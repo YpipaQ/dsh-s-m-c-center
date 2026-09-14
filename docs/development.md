@@ -22,7 +22,7 @@ Two halves, both built from `src/` into `lib/` by a single `tsdown` run:
   `client/hooks/**` and `client/utils/**` layers) uses only `react` as a runtime external; the
   `@deepseek-ai/dsh-client-*` imports are **type-only** (erased at build). It registers a
   first-class `settings.section` page — one panel per tab (`SkillsPanel`, `McpPanel`, `CliPanel`,
-  `UninstallPanel`) sharing the hooks in `client/hooks/`.
+  `GuidePanel`) sharing the hooks in `client/hooks/`.
 - `src/protocol.ts` holds the shared `SKILLS_MCP_API` path constants both halves import — a route
   rename is a single edit.
 
@@ -46,7 +46,7 @@ pnpm build
 
 > **`lib/types` comes from `tsc -p tsconfig.build.json`, not from tsdown** (tsdown runs with
 > `dts: false`). Skipping that step ships stale declarations — one release went out with `reMigrate()` /
-> `activateAll()` missing from `lib/types/`, and the new `UninstallPanel` with no `.d.ts` at all.
+> `activateAll()` missing from `lib/types/`, and a newly added panel with no `.d.ts` at all.
 >
 > `tsconfig.build.json` also enables `declarationMap`. Without the flag tsc never rewrites the
 > existing `.d.ts.map` files, so they stay frozen at whatever they were the last time it was on —

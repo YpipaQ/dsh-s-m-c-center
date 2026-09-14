@@ -3,7 +3,7 @@
 </div>
 
 <div align="center">
-  <b style="font-size: 1.15em;">一个 DeepSeek Harness (DSH) Web 插件：在同一个设置页里管理「技能 + MCP + CLI」三类 agent 工具，并附一个卸载前准备页。</b><br /><br />
+  <b style="font-size: 1.15em;">一个 DeepSeek Harness (DSH) Web 插件：在同一个设置页里管理「技能 + MCP + CLI」三类 agent 工具，并附一个使用说明页。</b><br /><br />
   <a href="https://github.com/YpipaQ/dsh-s-m-c-center/releases"><img alt="release" src="https://img.shields.io/github/package-json/v/YpipaQ/dsh-s-m-c-center?style=flat-square&amp;label=release&amp;color=fe7d37&amp;labelColor=555" /></a>
   <a href="https://github.com/YpipaQ/dsh-s-m-c-center/stargazers"><img alt="stars" src="https://img.shields.io/github/stars/YpipaQ/dsh-s-m-c-center?style=flat-square&amp;label=stars&amp;color=f0a01e&amp;labelColor=555" /></a>
   <a href="https://github.com/YpipaQ/dsh-s-m-c-center/forks"><img alt="forks" src="https://img.shields.io/github/forks/YpipaQ/dsh-s-m-c-center?style=flat-square&amp;label=forks&amp;color=2b8df5&amp;labelColor=555" /></a>
@@ -16,13 +16,13 @@
 
 # dsh-s-m-c-center
 
-> **工具管理** —— 一个自包含的 DSH Web 插件，在设置页新增一个一级页面，统一管理 agent 的**三类工具**：**技能（Skills）/ MCP 服务器 / 本地 CLI 工具**；另有一个卸载前准备页，负责把它们干净地还回去。
+> **工具管理** —— 一个自包含的 DSH Web 插件，在设置页新增一个一级页面，统一管理 agent 的**三类工具**：**技能（Skills）/ MCP 服务器 / 本地 CLI 工具**；另有一个使用说明页，讲清三者各自的工作方式，并在最下方负责把它们干净地还回去。
 >
 > 仅通过 profile bundle patch + 包安装挂载 —— **不改任何 DeepSeek Harness 源码**。
 
 ## ✨ 它是什么
 
-一个设置页（「Web UI 插件 → **工具管理**」），管理 agent 的三类工具，外加一个卸载前准备页 —— 想卸载时能把它们干净地还回去：
+一个设置页（「Web UI 插件 → **工具管理**」）管理 agent 的三类工具，外加一个使用说明页 —— 它既是说明书，也是卸载前的总撤退口：
 
 | 页签 | 管理 | 底层 |
 |---|---|---|
@@ -35,11 +35,11 @@
 
 ## 💡 功能
 
-- **技能**：按项目级 / 用户级与来源分组（`.dsh/skills`、`.agents/skills`、`~/.dsh/skills`、`~/.agents/skills`）。用户级技能迁入**统一储存库** `~/.dsh/S-M-C/skills`，启用 = 在 skills 目录注入目录联接，不启用 = 移除联接（`SKILL.md` 一字不改）；项目级技能就地管理，仍用前言开关。两步确认物理删除；详情（description / whenToUse / 正文）；从任意目录扫描导入（原生目录选择器或手写路径），导入即入统一储存库并启用。
+- **技能**：按项目级 / 用户级与来源分组（`.dsh/skills`、`.agents/skills`、`~/.dsh/skills`、`~/.agents/skills`）。用户级技能迁入**统一储存库** `~/.dsh/S-M-C/skills`，启用 = 在 skills 目录注入目录联接，不启用 = 移除联接（`SKILL.md` 一字不改）；项目级技能就地管理，仍用前言开关。删除是两步确认、物理删除；点开可看详情（description / whenToUse / 正文）；支持从任意目录扫描导入（原生目录选择器或手写路径），导入即入储存库并启用。
 - **MCP**：分「管理 / 新建」两个子页——管理页一台服务器一个 **激活 / 归档** 开关（外加删除），新建页提供表单或 JSON 编辑，保存前可**测试连接**（一次性真实探测）；**激活 / 归档**真实连接 / 断开并注册 `mcp__<server>__<tool>` 工具（归档的定义移到 `S-M-C/mcp-archive.json`，不连接、不公告，但完整保留可随时移回）；实时状态（连接中 / 运行中 / 失败 / 已停止）。
-- **CLI**：自动发现 skill 包装的 CLI（其 `scripts/run-cli.*` / `cli-state.*`，即 tencent-news 模式）；探测是否安装 / 版本 / 需更新 / API-Key 状态（解析 `cli-state` JSON）并列出子命令（解析 `help`）；`S-M-C/cli.json` 登记系统 CLI（`gh`、`git`、`tencent-news-cli` …），提供 **公告 / 隐藏** 开关（**默认隐藏**——它只决定是否把这个 CLI 写进给 AI 的公告，插件无法启停系统装的 CLI）与删除；每行标出来源与位置（`技能 CLI · <路径>` / `系统 CLI · <路径>`）。
+- **CLI**：自动发现 skill 包装的 CLI（`scripts/run-cli.*` / `cli-state.*`，即 tencent-news 模式），并登记系统 CLI（`gh`、`git`、`tencent-news-cli` …，存于 `S-M-C/cli.json`）。每条都会探测：是否安装 / 版本 / 是否需更新 / API-Key 状态（解析 `cli-state` JSON）/ 子命令（解析 `help`），并在行上标出来源与位置（`技能 CLI · <路径>` / `系统 CLI · <路径>`）。**公告 / 隐藏**开关只决定是否把这个 CLI 写进给 AI 的公告 —— 插件无法启停系统装的 CLI，因此**默认隐藏**；随 skill 安装的（标「技能 CLI」）更建议保持隐藏，它们主要供所属 skill 自己调用。
 - **使用说明**：按技能 / MCP / CLI 三类讲清各自的工作方式，最下方是卸载前的总撤退口。「撤销迁移」（红）把储存库技能移回原始位置；储存库空着而 skills 目录还有技能时，同一按钮自动变为绿色的「迁移」，随时把技能再收进储存库——**双向可逆**；「MCP 全部注入」把归档服务器一次性移回 `mcp.json` 并重新连接；页面同时明确列出卸载后需手动删除的储存库目录与配置块。
-- **界面**：全量文案 zh / en 双语（各 160 键，英文环境零中文）；「向 AI 公告」的长说明折叠进标题行，默认收起、点击展开；删除等破坏性操作为两步确认。
+- **界面**：全量文案 zh / en 双语（各 176 键，英文环境零中文）；「向 AI 公告」的长说明折叠进标题行，默认收起、点击展开；删除等破坏性操作为两步确认。
 
 ## 📷 界面预览
 
@@ -86,8 +86,7 @@
 > 在此之前，请使用下方的源码或打包产物方式安装。
 
 ```sh
-# 从 npm 安装：https://www.npmjs.com/package/dsh-s-m-c-center
-# 注：本包尚未在 npm 上发布（作者个人原因，顺延至 9/17 之后），请用下方源码或 tarball 安装
+# 从 npm 安装（9/17 之后可用）：https://www.npmjs.com/package/dsh-s-m-c-center
 dsh plugin --profile web add dsh-s-m-c-center
 # 或：npm install dsh-s-m-c-center
 
@@ -102,7 +101,7 @@ bash scripts/install.sh                                        # macOS / Linux /
 powershell -ExecutionPolicy Bypass -File scripts/install.ps1   # Windows
 ```
 
-安装后**重启 DSH 并硬刷新浏览器**（Cmd/Ctrl+Shift+R），进入「设置 → Web UI 插件 → **工具管理**」即可。
+首次安装后需要**重启 DSH 并硬刷新浏览器**（Cmd/Ctrl+Shift+R），然后进入「设置 → Web UI 插件 → **工具管理**」。
 
 > **更新无需重启**：装好之后，后续升级这个插件**理论上不需要重启 DSH** —— 覆盖文件后直接硬刷新浏览器即可。
 > （只有改动涉及 Host 侧路由或后端逻辑时才需要重启一次 DSH 进程；纯界面上的改动刷新即生效。）
