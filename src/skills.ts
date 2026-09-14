@@ -343,13 +343,14 @@ export class SkillsManager {
       let parsed: ParsedSkill | null = null
       try { parsed = parseSkillFile(readFileSync(mdPath, 'utf8')) } catch { continue }
       if (parsed === null) continue
-      entries.push({
-        slug,
-        name: parsed.name,
-        origin: '',
-        source: this.linkedSource(slug) ?? 'user-dsh',
-        enabled: this.linkedSource(slug) !== undefined,
-        adoptedAt: new Date().toISOString(),
+        entries.push({
+          slug,
+          name: parsed.name,
+          origin: '',
+          source: this.linkedSource(slug) ?? 'user-dsh',
+          enabled: this.linkedSource(slug) !== undefined,
+          linked: this.linkedSource(slug) !== undefined,
+          adoptedAt: new Date().toISOString(),
       })
     }
     return { version: 1, entries }
@@ -495,6 +496,7 @@ export class SkillsManager {
       origin: releaseDir !== undefined ? join(releaseDir, slug) : sourcePath,
       source,
       enabled,
+      linked: enabled,
       adoptedAt: new Date().toISOString(),
     })
     return slug
@@ -560,6 +562,7 @@ export class SkillsManager {
         items.push({
           ...parsed, source, level: levelOf(source), kind: 'file', path: full,
           managed: false,
+          linked: false,
         })
       }
     }
@@ -611,14 +614,16 @@ export class SkillsManager {
         name: parsed.name,
         description: parsed.description,
         whenToUse: parsed.whenToUse,
-        enabled: false,
-        source: entry.source,
-        level: levelOf(entry.source),
-        kind: 'bundle',
-        path: mdPath,
-        managed: true,
-        slug: entry.slug,
-      })
+          enabled: false,
+          source: entry.source,
+          level: levelOf(entry.source),
+          kind: 'bundle',
+          path: mdPath,
+          managed: true,
+          // B: no link — the 1/2 axis is locked to 2 (disabled) by the UI.
+          linked: false,
+          slug: entry.slug,
+        })
     }
     // Bundles dropped straight into the store — an agent following the
     // announcement's registration guidance — have no manifest entry yet, so
@@ -642,12 +647,13 @@ export class SkillsManager {
         whenToUse: parsed.whenToUse,
         enabled: false,
         source: 'user-dsh',
-        level: 'user',
-        kind: 'bundle',
-        path: mdPath,
-        managed: true,
-        slug,
-      })
+          level: 'user',
+          kind: 'bundle',
+          path: mdPath,
+          managed: true,
+          linked: false,
+          slug,
+        })
     }
     // dsh-managed roots first (.dsh/skills before .agents/skills), then name.
     const srcRank = (s: SkillSource) => (s === 'user-dsh' || s === 'project-dsh' ? 0 : 1)
@@ -676,24 +682,57 @@ export class SkillsManager {
    * is never touched); everything else still falls back to rewriting the
    * frontmatter invocation flags.
    */
+  /**
+   * The 1/2 axis: whether the skill is injected into the agent context.
+   *
+   * Always a frontmatter rewrite — including for store-managed skills, whose
+   * canonical copy is reachable through the link, so dsh still reads its
+   * frontmatter there. The A/B link axis is a separate control
+   * ({@link setSkillLinked}) and is never touched here.
+   */
   setSkillEnabled(path: string, enabled: boolean): void {
-    const managed = this.resolveManaged(path)
-    if (managed !== undefined) {
-      const entry = this.entryOf(managed.slug)
-      if (enabled) this.linkInto(managed.slug, managed.source)
-      else this.unlinkFrom(managed.slug, managed.source)
-      this.upsertEntry({
-        slug: managed.slug,
-        name: entry?.name ?? basename(managed.slug),
-        origin: entry?.origin ?? '',
-        source: managed.source,
-        enabled,
-        adoptedAt: entry?.adoptedAt ?? new Date().toISOString(),
-      })
-      return
-    }
     const raw = readFileSync(path, 'utf8')
     writeFileSync(path, toggleInvocation(raw, enabled), 'utf8')
+    const managed = this.resolveManaged(path)
+    if (managed === undefined) return
+    const entry = this.entryOf(managed.slug)
+    this.upsertEntry({
+      slug: managed.slug,
+      name: entry?.name ?? basename(managed.slug),
+      origin: entry?.origin ?? '',
+      source: managed.source,
+      enabled,
+      linked: entry?.linked ?? this.linkedSource(managed.slug) !== undefined,
+      adoptedAt: entry?.adoptedAt ?? new Date().toISOString(),
+    })
+  }
+
+  /**
+   * The A/B axis: whether a link to the canonical copy sits in the skill root.
+   *
+   * For a skill that is not adopted yet, turning A on means adopting it into
+   * the store first (that is how an outside skill gains a link at all).
+   * Removing the link (B) leaves the canonical copy in the store — the skill
+   * simply stops being reachable, and its 1/2 switch locks to 2.
+   */
+  setSkillLinked(path: string, linked: boolean): void {
+    const managed = this.resolveManaged(path)
+    // Unmanaged skills have no A/B axis at all: their file already sits in a
+    // scanned root, and giving them a link would mean adopting them first —
+    // which is the import flow's job, not this switch's.
+    if (managed === undefined) return
+    if (linked) this.linkInto(managed.slug, managed.source)
+    else this.unlinkFrom(managed.slug, managed.source)
+    const entry = this.entryOf(managed.slug)
+    this.upsertEntry({
+      slug: managed.slug,
+      name: entry?.name ?? basename(managed.slug),
+      origin: entry?.origin ?? '',
+      source: managed.source,
+      enabled: entry?.enabled ?? true,
+      linked,
+      adoptedAt: entry?.adoptedAt ?? new Date().toISOString(),
+    })
   }
 
   /** Delete a skill: for managed ones, drop the link and the store copy. */
@@ -789,11 +828,12 @@ export class SkillsManager {
         failures.push({ path: origin, reason: String((e as Error)?.message ?? e) })
       }
     }
-    if (failures.length === 0) {
-      try { rmSync(join(this.storeDir(), 'index.json'), { force: true }) } catch { /* ignore */ }
+      if (failures.length === 0) {
+        try { rmSync(join(this.storeDir(), 'index.json'), { force: true }) } catch { /* ignore */ }
+      }
+      return { moved, failures }
     }
-    return { moved, failures }
-  }
+
 
   /**
    * Undo a rollback: run the one-shot migration again.
@@ -887,12 +927,13 @@ export class SkillsManager {
 }
 
 /** `{ managed, slug }` for a scanned entry, when it is a link into the store. */
-function managedFields(store: string, full: string): Pick<SkillSummary, 'managed' | 'slug'> {
+function managedFields(store: string, full: string): Pick<SkillSummary, 'managed' | 'linked' | 'slug'> {
   const target = linkTarget(full)
-  if (target === undefined) return { managed: false }
+  // Reached through a link into the store: the A/B axis applies and is on (A).
+  if (target === undefined) return { managed: false, linked: false }
   const resolved = resolve(dirname(full), target)
-  if (!inside(store, resolved)) return { managed: false }
-  return { managed: true, slug: basename(resolved) }
+  if (!inside(store, resolved)) return { managed: false, linked: false }
+  return { managed: true, linked: true, slug: basename(resolved) }
 }
 
 /**

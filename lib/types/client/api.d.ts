@@ -16,6 +16,8 @@ export declare class SkillsMcpApi {
     listSkills(cwd: string): Promise<SkillSummary[]>;
     readSkill(path: string): Promise<SkillDetail>;
     toggleSkill(path: string, enabled: boolean): Promise<void>;
+    /** The A/B axis: create (adopting first if needed) or remove the link. */
+    setSkillLinked(path: string, linked: boolean): Promise<void>;
     deleteSkill(path: string, kind: 'bundle' | 'file'): Promise<void>;
     scanSkills(dir: string): Promise<ScannedSkill[]>;
     importSkills(items: ImportItem[]): Promise<ImportResult[]>;

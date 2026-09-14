@@ -68,6 +68,8 @@ export interface UseSkillsResult {
   /** Transient action error. */
   message: string
   toggle: (skill: SkillSummary) => void
+  /** The A/B axis: create or remove the link (adopting first when needed). */
+  toggleLink: (skill: SkillSummary) => void
   /** Adopt an in-place skill into the store (import + enable, junction managed). */
   adoptOne: (skill: SkillSummary) => void
   /** Two-step delete: first call arms the confirm, second executes. */
@@ -136,6 +138,17 @@ export function useSkills(options: UseSkillsOptions): UseSkillsResult {
     setBusyPath(skill.path)
     setMessage('')
     api.toggleSkill(skill.path, !skill.enabled).then(() => {
+      setBusyPath('')
+      reloadAll()
+    }).catch((e) => { setBusyPath(''); setMessage(errorText(e)) })
+  }, [reloadAll])
+
+  // The A/B axis. Flipping to "no link" is not an optimistic update: the row
+  // may vanish from the in-place sub-page afterwards.
+  const toggleLink = useCallback((skill: SkillSummary) => {
+    setBusyPath(skill.path)
+    setMessage('')
+    api.setSkillLinked(skill.path, !skill.linked).then(() => {
       setBusyPath('')
       reloadAll()
     }).catch((e) => { setBusyPath(''); setMessage(errorText(e)) })
@@ -274,7 +287,7 @@ export function useSkills(options: UseSkillsOptions): UseSkillsResult {
     query, setQuery,
     enabledFilter, setEnabledFilter,
     busyPath, message,
-    toggle, adoptOne, remove, confirmPath,
+    toggle, toggleLink, adoptOne, remove, confirmPath,
     detailPath, detail, view,
     store,
     scan, setScanDir, chooseDir, doScan, toggleSelect, doImport,

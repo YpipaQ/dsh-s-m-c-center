@@ -109,7 +109,24 @@ export declare class SkillsManager {
      * is never touched); everything else still falls back to rewriting the
      * frontmatter invocation flags.
      */
+    /**
+     * The 1/2 axis: whether the skill is injected into the agent context.
+     *
+     * Always a frontmatter rewrite — including for store-managed skills, whose
+     * canonical copy is reachable through the link, so dsh still reads its
+     * frontmatter there. The A/B link axis is a separate control
+     * ({@link setSkillLinked}) and is never touched here.
+     */
     setSkillEnabled(path: string, enabled: boolean): void;
+    /**
+     * The A/B axis: whether a link to the canonical copy sits in the skill root.
+     *
+     * For a skill that is not adopted yet, turning A on means adopting it into
+     * the store first (that is how an outside skill gains a link at all).
+     * Removing the link (B) leaves the canonical copy in the store — the skill
+     * simply stops being reachable, and its 1/2 switch locks to 2.
+     */
+    setSkillLinked(path: string, linked: boolean): void;
     /** Delete a skill: for managed ones, drop the link and the store copy. */
     deleteSkill(path: string, kind: 'bundle' | 'file'): string;
     /**

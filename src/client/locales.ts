@@ -134,6 +134,10 @@ export type SkillsMcpKey =
   | 'activate'
   | 'archive'
   | 'switchEnable'
+  | 'switchLocked'
+  | 'linkOn'
+  | 'linkOff'
+  | 'linkNone'
   | 'switchDisable'
   // filters + grouping
   | 'filterAll'
@@ -274,8 +278,8 @@ export const zh: Record<SkillsMcpKey, string> = {
   adopt: '收容',
   adoptBusy: '收容中…',
   msgAdopted: '已收容进储存库并启用：{name}',
-  inPlaceNote: '开关＝写入 / 移除 SKILL.md 前言标记（此页技能不收容，文件会被改写）；「收容」把技能收进储存库，改由联接管理。',
-  storePageNote: '开关＝注入 / 移除目录联接（SKILL.md 永不改写）；导入的技能撤销迁移时释放到 ~/.dsh/skills。',
+  inPlaceNote: '启用 / 禁用＝是否注入 agent 上下文（写入 / 移除 SKILL.md 前言标记）。未收容的技能（文件本来就在扫描目录里）与已发送快捷方式的技能都可切换；快捷方式被移除时锁定为禁用。',
+  storePageNote: '是否在 skills 文件夹发送快捷方式（A/B）。发送＝agent 经联接看到该技能；移除＝联接消失，就地管理页的启用 / 禁用随之锁定。未收容的技能不参与此轴——需先导入或收容。',
   importSkill: '导入技能',
   newServer: '新建 / 编辑服务器',
   registerCli: '登记系统 CLI',
@@ -341,6 +345,10 @@ export const zh: Record<SkillsMcpKey, string> = {
   activate: '激活',
   archive: '归档',
   switchEnable: '启用',
+  switchLocked: '锁定禁用（无快捷方式）',
+  linkOn: '已发送快捷方式',
+  linkOff: '无快捷方式',
+  linkNone: '未收容',
   switchDisable: '禁用',
 
   filterAll: '全部',
@@ -478,8 +486,8 @@ export const en: Record<SkillsMcpKey, string> = {
   adopt: 'Adopt',
   adoptBusy: 'Adopting…',
   msgAdopted: 'Adopted into the store and enabled: {name}',
-  inPlaceNote: 'Switch = write / remove the SKILL.md frontmatter marker (these skills stay in place; the file is rewritten). “Adopt” moves a skill into the store, managed by links instead.',
-  storePageNote: 'Switch = inject / remove a directory junction (SKILL.md is never rewritten); imported skills release into ~/.dsh/skills on rollback.',
+  inPlaceNote: 'Enable / disable = whether the skill is injected into the agent context (written as / removed from the SKILL.md frontmatter marker). Switchable for unmanaged skills (their file already sits in a scanned root) and for skills whose link is in place; locked to disabled once the link is removed.',
+  storePageNote: 'Whether a link is sent into the skills folder (A/B). Sending it makes the skill reachable through the link; removing it drops the link and locks the in-place enable/disable switch. Unmanaged skills are outside this axis — import or adopt them first.',
   importSkill: 'Import skills',
   newServer: 'New / edit server',
   registerCli: 'Register a system CLI',
@@ -545,6 +553,10 @@ export const en: Record<SkillsMcpKey, string> = {
   activate: 'Enable',
   archive: 'Archive',
   switchEnable: 'Enable',
+  switchLocked: 'Locked off (no link)',
+  linkOn: 'Link sent',
+  linkOff: 'No link',
+  linkNone: 'Not adopted',
   switchDisable: 'Disable',
 
   filterAll: 'All',

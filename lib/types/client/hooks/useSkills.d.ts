@@ -54,6 +54,8 @@ export interface UseSkillsResult {
     /** Transient action error. */
     message: string;
     toggle: (skill: SkillSummary) => void;
+    /** The A/B axis: create or remove the link (adopting first when needed). */
+    toggleLink: (skill: SkillSummary) => void;
     /** Adopt an in-place skill into the store (import + enable, junction managed). */
     adoptOne: (skill: SkillSummary) => void;
     /** Two-step delete: first call arms the confirm, second executes. */

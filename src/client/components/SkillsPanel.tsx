@@ -1,11 +1,22 @@
 /**
- * Skills tab view, split into two sub-pages by switch semantics.
+ * Skills tab view, split into two sub-pages — one per axis.
  *
- * 「就地管理」 lists skills that are not store-managed (project roots, skills
- * still sitting in the user roots): the switch writes or removes the SKILL.md
- * frontmatter marker, and each row offers 「收容」 to move the skill into the
- * store. 「储存库」 lists store-managed skills: the switch injects or removes a
- * junction, and the import section lives here.
+ * Both sub-pages list every skill; they differ only in which axis the row's
+ * switch drives:
+ *
+ * - 「就地管理」 is the **1/2 axis**: whether the skill is injected into the
+ *   agent context, stored as a SKILL.md frontmatter marker (the upstream
+ *   approach). Available whenever the skill is reachable — it is unmanaged (its
+ *   file already sits in a scanned root) or the A link exists. When the link is
+ *   gone (B), the row is locked to 2 (disabled).
+ * - 「储存库」 is the **A/B axis**: whether a link to the canonical copy sits in
+ *   the skill root. Turning A on for an unmanaged skill adopts it into the
+ *   store first; turning it off (B) removes the link and leaves the copy in the
+ *   store.
+ *
+ * The axes do not conflict — the link decides reachability, the frontmatter
+ * decides injection — they only compose: A ∧ 1 injects, A ∧ 2 does not, B is
+ * locked to 2.
  *
  * Pure presentation over {@link useSkills}: it owns no state beyond the active
  * sub-page and never calls the API directly.
@@ -24,17 +35,8 @@ export interface SkillsPanelProps {
 
 /** Skills tab. */
 export function SkillsPanel({ skills, t }: SkillsPanelProps) {
-  const { scan, store } = skills
-  // The two switch semantics are different jobs: frontmatter rewrite in place
-  // versus junction management in the store. Keeping them apart is why each
-  // row can stay one decision.
+  const { store } = skills
   const [sub, setSub] = useState<'inplace' | 'store'>('inplace')
-  const isStore = sub === 'store'
-
-  const groups = skills.groups
-    .map((g) => ({ ...g, items: g.items.filter((s) => s.managed === isStore) }))
-    .filter((g) => g.items.length > 0)
-  const subTotal = skills.filtered.filter((s) => s.managed === isStore).length
 
   return (
     <div className={css.panel}>
@@ -53,152 +55,151 @@ export function SkillsPanel({ skills, t }: SkillsPanelProps) {
         ))}
       </div>
 
-      {sub === 'inplace' ? (
-        <div className={css.section}>
-          <div className={css.descWrap}>{t('inPlaceNote')}</div>
-          <div className={css.inline}>
-            <div className={css.hGrow}>{t('skillList')}</div>
-            <Button onClick={skills.reload} disabled={skills.refreshing}>{t('refresh')}</Button>
+      {sub === 'inplace'
+        ? (
+          <div className={css.section}>
+            <div className={css.descWrap}>{t('inPlaceNote')}</div>
+            <div className={css.inline}>
+              <div className={css.hGrow}>{t('skillList')}</div>
+              <Button onClick={skills.reload} disabled={skills.refreshing}>{t('refresh')}</Button>
+            </div>
+            <Toolbar skills={skills} t={t} />
+            <Messages skills={skills} />
+            <SkillList skills={skills} sub="inplace" t={t} />
           </div>
-          <div className={css.inline}>
-            <input
-              className={css.inputGrow}
-              placeholder={t('phSearchSkill')}
-              value={skills.query}
-              onChange={(e) => { skills.setQuery(e.target.value) }}
-            />
-            <select
-              className={css.filterSelect}
-              value={skills.enabledFilter}
-              onChange={(e) => { skills.setEnabledFilter(e.target.value as typeof skills.enabledFilter) }}
-            >
-              <option value="all">{t('filterAll')}</option>
-              <option value="enabled">{t('filterEnabled')}</option>
-              <option value="disabled">{t('filterDisabled')}</option>
-            </select>
-          </div>
-          {skills.message ? <ErrorText>{skills.message}</ErrorText> : null}
-          {skills.error ? <ErrorText>{skills.error}</ErrorText> : null}
-          <SkillList skills={skills} groups={groups} subTotal={subTotal} isStore={isStore} onAdopt={skills.adoptOne} t={t} />
-        </div>
-      ) : (
-        <div className={css.section}>
-          {store !== null && store.migrated
-            ? (
-              <div className={css.storeNote}>
-                <div className={css.noteLines}>
-                  <div>{format(t('storeMigrated'), { root: store.root || store.dir })}</div>
-                  <div>
-                    {format(t('storeCount'), { count: store.count, enabled: store.enabled })}
-                    {store.failures.length > 0 ? format(t('storeFailures'), { n: store.failures.length }) : ''}
+        )
+        : (
+          <div className={css.section}>
+            {store !== null && store.migrated
+              ? (
+                <div className={css.storeNote}>
+                  <div className={css.noteLines}>
+                    <div>{format(t('storeMigrated'), { root: store.root || store.dir })}</div>
+                    <div>
+                      {format(t('storeCount'), { count: store.count, enabled: store.enabled })}
+                      {store.failures.length > 0 ? format(t('storeFailures'), { n: store.failures.length }) : ''}
+                    </div>
                   </div>
                 </div>
-              </div>
-            )
-            : null}
-          <div className={css.descWrap}>{t('storePageNote')}</div>
-
-          <div className={css.inline}>
-            <div className={css.hGrow}>{t('importSkill')}</div>
-            <Button onClick={skills.reload} disabled={skills.refreshing}>{t('refresh')}</Button>
+              )
+              : null}
+            <div className={css.descWrap}>{t('storePageNote')}</div>
+            <ImportSection skills={skills} t={t} />
+            <div className={css.inline}><div className={css.hGrow}>{t('skillList')}</div></div>
+            <Toolbar skills={skills} t={t} />
+            <Messages skills={skills} />
+            <SkillList skills={skills} sub="store" t={t} />
           </div>
-          <div className={css.inline}>
-            <input
-              className={css.inputGrow}
-              placeholder={t('phImportDir')}
-              value={scan.dir}
-              onChange={(e) => { skills.setScanDir(e.target.value) }}
-            />
-            <Button onClick={skills.chooseDir}>{t('chooseFolder')}</Button>
-            <Button disabled={scan.busy} onClick={skills.doScan}>
-              {scan.busy ? t('scanning') : t('scanDir')}
+        )}
+    </div>
+  )
+}
+
+/** Search box + enabled filter, shared by both sub-pages. */
+function Toolbar({ skills, t }: { skills: UseSkillsResult; t: Translate }) {
+  return (
+    <div className={css.inline}>
+      <input
+        className={css.inputGrow}
+        placeholder={t('phSearchSkill')}
+        value={skills.query}
+        onChange={(e) => { skills.setQuery(e.target.value) }}
+      />
+      <select
+        className={css.filterSelect}
+        value={skills.enabledFilter}
+        onChange={(e) => { skills.setEnabledFilter(e.target.value as typeof skills.enabledFilter) }}
+      >
+        <option value="all">{t('filterAll')}</option>
+        <option value="enabled">{t('filterEnabled')}</option>
+        <option value="disabled">{t('filterDisabled')}</option>
+      </select>
+    </div>
+  )
+}
+
+/** Errors and transient action feedback. */
+function Messages({ skills }: { skills: UseSkillsResult }) {
+  return (
+    <>
+      {skills.message ? <ErrorText>{skills.message}</ErrorText> : null}
+      {skills.error ? <ErrorText>{skills.error}</ErrorText> : null}
+    </>
+  )
+}
+
+/** Scan-a-directory import; lives on the store sub-page (importing is adoption). */
+function ImportSection({ skills, t }: { skills: UseSkillsResult; t: Translate }) {
+  const scan = skills.scan
+  return (
+    <>
+      <div className={css.inline}>
+        <div className={css.hGrow}>{t('importSkill')}</div>
+      </div>
+      <div className={css.inline}>
+        <input
+          className={css.inputGrow}
+          placeholder={t('phImportDir')}
+          value={scan.dir}
+          onChange={(e) => { skills.setScanDir(e.target.value) }}
+        />
+        <Button onClick={skills.chooseDir}>{t('chooseFolder')}</Button>
+        <Button disabled={scan.busy} onClick={skills.doScan}>
+          {scan.busy ? t('scanning') : t('scanDir')}
+        </Button>
+      </div>
+      {scan.error ? <ErrorText>{scan.error}</ErrorText> : null}
+      {scan.items.length > 0
+        ? (
+          <div className={css.scanList}>
+            {scan.items.map((it) => (
+              <label key={it.sourcePath} className={css.row}>
+                <input
+                  type="checkbox"
+                  checked={!!scan.selected[it.sourcePath]}
+                  onChange={() => { skills.toggleSelect(it.sourcePath) }}
+                />
+                <div className={css.main}>
+                  <div className={css.name}>
+                    <span className={css.nameText}>{it.name}{it.kind === 'bundle' ? t('suffixDir') : t('suffixFile')}</span>
+                  </div>
+                  {it.description ? <div className={css.desc}>{it.description}</div> : null}
+                </div>
+              </label>
+            ))}
+            <Button disabled={scan.busy} onClick={skills.doImport}>
+              {format(t('importSelected'), { n: Object.keys(scan.selected).length })}
             </Button>
           </div>
-          {scan.error ? <ErrorText>{scan.error}</ErrorText> : null}
-          {scan.items.length > 0
-            ? (
-              <div className={css.scanList}>
-                {scan.items.map((it) => (
-                  <label key={it.sourcePath} className={css.row}>
-                    <input
-                      type="checkbox"
-                      checked={!!scan.selected[it.sourcePath]}
-                      onChange={() => { skills.toggleSelect(it.sourcePath) }}
-                    />
-                    <div className={css.main}>
-                      <div className={css.name}>
-                        <span className={css.nameText}>{it.name}{it.kind === 'bundle' ? t('suffixDir') : t('suffixFile')}</span>
-                      </div>
-                      {it.description ? <div className={css.desc}>{it.description}</div> : null}
-                    </div>
-                  </label>
-                ))}
-                <Button disabled={scan.busy} onClick={skills.doImport}>
-                  {format(t('importSelected'), { n: Object.keys(scan.selected).length })}
-                </Button>
-              </div>
-            )
-            : null}
-          {scan.note ? <div className={css.note}>{scan.note}</div> : null}
-
-          <div className={css.inline}>
-            <div className={css.hGrow}>{t('skillList')}</div>
-          </div>
-          <div className={css.inline}>
-            <input
-              className={css.inputGrow}
-              placeholder={t('phSearchSkill')}
-              value={skills.query}
-              onChange={(e) => { skills.setQuery(e.target.value) }}
-            />
-            <select
-              className={css.filterSelect}
-              value={skills.enabledFilter}
-              onChange={(e) => { skills.setEnabledFilter(e.target.value as typeof skills.enabledFilter) }}
-            >
-              <option value="all">{t('filterAll')}</option>
-              <option value="enabled">{t('filterEnabled')}</option>
-              <option value="disabled">{t('filterDisabled')}</option>
-            </select>
-          </div>
-          {skills.message ? <ErrorText>{skills.message}</ErrorText> : null}
-          {skills.error ? <ErrorText>{skills.error}</ErrorText> : null}
-          <SkillList skills={skills} groups={groups} subTotal={subTotal} isStore={isStore} t={t} />
-        </div>
-      )}
-    </div>
+        )
+        : null}
+      {scan.note ? <div className={css.note}>{scan.note}</div> : null}
+    </>
   )
 }
 
 interface SkillListProps {
   skills: UseSkillsResult
-  groups: UseSkillsResult['groups']
-  subTotal: number
-  isStore: boolean
-  /** Present on the in-place sub-page: adopts the skill into the store. */
-  onAdopt?: (skill: UseSkillsResult['filtered'][number]) => void
+  sub: 'inplace' | 'store'
   t: Translate
 }
 
-/** One sub-page's grouped list, with the shared loading / empty states. */
-function SkillList({ skills, groups, subTotal, isStore, onAdopt, t }: SkillListProps) {
+/** Grouped list of every skill, with the shared loading / empty states. */
+function SkillList({ skills, sub, t }: SkillListProps) {
   if (skills.loading) return <Loading t={t} />
-  if (groups.length === 0) {
-    return <EmptyState title={skills.query !== '' ? t('emptySkillMatch') : (isStore ? t('emptyStoreTab') : t('emptySkills'))} />
+  if (skills.groups.length === 0) {
+    return <EmptyState title={skills.query !== '' ? t('emptySkillMatch') : t('emptySkills')} />
   }
   return (
     <>
-      {groups.map((group) => (
+      {skills.groups.map((group) => (
         <div key={group.level}>
           <div className={css.groupH}>{group.label} ({group.items.length})</div>
           {group.items.map((skill) => (
-            <SkillRow key={skill.path} skill={skill} skills={skills} onAdopt={onAdopt} t={t} />
+            <SkillRow key={skill.path} skill={skill} skills={skills} sub={sub} t={t} />
           ))}
         </div>
       ))}
-      {skills.total > subTotal
-        ? <div className={css.note}>{t('otherSubpageHint')}</div>
-        : null}
     </>
   )
 }
@@ -206,14 +207,18 @@ function SkillList({ skills, groups, subTotal, isStore, onAdopt, t }: SkillListP
 interface SkillRowProps {
   skill: UseSkillsResult['filtered'][number]
   skills: UseSkillsResult
-  onAdopt?: (skill: SkillRowProps['skill']) => void
+  sub: 'inplace' | 'store'
   t: Translate
 }
 
-/** One row: switch (semantics depend on the sub-page), detail, actions. */
-function SkillRow({ skill, skills, onAdopt, t }: SkillRowProps) {
+/** One row; the switch drives whichever axis the active sub-page owns. */
+function SkillRow({ skill, skills, sub, t }: SkillRowProps) {
   const isBusy = skills.busyPath === skill.path
   const isOpen = skills.detailPath === skill.path
+  // B (managed, no link): the file is unreachable, so the 1/2 switch is locked
+  // to 2 until the store sub-page restores the link.
+  const lockedOff = sub === 'inplace' && skill.managed && !skill.linked
+
   return (
     <div>
       <div className={css.row}>
@@ -224,20 +229,26 @@ function SkillRow({ skill, skills, onAdopt, t }: SkillRowProps) {
           {skill.description ? <div className={css.desc}>{skill.description}</div> : null}
         </div>
         <Badge>{sourceLabel(skill.source)}</Badge>
-        <Switch
-          checked={skill.enabled}
-          disabled={isBusy}
-          onChange={() => { skills.toggle(skill) }}
-          label={skill.enabled ? t('switchEnable') : t('switchDisable')}
-        />
-        <Button onClick={() => { skills.view(skill) }}>{isOpen ? t('collapse') : t('details')}</Button>
-        {onAdopt
+        {sub === 'inplace'
           ? (
-            <Button disabled={isBusy} onClick={() => { onAdopt(skill) }}>
-              {isBusy ? t('adoptBusy') : t('adopt')}
-            </Button>
+            <Switch
+              checked={!lockedOff && skill.enabled}
+              disabled={isBusy || lockedOff}
+              onChange={() => { skills.toggle(skill) }}
+              label={lockedOff ? t('switchLocked') : (skill.enabled ? t('switchEnable') : t('switchDisable'))}
+            />
           )
-          : null}
+          : (
+            // Unmanaged skills sit outside this axis entirely: the switch is
+            // inert rather than silently adopting a skill into the store.
+            <Switch
+              checked={skill.managed && skill.linked}
+              disabled={isBusy || !skill.managed}
+              onChange={() => { skills.toggleLink(skill) }}
+              label={!skill.managed ? t('linkNone') : (skill.linked ? t('linkOn') : t('linkOff'))}
+            />
+          )}
+        <Button onClick={() => { skills.view(skill) }}>{isOpen ? t('collapse') : t('details')}</Button>
         <Button variant="danger" disabled={isBusy} onClick={() => { skills.remove(skill) }}>
           {skills.confirmPath === skill.path ? t('confirmDelete') : t('delete')}
         </Button>

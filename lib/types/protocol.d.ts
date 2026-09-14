@@ -32,6 +32,12 @@ export interface SkillSummary {
      * removes it, and the SKILL.md is never rewritten.
      */
     managed: boolean;
+    /**
+     * The A/B axis: whether a link to the canonical copy exists in a skill root.
+     * Meaningless for unmanaged skills (their file already sits in a scanned
+     * root, so they only follow the 1/2 frontmatter axis).
+     */
+    linked: boolean;
     /** Store directory name; present exactly when `managed` is true. */
     slug?: string;
 }
@@ -77,7 +83,10 @@ export interface StoreEntry {
     origin: string;
     /** Root the enabled link is written back to. */
     source: SkillSource;
+    /** The 1/2 axis: whether the skill is injected into the agent context. */
     enabled: boolean;
+    /** The A/B axis: whether the link currently exists in `source`. */
+    linked: boolean;
     adoptedAt: string;
 }
 /** Persisted store manifest (`~/.dsh/S-M-C/skills/index.json`). */
@@ -247,6 +256,9 @@ export declare const SMC_API: {
     readonly skillImport: "/api/dsh-s-m-c-center/skills/import";
     readonly skillStore: "/api/dsh-s-m-c-center/skills/store";
     readonly skillRollback: "/api/dsh-s-m-c-center/skills/rollback";
+    /** The A/B axis: create or remove the link to a stored skill's canonical copy. */
+    readonly skillLinked: "/api/dsh-s-m-c-center/skills/linked";
+    /** Release one stored skill back to the dsh user skills root (store row action). */
     /** Re-run the one-shot migration after a rollback (the uninstall page's undo). */
     readonly skillRemigrate: "/api/dsh-s-m-c-center/skills/remigrate";
     readonly mcp: "/api/dsh-s-m-c-center/mcp";

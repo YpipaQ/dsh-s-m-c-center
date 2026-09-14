@@ -208,6 +208,15 @@ export function makeRoutes(deps: RoutesDeps): { routes: WebRoute[] } {
         writeJson(res, 200, ok({ path, enabled }))
       }),
 
+      // The A/B axis: create or remove the link to a stored skill's copy.
+      handle('POST', SMC_API.skillLinked, async (_req, res, body, _url) => {
+        const path = bodyText(body, 'path')
+        if (!path) { writeJson(res, 400, { ok: false, error: 'path required' }); return }
+        const linked = bodyFlag(body, 'linked')
+        skills.setSkillLinked(path, linked)
+        writeJson(res, 200, ok({ path, linked }))
+      }),
+
       handle('POST', SMC_API.skillDelete, async (_req, res, body, _url) => {
         const path = bodyText(body, 'path')
         if (!path) { writeJson(res, 400, { ok: false, error: 'path required' }); return }

@@ -80,6 +80,11 @@ export class SkillsMcpApi {
     await call('POST', SMC_API.skillToggle, { path, enabled })
   }
 
+  /** The A/B axis: create (adopting first if needed) or remove the link. */
+  async setSkillLinked(path: string, linked: boolean): Promise<void> {
+    await call('POST', SMC_API.skillLinked, { path, linked })
+  }
+
   async deleteSkill(path: string, kind: 'bundle' | 'file'): Promise<void> {
     await call('POST', SMC_API.skillDelete, { path, kind })
   }

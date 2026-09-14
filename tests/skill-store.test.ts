@@ -184,21 +184,77 @@ describe('migration', () => {
   })
 })
 
-describe('toggling', () => {
-  it('adds and removes the link without rewriting SKILL.md', () => {
-    const skills = new SkillsManager()
-    bundle(userSkills(), 'alpha', 'alpha')
-    skills.migrate()
-    const before = readFileSync(join(store(), 'alpha', 'SKILL.md'), 'utf8')
+  describe('the two axes (A/B link, 1/2 frontmatter)', () => {
+    it('setSkillLinked adds and removes the link, leaving SKILL.md alone', () => {
+      const skills = new SkillsManager()
+      bundle(userSkills(), 'alpha', 'alpha')
+      skills.migrate()
+      const before = readFileSync(join(store(), 'alpha', 'SKILL.md'), 'utf8')
 
-    skills.setSkillEnabled(join(userSkills(), 'alpha', 'SKILL.md'), false)
-    expect(isLinked(join(userSkills(), 'alpha'))).toBe(false)
+      skills.setSkillLinked(join(userSkills(), 'alpha', 'SKILL.md'), false)
+      expect(isLinked(join(userSkills(), 'alpha'))).toBe(false)
+      const row = skills.listSkills().find((s) => s.slug === 'alpha')
+      expect(row?.managed).toBe(true)
+      expect(row?.linked).toBe(false) // B
 
-    const offPath = join(store(), 'alpha', 'SKILL.md')
-    skills.setSkillEnabled(offPath, true)
-    expect(isLinked(join(userSkills(), 'alpha'))).toBe(true)
-    expect(readFileSync(offPath, 'utf8')).toBe(before)
-  })
+      skills.setSkillLinked(join(store(), 'alpha', 'SKILL.md'), true)
+      expect(isLinked(join(userSkills(), 'alpha'))).toBe(true)
+      expect(readFileSync(join(store(), 'alpha', 'SKILL.md'), 'utf8')).toBe(before)
+      expect(skills.listSkills().find((s) => s.slug === 'alpha')?.linked).toBe(true) // A
+    })
+
+    it('setSkillEnabled writes the frontmarker (1/2) without touching the link', () => {
+      const skills = new SkillsManager()
+      bundle(userSkills(), 'alpha', 'alpha')
+      skills.migrate()
+      const linkedBefore = isLinked(join(userSkills(), 'alpha'))
+      expect(linkedBefore).toBe(true)
+
+      // 2: write the marker. The link (A) stays exactly as it was.
+      skills.setSkillEnabled(join(userSkills(), 'alpha', 'SKILL.md'), false)
+      expect(isLinked(join(userSkills(), 'alpha'))).toBe(linkedBefore)
+      const off = readFileSync(join(store(), 'alpha', 'SKILL.md'), 'utf8')
+      expect(off).toContain('disable-model-invocation: true')
+
+      // 1: remove the marker again.
+      skills.setSkillEnabled(join(userSkills(), 'alpha', 'SKILL.md'), true)
+      expect(readFileSync(join(store(), 'alpha', 'SKILL.md'), 'utf8'))
+        .not.toContain('disable-model-invocation: true')
+      expect(isLinked(join(userSkills(), 'alpha'))).toBe(true)
+    })
+
+    it('an unmanaged skill has no A/B axis (linked stays false)', () => {
+      const skills = new SkillsManager()
+      bundle(userSkills(), 'loose', 'loose')
+      const row = skills.listSkills().find((s) => s.name === 'loose')
+      expect(row?.managed).toBe(false)
+      expect(row?.linked).toBe(false)
+      // The 1/2 axis still applies to it.
+      skills.setSkillEnabled(row!.path, false)
+      expect(readFileSync(row!.path, 'utf8')).toContain('disable-model-invocation: true')
+    })
+
+    it('leaves the A/B axis off for an unmanaged skill (no silent adoption)', () => {
+      const skills = new SkillsManager()
+      // Sits in the agents root: reachable to the agent, but not adopted.
+      const outside = join(agents, 'skills')
+      const dir = bundle(outside, 'wanderer', 'wanderer')
+      const row = skills.listSkills().find((s) => s.name === 'wanderer')
+      expect(row?.path).toBe(join(dir, 'SKILL.md'))
+      expect(row?.managed).toBe(false)
+      expect(row?.linked).toBe(false)
+
+      // Asking for a link does nothing: the skill stays where it is, and the
+      // store is left alone.
+      skills.setSkillLinked(row!.path, true)
+      expect(existsSync(join(store(), 'wanderer', 'SKILL.md'))).toBe(false)
+      expect(isLinked(dir)).toBe(false)
+      expect(skills.readStoreIndex().entries.some((e) => e.slug === 'wanderer')).toBe(false)
+
+      // It still answers to the 1/2 axis.
+      skills.setSkillEnabled(row!.path, false)
+      expect(readFileSync(row!.path, 'utf8')).toContain('disable-model-invocation: true')
+    })
 
   it('keeps the unmanaged path on frontmatter toggling', () => {
     const skills = new SkillsManager()
@@ -212,7 +268,7 @@ describe('toggling', () => {
     expect(isLinked(target)).toBe(false)
   })
 
-  it('never deletes a real directory when unlinking', () => {
+  it('never deletes a real directory when turning the link off', () => {
     const skills = new SkillsManager()
     bundle(userSkills(), 'alpha', 'alpha')
     skills.migrate()
@@ -220,7 +276,7 @@ describe('toggling', () => {
     rmSync(join(userSkills(), 'alpha'), { recursive: true, force: true })
     bundle(userSkills(), 'alpha', 'alpha')
 
-    skills.setSkillEnabled(join(userSkills(), 'alpha', 'SKILL.md'), false)
+    skills.setSkillLinked(join(userSkills(), 'alpha', 'SKILL.md'), false)
     expect(existsSync(join(userSkills(), 'alpha', 'SKILL.md'))).toBe(true)
   })
 })
@@ -344,10 +400,13 @@ describe('agent-dropped bundles', () => {
 
     const row = skills.listSkills().find((s) => s.slug === 'agent-made')
     expect(row).toBeDefined()
-    skills.setSkillEnabled(row!.path, true)
+    // A: send the link (this is what adopts it into the manifest).
+    skills.setSkillLinked(row!.path, true)
 
     expect(isLinked(join(userSkills(), 'agent-made'))).toBe(true)
-    expect(skills.readStoreIndex().entries.some((e) => e.slug === 'agent-made')).toBe(true)
+    expect(skills.readStoreIndex().entries.some((e) => e.slug === 'agent-made' && e.linked)).toBe(true)
+    expect(skills.listSkills().find((s) => s.slug === 'agent-made')?.linked).toBe(true)
+    // 1/2 stays clean: dropping a bundle does not disable it.
     expect(skills.listSkills().find((s) => s.slug === 'agent-made')?.enabled).toBe(true)
   })
 
