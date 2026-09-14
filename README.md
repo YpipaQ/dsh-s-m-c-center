@@ -51,7 +51,7 @@ them all back cleanly when you want to uninstall:
   <img src="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-mcp.png" alt="MCP tab" width="49%" />
   <br />
   <img src="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-cli.png" alt="CLI tab" width="49%" />
-  <img src="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-uninstall.png" alt="Guide tab" width="49%" />
+  <img src="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-guide.png" alt="Guide tab" width="49%" />
 </div>
 <p align="center"><i>The four tabs: Skills (unified store + junctions), MCP (real connections), CLI (discover / probe / register), and Guide (how it works + reversible migration + the manual cleanup checklist). Personal paths are mosaicked.</i></p>
 

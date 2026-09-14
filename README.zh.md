@@ -48,7 +48,7 @@
   <img src="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-mcp.png" alt="MCP 服务" width="49%" />
   <br />
   <img src="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-cli.png" alt="CLI 工具" width="49%" />
-  <img src="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-uninstall.png" alt="使用说明" width="49%" />
+  <img src="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-guide.png" alt="使用说明" width="49%" />
 </div>
 <p align="center"><i>四个页签：技能（统一储存库 + 联接）、MCP（真实连接）、CLI（发现 / 探测 / 登记）、使用说明（工作方式说明 + 双向可逆的迁移与手动清理清单）。个人路径已打码。</i></p>
 
