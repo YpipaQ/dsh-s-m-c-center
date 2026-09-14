@@ -12,22 +12,17 @@ import { useState } from 'react'
 import { Badge, Button, EmptyState, ErrorText, Field, Loading, Switch } from './ui/index.tsx'
 import type { UseMcpResult } from '../hooks/useMcp.ts'
 import { MCP_STATUS_LABEL, mcpActiveLabel } from '../utils/constants.ts'
-import { format } from '../utils/format.ts'
 import type { Translate } from '../locales.ts'
 import css from '../settings-card.module.css'
 
 export interface McpPanelProps {
   mcp: UseMcpResult
-  /** The unified store root, so the copy quotes the real path. */
-  root?: string
   t: Translate
 }
 
 /** MCP tab. */
-export function McpPanel({ mcp, root, t }: McpPanelProps) {
+export function McpPanel({ mcp, t }: McpPanelProps) {
   const { form, patchForm } = mcp
-  const store = root || '~/.dsh/S-M-C'
-  const archivedCount = mcp.servers.filter((s) => s.archived).length
   // Managing the list and creating a definition are different jobs; keeping
   // them apart is why the list can stay one switch per row.
   const [sub, setSub] = useState<'manage' | 'create'>('manage')
@@ -96,15 +91,6 @@ export function McpPanel({ mcp, root, t }: McpPanelProps) {
                       </div>
                     )
                   })}
-            {archivedCount > 0
-              ? (
-                <div className={css.storeNote}>
-                  <div className={css.descWrap}>
-                    {format(t('mcpArchiveNote'), { n: archivedCount, store, activate: t('activate') })}
-                  </div>
-                </div>
-              )
-              : null}
           </div>
         )
         : (
@@ -192,11 +178,6 @@ export function McpPanel({ mcp, root, t }: McpPanelProps) {
                     </Button>
                   </>
                 )}
-            </div>
-            {/* Long explanatory copy: it wraps (see .descWrap) instead of being
-                clamped to one ellipsised line. */}
-            <div className={css.descWrap}>
-              {format(t('mcpStoreNote'), { store })}
             </div>
           </div>
         )}

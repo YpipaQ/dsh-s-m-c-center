@@ -32,7 +32,7 @@ them all back cleanly when you want to uninstall:
 | **Skills 技能** | browse / enable / disable / delete / import skills (project + user roots) | user-level canonical copy in `~/.dsh/S-M-C/skills` + directory junction; project-level `SKILL.md` frontmatter rewrite |
 | **MCP 服务** | create / edit / test / enable / archive / delete MCP servers | real `@deepseek-ai/dsh-mcp-client` connections (`mcp__<server>__<tool>`); archived ones move to `S-M-C/mcp-archive.json` |
 | **CLI 工具** | discover / probe local CLI tools; register system CLIs | skill-embedded `scripts/run-cli` + `S-M-C/cli.json` |
-| **卸载准备 (Uninstall prep)** | undo the skills migration ↔ migrate again; inject all archived MCP back; lists the store files to remove by hand | migration is reversible both ways (red / green conditional button); MCP injection is one-way by design |
+| **Guide** | how each tool family works (store & junctions, real connections & archiving, CLI discovery & announcement), plus the uninstall preparation | the copy that used to sit on the management tabs lives here; the management tabs stay purely operational |
 
 > Full feature guide (in Chinese): [`docs/功能介绍.md`](./docs/功能介绍.md).
 
@@ -41,7 +41,7 @@ them all back cleanly when you want to uninstall:
 - **Skills** — group by project/user level & source (`.dsh/skills`, `.agents/skills`, `~/.dsh/skills`, `~/.agents/skills`); user-level skills are adopted into the **unified store** `~/.dsh/S-M-C/skills` — enable = inject a directory junction into the skills root, disable = remove it (`SKILL.md` is never rewritten); project-level skills stay in place and still use frontmatter; two-step physical delete; detail (description / whenToUse / body); import from an arbitrary directory (native picker or typed path) into the store and enable it.
 - **MCP** — two sub-pages (manage / create): the list gives each server one switch (**enable / archive**) plus delete, the create page holds the form or JSON editor with **test connection** (one-shot real probe) before saving; **enable / archive** actually connects/disconnects and registers `mcp__<server>__<tool>` tools (an archived definition moves to `S-M-C/mcp-archive.json` — not connected, not announced, kept whole so it can be moved back); live status (`connecting` / `running` / `failed` / `stopped`).
 - **CLI** — auto-discovers the CLI a skill wraps (its `scripts/run-cli.*` / `scripts/cli-state.*`, the tencent-news pattern); probes whether it is installed / its version / needs-update / API-key state (parsing `cli-state` JSON) and lists its subcommands (from `help`); a `S-M-C/cli.json` registry for system CLIs (`gh`, `git`, `tencent-news-cli` …) with an **announce / hide** switch (**hidden by default** — it only decides whether the CLI is written into the agent announcement, since the plugin cannot start or stop a system CLI) and delete; every row shows its origin and location (`Skill CLI · <path>` / `System CLI · <path>`).
-- **Uninstall prep** — the escape hatch before removing the plugin. "撤销迁移" (red) moves every stored skill back to its original location; when the store is empty but skills still sit in the skills directories, the same button turns into a green "迁移" to bring them back into the store — **reversible in both directions**. "MCP 全部注入" moves every archived server back into `mcp.json` in one pass and reconnects it. The page also lists exactly which store directory and config block must be removed by hand.
+- **Guide** — how the three tool families work, with the escape hatch before removing the plugin at the bottom. "撤销迁移" (red) moves every stored skill back to its original location; when the store is empty but skills still sit in the skills directories, the same button turns into a green "迁移" to bring them back into the store — **reversible in both directions**. "MCP 全部注入" moves every archived server back into `mcp.json` in one pass and reconnects it. The page also lists exactly which store directory and config block must be removed by hand.
 - **UI** — fully bilingual copy (zh / en, 160 keys each; an English shell renders no Chinese); the announce section folds its long explanation behind an inline toggle, collapsed by default; destructive actions use two-step confirmation.
 
 ## 📷 Screenshots
@@ -51,9 +51,9 @@ them all back cleanly when you want to uninstall:
   <img src="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-mcp.png" alt="MCP tab" width="49%" />
   <br />
   <img src="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-cli.png" alt="CLI tab" width="49%" />
-  <img src="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-uninstall.png" alt="Uninstall prep tab" width="49%" />
+  <img src="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-uninstall.png" alt="Guide tab" width="49%" />
 </div>
-<p align="center"><i>The four tabs: Skills (unified store + junctions), MCP (real connections), CLI (discover / probe / register), and Uninstall prep (reversible migration + the manual cleanup checklist). Personal paths are mosaicked.</i></p>
+<p align="center"><i>The four tabs: Skills (unified store + junctions), MCP (real connections), CLI (discover / probe / register), and Guide (how it works + reversible migration + the manual cleanup checklist). Personal paths are mosaicked.</i></p>
 
 ## 🏗️ Architecture
 

@@ -23,7 +23,7 @@ export interface McpForm {
 /** Fresh editor state — a new object per call so callers never share it. */
 export declare function emptyMcpForm(): McpForm;
 /** The four management surfaces, in tab order. */
-export declare const TABS: readonly ["skills", "mcp", "cli", "uninstall"];
+export declare const TABS: readonly ["skills", "mcp", "cli", "guide"];
 export type TabId = (typeof TABS)[number];
 /** Tab captions as locale keys (bilingual through the plugin's dictionary). */
 export declare const TAB_LABELS: Record<TabId, SkillsMcpKey>;

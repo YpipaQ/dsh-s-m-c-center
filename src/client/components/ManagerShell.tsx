@@ -11,7 +11,7 @@ import { Button, ErrorText, Switch } from './ui/index.tsx'
 import { SkillsPanel } from './SkillsPanel.tsx'
 import { McpPanel } from './McpPanel.tsx'
 import { CliPanel } from './CliPanel.tsx'
-import { UninstallPanel } from './UninstallPanel.tsx'
+import { GuidePanel } from './GuidePanel.tsx'
 import { useSkills } from '../hooks/useSkills.ts'
 import { useMcp } from '../hooks/useMcp.ts'
 import { useCli } from '../hooks/useCli.ts'
@@ -106,9 +106,9 @@ export function ManagerShell({ cwd, enabled, pickDirectory, t }: ManagerShellPro
         )}
 
       {tab === 'skills' ? <SkillsPanel skills={skills} t={t} /> : null}
-      {tab === 'mcp' ? <McpPanel mcp={mcp} root={skills.store?.root} t={t} /> : null}
-      {tab === 'cli' ? <CliPanel cli={cli} root={skills.store?.root} t={t} /> : null}
-      {tab === 'uninstall' ? <UninstallPanel skills={skills} mcp={mcp} refresh={bump} t={t} /> : null}
+      {tab === 'mcp' ? <McpPanel mcp={mcp} t={t} /> : null}
+      {tab === 'cli' ? <CliPanel cli={cli} t={t} /> : null}
+      {tab === 'guide' ? <GuidePanel skills={skills} mcp={mcp} refresh={bump} t={t} /> : null}
     </div>
   )
 }

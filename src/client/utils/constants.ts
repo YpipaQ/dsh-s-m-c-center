@@ -32,7 +32,7 @@ export function emptyMcpForm(): McpForm {
 }
 
 /** The four management surfaces, in tab order. */
-export const TABS = ['skills', 'mcp', 'cli', 'uninstall'] as const
+export const TABS = ['skills', 'mcp', 'cli', 'guide'] as const
 export type TabId = (typeof TABS)[number]
 
 /** Tab captions as locale keys (bilingual through the plugin's dictionary). */
@@ -40,7 +40,7 @@ export const TAB_LABELS: Record<TabId, SkillsMcpKey> = {
   skills: 'tabSkills',
   mcp: 'tabMcp',
   cli: 'tabCli',
-  uninstall: 'tabUninstall',
+  guide: 'tabGuide',
 }
 
 /** Skill enablement filter options for the list toolbar. */

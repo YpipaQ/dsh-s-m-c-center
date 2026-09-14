@@ -153,6 +153,15 @@
   letter-spacing: 0.02em;
 }
 
+/* Top-level heading on the guide page (one per tool family). Deliberately a
+   step larger and darker than .groupH, which is the second level, so the two
+   ranks read as an unmistakable hierarchy. */
+.docH1 {
+  margin: 20px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
 .inline {
   display: flex;
   align-items: center;

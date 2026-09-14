@@ -37,10 +37,29 @@ export type SkillsMcpKey =
   | 'tabSkills'
   | 'tabMcp'
   | 'tabCli'
-  | 'tabUninstall'
+  | 'tabGuide'
   | 'panelMcp'
   | 'panelCli'
   | 'panelUninstall'
+  | 'panelGuide'
+  | 'guideIntro'
+  | 'guideSkillsH'
+  | 'guideStoreH'
+  | 'guideStoreP'
+  | 'guideEnableH'
+  | 'guideEnableP'
+  | 'guideMcpH'
+  | 'guideConnectH'
+  | 'guideConnectP'
+  | 'guideArchiveH'
+  | 'guideArchiveP'
+  | 'guideCliH'
+  | 'guideDiscoverH'
+  | 'guideDiscoverP'
+  | 'guideAnnounceH'
+  | 'guideAnnounceP'
+  | 'guideDataH'
+  | 'guideDataP'
   | 'sourceSystem'
   | 'skillList'
   | 'importSkill'
@@ -79,8 +98,6 @@ export type SkillsMcpKey =
   // banners
   | 'pluginDisabled'
   | 'storeMigrated'
-  | 'storeMigratedTitle'
-  | 'storeMigratedNote'
   | 'storeCount'
   | 'storeFailures'
   // statuses / badges / suffixes
@@ -105,7 +122,6 @@ export type SkillsMcpKey =
   | 'cliAdvertised'
   | 'cliHidden'
   | 'cliSkillSource'
-  | 'cliSkillHint'
   | 'mcpTabManage'
   | 'mcpTabCreate'
   | 'activate'
@@ -143,10 +159,6 @@ export type SkillsMcpKey =
   | 'fieldUrl'
   | 'fieldHeaders'
   // explanatory copy
-  | 'cliIntro'
-  | 'cliRegisterNote'
-  | 'mcpArchiveNote'
-  | 'mcpStoreNote'
   // CLI probe pane
   | 'rowExists'
   | 'rowPath'
@@ -223,10 +235,29 @@ export const zh: Record<SkillsMcpKey, string> = {
   tabSkills: 'Skills 技能',
   tabMcp: 'MCP 服务',
   tabCli: 'CLI 工具',
-  tabUninstall: '卸载准备',
+  tabGuide: '使用说明',
   panelMcp: 'MCP 服务器',
   panelCli: '本地 CLI 工具',
   panelUninstall: '卸载准备',
+  panelGuide: '使用说明',
+  guideIntro: '本插件把 agent 的三类工具（技能 / MCP / CLI）收在一个设置页里。下面按类别说明各自是怎么工作的；最下方是卸载前的准备。',
+  guideSkillsH: '技能（Skills）',
+  guideStoreH: '储存库与目录联接',
+  guideStoreP: '用户级技能的正本统一放在储存库的 skills/ 目录；各个 skills 目录里看到的是指向正本的目录联接。你不用管联接——界面上只有「启用 / 不启用」。',
+  guideEnableH: '启用 / 不启用',
+  guideEnableP: '启用 = 在对应 skills 目录注入联接，AI 立刻能用；不启用 = 移除联接，AI 完全看不到。两种情况都不改写 SKILL.md。项目级技能就地管理，仍按前言里的开关。',
+  guideMcpH: 'MCP 服务器',
+  guideConnectH: '真实连接',
+  guideConnectP: '激活的服务器经 @deepseek-ai/dsh-mcp-client 真正连接，工具注册为 mcp__<server>__<tool>——不是只写了一份配置。连接失败会在那一行显示原因。',
+  guideArchiveH: '激活 / 归档',
+  guideArchiveP: '归档 = 把定义移到 mcp-archive.json：不连接、不公告，但完整保留；点「激活」随时移回 mcp.json 并重新连接。编辑一条已归档的服务器再保存，等同于激活它。',
+  guideCliH: '本地 CLI 工具',
+  guideDiscoverH: '发现与体检',
+  guideDiscoverP: '自动发现 skill 内嵌的 CLI（scripts/run-cli）与登记的系统 CLI（gh / git 等），探测是否安装、版本、是否需更新、API-Key 状态，并列出子命令。',
+  guideAnnounceH: '公告 / 隐藏',
+  guideAnnounceP: '开关只决定「是否把这个 CLI 写进给 AI 的公告」——CLI 由系统安装，插件无法启停它。随 skills 安装的 CLI（标「技能 CLI」）建议保持隐藏：它们主要供所属 skill 自己调用，公告出去只会撑大系统提示。',
+  guideDataH: '数据放在哪里',
+  guideDataP: '插件的全部数据都在统一储存库（默认 ~/.dsh/S-M-C，可用 DSH_STORE_ROOT 改位）：skills/ 放技能正本、mcp.json 放激活的服务器、mcp-archive.json 放归档的、cli.json 放 CLI 登记表。密码与环境变量为明文，文件权限 0600 需自行保证。',
   sourceSystem: '系统 CLI',
   skillList: '技能列表',
   importSkill: '导入技能',
@@ -265,8 +296,6 @@ export const zh: Record<SkillsMcpKey, string> = {
 
   pluginDisabled: '插件已禁用：路由与 MCP 连接、CLI 探测均已停止，重新启用后刷新即可恢复。',
   storeMigrated: '技能已迁入统一储存库：{root}',
-  storeMigratedTitle: '储存库是怎么工作的',
-  storeMigratedNote: '正本在储存库的 skills/ 下；启用 = 在对应 skills 目录注入联接；不启用 = 移除联接，AI 完全看不到。SKILL.md 不再被改写。',
   storeCount: '共 {count} 个，已启用 {enabled} 个。',
   storeFailures: ' 有 {n} 个未能迁移，已保留在原位置。',
 
@@ -291,7 +320,6 @@ export const zh: Record<SkillsMcpKey, string> = {
   cliAdvertised: '公告',
   cliHidden: '隐藏',
   cliSkillSource: '技能 CLI',
-  cliSkillHint: '随 skills 安装的 CLI（标「技能 CLI」）建议保持隐藏——它们主要供所属 skill 内部调用，公告给 AI 只会撑大系统提示。',
   mcpTabManage: '管理',
   mcpTabCreate: '新建',
   activate: '激活',
@@ -329,10 +357,6 @@ export const zh: Record<SkillsMcpKey, string> = {
   fieldUrl: 'URL',
   fieldHeaders: '请求头 headers（KEY=VALUE 每行一个）',
 
-  cliIntro: '自动发现 skill 内嵌的 CLI（scripts/run-cli）与系统 CLI（gh/git 等）。来源：skill 上的脚本进行状态探测；系统 CLI 记录在 {store}/cli.json。开关只控制「是否把它写进给 AI 的公告」——CLI 由系统安装，插件无法启停它。',
-  cliRegisterNote: '登记后插件会探测其存在、版本与子命令，skill 内嵌 CLI 自动出现，无需手动登记。开关只控制「是否写进给 AI 的公告」，默认隐藏。',
-  mcpArchiveNote: '其中 {n} 条已归档，保存在 {store}/mcp-archive.json —— 不会被连接、不会向模型公告，但定义完整保留，随时可以点「{activate}」移回 mcp.json。',
-  mcpStoreNote: '{store} 是插件的统一储存库：激活的服务器写在这里的 mcp.json，经 @deepseek-ai/dsh-mcp-client 真实连接并把工具注册为 mcp__<server>__<tool>；归档的定义移到同目录的 mcp-archive.json（不连接、不公告）。保存即为激活：编辑一条已归档的服务器再保存，它会直接回到 mcp.json。',
 
   rowExists: '存在',
   rowPath: '路径',
@@ -406,10 +430,29 @@ export const en: Record<SkillsMcpKey, string> = {
   tabSkills: 'Skills',
   tabMcp: 'MCP servers',
   tabCli: 'CLI tools',
-  tabUninstall: 'Uninstall prep',
+  tabGuide: 'Guide',
   panelMcp: 'MCP servers',
   panelCli: 'Local CLI tools',
   panelUninstall: 'Uninstall preparation',
+  panelGuide: 'Guide',
+  guideIntro: 'The plugin gathers the agent’s three tool families (skills, MCP servers, local CLI tools) into one settings page. Below is how each of them works; the last section covers uninstalling.',
+  guideSkillsH: 'Skills',
+  guideStoreH: 'The store and its links',
+  guideStoreP: 'The canonical copy of every user-level skill lives under skills/ in the store; what each skills directory shows is a junction pointing at it. You never manage the links — the UI only offers enable / disable.',
+  guideEnableH: 'Enable / disable',
+  guideEnableP: 'Enabling injects a junction into the matching skills directory and the AI can use the skill right away; disabling removes it and the AI sees nothing. Neither rewrites SKILL.md. Project-level skills stay in place and still switch through their frontmatter.',
+  guideMcpH: 'MCP servers',
+  guideConnectH: 'Real connections',
+  guideConnectP: 'Enabled servers are really connected through @deepseek-ai/dsh-mcp-client and register their tools as mcp__<server>__<tool> — not merely a config entry. A failed connection shows its reason on the row.',
+  guideArchiveH: 'Enable / archive',
+  guideArchiveP: 'Archiving moves a definition to mcp-archive.json: not connected, not announced, but kept whole; “enable” moves it back to mcp.json and reconnects it. Editing an archived server and saving has the same effect as enabling it.',
+  guideCliH: 'Local CLI tools',
+  guideDiscoverH: 'Discovery and health check',
+  guideDiscoverP: 'Finds the CLIs a skill embeds (scripts/run-cli) plus registered system CLIs (gh, git …), probing whether each is installed, its version, whether an update is due, its API-key state, and its subcommands.',
+  guideAnnounceH: 'Announce / hide',
+  guideAnnounceP: 'The switch only decides whether the CLI is written into the agent announcement — the plugin cannot start or stop a CLI the system installs. Skill-provided CLIs (labelled “Skill CLI”) are best left hidden: their own skill calls them, and announcing them only pads the system prompt.',
+  guideDataH: 'Where the data lives',
+  guideDataP: 'Everything this plugin stores lives in one place — by default ~/.dsh/S-M-C (relocate with DSH_STORE_ROOT): skills/ holds the canonical skill copies, mcp.json the enabled servers, mcp-archive.json the archived ones, cli.json the CLI registry. Secrets and env vars are plain text; file permissions (0600) are up to you.',
   sourceSystem: 'System CLI',
   skillList: 'Skills',
   importSkill: 'Import skills',
@@ -448,8 +491,6 @@ export const en: Record<SkillsMcpKey, string> = {
 
   pluginDisabled: 'Plugin disabled: routes, MCP connections and CLI probing have all stopped. Re-enable it and refresh to recover.',
   storeMigrated: 'Skills moved into the unified store: {root}',
-  storeMigratedTitle: 'How the store works',
-  storeMigratedNote: 'The canonical copy lives under skills/ in the store; enabling injects a junction into the matching skills directory, disabling removes it — the AI then sees nothing. SKILL.md is never rewritten.',
   storeCount: '{count} in total, {enabled} enabled.',
   storeFailures: ' {n} could not be moved and were left in place.',
 
@@ -474,7 +515,6 @@ export const en: Record<SkillsMcpKey, string> = {
   cliAdvertised: 'Advertised',
   cliHidden: 'Hidden',
   cliSkillSource: 'Skill CLI',
-  cliSkillHint: 'Skill-provided CLIs (labelled “Skill CLI”) are best left hidden — their own skill is what calls them, and announcing them only pads the system prompt.',
   mcpTabManage: 'Manage',
   mcpTabCreate: 'Create',
   activate: 'Enable',
@@ -512,10 +552,6 @@ export const en: Record<SkillsMcpKey, string> = {
   fieldUrl: 'URL',
   fieldHeaders: 'Headers (KEY=VALUE, one per line)',
 
-  cliIntro: 'Auto-discovers the CLIs a skill embeds (scripts/run-cli) plus system CLIs (gh, git …). Skill scripts are probed for state; system CLIs are recorded in {store}/cli.json. The switch only decides whether a CLI is listed in that announcement — the plugin cannot start or stop a CLI the system installs.',
-  cliRegisterNote: 'Once registered, the plugin probes whether it exists, its version and its subcommands, Skill-embedded CLIs appear automatically — no need to register them.',
-  mcpArchiveNote: '{n} of them are archived in {store}/mcp-archive.json — never connected, never announced to the model, but kept whole: click “{activate}” any time to move one back to mcp.json.',
-  mcpStoreNote: '{store} is the plugin’s unified store: enabled servers are written to mcp.json here and really connected through @deepseek-ai/dsh-mcp-client, which registers their tools as mcp__<server>__<tool>; archived definitions move to mcp-archive.json in the same directory (not connected, not announced). Saving means enabling: edit an archived server and save, and it goes straight back to mcp.json.',
 
   rowExists: 'Exists',
   rowPath: 'Path',

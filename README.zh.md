@@ -29,7 +29,7 @@
 | **Skills 技能** | 浏览 / 启用 / 不启用 / 删除 / 导入技能（项目级 + 用户级） | 用户级走 `~/.dsh/S-M-C/skills` 正本 + 目录联接；项目级改写 `SKILL.md` 前言 |
 | **MCP 服务** | 新建 / 编辑 / 测试 / 激活 / 归档 / 删除 MCP 服务器 | 真实 `@deepseek-ai/dsh-mcp-client` 连接（`mcp__<server>__<tool>`）；归档移入 `S-M-C/mcp-archive.json` |
 | **CLI 工具** | 发现 / 探测本地 CLI 工具；登记系统 CLI | skill 内嵌 `scripts/run-cli` + `S-M-C/cli.json` |
-| **卸载准备** | 撤销技能迁移 ↔ 重新迁移；MCP 归档一键全部注回；列出卸载前需手动删除的文件 | 迁移双向可逆（红 / 绿条件按钮）；MCP 注入按设计不撤回 |
+| **使用说明** | 三类工具各自的工作方式（储存库与联接、真实连接与归档、CLI 发现与公告），以及卸载前的准备 | 说明集中在此页，前三个页签保持纯操作；卸载准备在最下方 |
 
 > 完整说明见 [`docs/功能介绍.md`](./docs/功能介绍.md)。
 
@@ -38,7 +38,7 @@
 - **技能**：按项目级 / 用户级与来源分组（`.dsh/skills`、`.agents/skills`、`~/.dsh/skills`、`~/.agents/skills`）。用户级技能迁入**统一储存库** `~/.dsh/S-M-C/skills`，启用 = 在 skills 目录注入目录联接，不启用 = 移除联接（`SKILL.md` 一字不改）；项目级技能就地管理，仍用前言开关。两步确认物理删除；详情（description / whenToUse / 正文）；从任意目录扫描导入（原生目录选择器或手写路径），导入即入统一储存库并启用。
 - **MCP**：分「管理 / 新建」两个子页——管理页一台服务器一个 **激活 / 归档** 开关（外加删除），新建页提供表单或 JSON 编辑，保存前可**测试连接**（一次性真实探测）；**激活 / 归档**真实连接 / 断开并注册 `mcp__<server>__<tool>` 工具（归档的定义移到 `S-M-C/mcp-archive.json`，不连接、不公告，但完整保留可随时移回）；实时状态（连接中 / 运行中 / 失败 / 已停止）。
 - **CLI**：自动发现 skill 包装的 CLI（其 `scripts/run-cli.*` / `cli-state.*`，即 tencent-news 模式）；探测是否安装 / 版本 / 需更新 / API-Key 状态（解析 `cli-state` JSON）并列出子命令（解析 `help`）；`S-M-C/cli.json` 登记系统 CLI（`gh`、`git`、`tencent-news-cli` …），提供 **公告 / 隐藏** 开关（**默认隐藏**——它只决定是否把这个 CLI 写进给 AI 的公告，插件无法启停系统装的 CLI）与删除；每行标出来源与位置（`技能 CLI · <路径>` / `系统 CLI · <路径>`）。
-- **卸载准备**：卸载插件前的总撤退口。「撤销迁移」（红）把储存库技能移回原始位置；储存库空着而 skills 目录还有技能时，同一按钮自动变为绿色的「迁移」，随时把技能再收进储存库——**双向可逆**；「MCP 全部注入」把归档服务器一次性移回 `mcp.json` 并重新连接；页面同时明确列出卸载后需手动删除的储存库目录与配置块。
+- **使用说明**：按技能 / MCP / CLI 三类讲清各自的工作方式，最下方是卸载前的总撤退口。「撤销迁移」（红）把储存库技能移回原始位置；储存库空着而 skills 目录还有技能时，同一按钮自动变为绿色的「迁移」，随时把技能再收进储存库——**双向可逆**；「MCP 全部注入」把归档服务器一次性移回 `mcp.json` 并重新连接；页面同时明确列出卸载后需手动删除的储存库目录与配置块。
 - **界面**：全量文案 zh / en 双语（各 160 键，英文环境零中文）；「向 AI 公告」的长说明折叠进标题行，默认收起、点击展开；删除等破坏性操作为两步确认。
 
 ## 📷 界面预览
@@ -48,9 +48,9 @@
   <img src="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-mcp.png" alt="MCP 服务" width="49%" />
   <br />
   <img src="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-cli.png" alt="CLI 工具" width="49%" />
-  <img src="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-uninstall.png" alt="卸载准备" width="49%" />
+  <img src="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-uninstall.png" alt="使用说明" width="49%" />
 </div>
-<p align="center"><i>四个页签：技能（统一储存库 + 联接）、MCP（真实连接）、CLI（发现 / 探测 / 登记）、卸载准备（双向可逆的迁移与手动清理清单）。个人路径已打码。</i></p>
+<p align="center"><i>四个页签：技能（统一储存库 + 联接）、MCP（真实连接）、CLI（发现 / 探测 / 登记）、使用说明（工作方式说明 + 双向可逆的迁移与手动清理清单）。个人路径已打码。</i></p>
 
 ## 🏗️ 架构
 

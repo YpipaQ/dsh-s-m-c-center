@@ -1,17 +1,16 @@
 /**
- * Uninstall preparation tab. Two independent options:
+ * Guide tab. Two halves, in this order:
  *
- * - Skills: when the store holds skills, "撤销迁移" (red, destructive) moves
- *   every bundle back to its original location; when the store is empty but
- *   unmanaged skills still sit in the user-level skills directories, the same
- *   slot turns into "迁移" (green, constructive) to bring them back into the
- *   store — so the action is always reversible in both directions.
- * - MCP: "MCP 全部注入" moves every archived definition back into the active
- *   document in one pass. No undo is provided: a server can be archived again
- *   individually at any time on the MCP tab.
+ * 1. How the plugin works — one top-level heading per tool family (skills /
+ *    MCP servers / local CLI tools) plus a "where the data lives" section, each
+ *    explained by second-level topics. The copy that used to sit on the three
+ *    management tabs lives here, so those tabs stay purely operational.
+ * 2. Uninstall preparation — the escape hatch itself: give back skills ("撤销
+ *    迁移" / "迁移"), inject every archived MCP server back, and list the files
+ *    that must be removed by hand.
  *
- * Below the actions, the store paths that must be removed by hand, since
- * plugin uninstall does not delete data.
+ * The two heading levels are visually distinct on purpose (`.docH1` for the
+ * families, `.groupH` for the topics inside them).
  *
  * Presentation over the skills/mcp hooks the shell already owns: this panel
  * triggers the shared API and asks the shell to bump its refresh counter, so
@@ -26,7 +25,7 @@ import { errorText, format } from '../utils/format.ts'
 import type { Translate } from '../locales.ts'
 import css from '../settings-card.module.css'
 
-export interface UninstallPanelProps {
+export interface GuidePanelProps {
   skills: UseSkillsResult
   mcp: UseMcpResult
   /** Bump the shell's refresh counter so the other tabs refetch. */
@@ -34,8 +33,18 @@ export interface UninstallPanelProps {
   t: Translate
 }
 
-/** Uninstall prep tab. */
-export function UninstallPanel({ skills, mcp, refresh, t }: UninstallPanelProps) {
+/** A second-level topic: heading plus its paragraph. */
+function Topic({ h, p }: { h: string; p: string }) {
+  return (
+    <>
+      <div className={css.groupH}>{h}</div>
+      <div className={css.descWrap}>{p}</div>
+    </>
+  )
+}
+
+/** Guide tab. */
+export function GuidePanel({ skills, mcp, refresh, t }: GuidePanelProps) {
   const [busy, setBusy] = useState<'rollback' | 'migrate' | 'restore' | ''>('')
   const [message, setMessage] = useState('')
 
@@ -79,14 +88,34 @@ export function UninstallPanel({ skills, mcp, refresh, t }: UninstallPanelProps)
   return (
     <div className={css.panel}>
       <div className={css.section}>
-        <div className={css.hGrow}>{t('panelUninstall')}</div>
+        <div className={css.hGrow}>{t('panelGuide')}</div>
+        <div className={css.descWrap}>{t('guideIntro')}</div>
+
+        <div className={css.docH1}>{t('guideSkillsH')}</div>
+        <Topic h={t('guideStoreH')} p={t('guideStoreP')} />
+        <Topic h={t('guideEnableH')} p={t('guideEnableP')} />
+
+        <div className={css.docH1}>{t('guideMcpH')}</div>
+        <Topic h={t('guideConnectH')} p={t('guideConnectP')} />
+        <Topic h={t('guideArchiveH')} p={t('guideArchiveP')} />
+
+        <div className={css.docH1}>{t('guideCliH')}</div>
+        <Topic h={t('guideDiscoverH')} p={t('guideDiscoverP')} />
+        <Topic h={t('guideAnnounceH')} p={t('guideAnnounceP')} />
+
+        <div className={css.docH1}>{t('guideDataH')}</div>
+        <div className={css.descWrap}>{t('guideDataP')}</div>
+      </div>
+
+      <div className={css.section}>
+        <div className={css.docH1}>{t('panelUninstall')}</div>
         <div className={css.descWrap}>{t('uninstallIntro')}</div>
         {message ? <ErrorText>{message}</ErrorText> : null}
         {nothingToDo
           ? <EmptyState title={t('uninstallNothing')} />
           : (
             <>
-              <div className={css.h}>{t('uninstallSkillsTitle')}</div>
+              <div className={css.groupH}>{t('uninstallSkillsTitle')}</div>
               <div className={css.descWrap}>{t('uninstallSkillsNote')}</div>
               <div className={css.inline}>
                 {canRollback
@@ -105,7 +134,7 @@ export function UninstallPanel({ skills, mcp, refresh, t }: UninstallPanelProps)
                   : null}
               </div>
 
-              <div className={css.h}>{t('uninstallMcpTitle')}</div>
+              <div className={css.groupH}>{t('uninstallMcpTitle')}</div>
               <div className={css.descWrap}>{t('uninstallMcpNote')}</div>
               <div className={css.inline}>
                 {canRestoreMcp
@@ -118,10 +147,8 @@ export function UninstallPanel({ skills, mcp, refresh, t }: UninstallPanelProps)
               </div>
             </>
           )}
-      </div>
 
-      <div className={css.section}>
-        <div className={css.h}>{t('uninstallFilesTitle')}</div>
+        <div className={css.groupH}>{t('uninstallFilesTitle')}</div>
         <div className={css.descWrap}>{t('uninstallFilesNote')}</div>
         <div className={css.pathList}>
           <div className={css.pathMain}>{storeRoot}{store === null ? '' : '/'}</div>

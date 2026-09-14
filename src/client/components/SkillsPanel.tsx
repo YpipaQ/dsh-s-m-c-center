@@ -2,7 +2,7 @@
  * Skills tab view. Pure presentation over {@link useSkills}: it owns no state
  * beyond what the hook exposes and never calls the API directly.
  */
-import { Badge, Button, Collapsible, EmptyState, ErrorText, Loading, Switch } from './ui/index.tsx'
+import { Badge, Button, EmptyState, ErrorText, Loading, Switch } from './ui/index.tsx'
 import type { UseSkillsResult } from '../hooks/useSkills.ts'
 import { format, sourceLabel } from '../utils/format.ts'
 import type { Translate } from '../locales.ts'
@@ -27,9 +27,6 @@ export function SkillsPanel({ skills, t }: SkillsPanelProps) {
                 {format(t('storeCount'), { count: store.count, enabled: store.enabled })}
                 {store.failures.length > 0 ? format(t('storeFailures'), { n: store.failures.length }) : ''}
               </div>
-              <Collapsible label={t('storeMigratedTitle')} expandLabel={t('expand')} collapseLabel={t('collapse')}>
-                <div>{t('storeMigratedNote')}</div>
-              </Collapsible>
             </div>
           </div>
         )

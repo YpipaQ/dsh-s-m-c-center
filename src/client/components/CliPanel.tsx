@@ -5,20 +5,16 @@
 import { Badge, Button, EmptyState, ErrorText, Loading, StateRow, Switch } from './ui/index.tsx'
 import type { CliDetailState, UseCliResult } from '../hooks/useCli.ts'
 import { cliAnnounceLabel } from '../utils/constants.ts'
-import { format } from '../utils/format.ts'
 import type { Translate } from '../locales.ts'
 import css from '../settings-card.module.css'
 
 export interface CliPanelProps {
   cli: UseCliResult
-  /** The unified store root, so the copy quotes the real registry path. */
-  root?: string
   t: Translate
 }
 
 /** CLI tab. */
-export function CliPanel({ cli, root, t }: CliPanelProps) {
-  const store = root || '~/.dsh/S-M-C'
+export function CliPanel({ cli, t }: CliPanelProps) {
   return (
     <div className={css.panel}>
       <div className={css.section}>
@@ -32,10 +28,6 @@ export function CliPanel({ cli, root, t }: CliPanelProps) {
           />
           <Button onClick={cli.reload} disabled={cli.refreshing}>{t('refresh')}</Button>
         </div>
-        <div className={css.descWrap} style={{ marginTop: 0 }}>
-          {format(t('cliIntro'), { store })}
-        </div>
-        <div className={css.descWrap}>{t('cliSkillHint')}</div>
         {cli.message ? <ErrorText>{cli.message}</ErrorText> : null}
         {cli.error ? <ErrorText>{cli.error}</ErrorText> : null}
         {cli.loading
@@ -95,9 +87,6 @@ export function CliPanel({ cli, root, t }: CliPanelProps) {
             onChange={(e) => { cli.setForm((prev) => ({ ...prev, command: e.target.value })) }}
           />
           <Button variant="primary" onClick={cli.addEntry}>{t('add')}</Button>
-        </div>
-        <div className={css.descWrap}>
-          {t('cliRegisterNote')}
         </div>
       </div>
     </div>
