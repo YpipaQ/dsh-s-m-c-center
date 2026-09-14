@@ -614,6 +614,35 @@ export class SkillsManager {
         slug: entry.slug,
       })
     }
+    // Bundles dropped straight into the store — an agent following the
+    // announcement's registration guidance — have no manifest entry yet, so
+    // the loop above cannot see them. List them as disabled managed rows:
+    // enabling goes through setSkillEnabled(), which upserts the manifest
+    // entry, and that is the moment the skill is adopted for good.
+    const knownSlugs = new Set(this.readStoreIndex().entries.map((e) => e.slug))
+    let stored: string[] = []
+    try { stored = readdirSync(store) } catch { /* store not created yet */ }
+    for (const slug of stored) {
+      if (slug.startsWith('.') || knownSlugs.has(slug)) continue
+      const mdPath = join(store, slug, 'SKILL.md')
+      if (seen.has(mdPath)) continue
+      let parsed: ParsedSkill | null = null
+      try { parsed = parseSkillFile(readFileSync(mdPath, 'utf8')) } catch { continue }
+      if (parsed === null) continue
+      seen.add(mdPath)
+      items.push({
+        name: parsed.name,
+        description: parsed.description,
+        whenToUse: parsed.whenToUse,
+        enabled: false,
+        source: 'user-dsh',
+        level: 'user',
+        kind: 'bundle',
+        path: mdPath,
+        managed: true,
+        slug,
+      })
+    }
     items.sort((a, b) => {
       if (a.level !== b.level) return a.level === 'project' ? -1 : 1
       return a.name < b.name ? -1 : a.name > b.name ? 1 : 0
@@ -775,21 +804,32 @@ export class SkillsManager {
   }
 
   /** Store state for the UI banner. */
-  storeStatus(): StoreStatus {
-    const dir = this.storeDir()
-    const index = this.readStoreIndex()
-    let enabled = 0
-    for (const entry of index.entries) if (this.linkedSource(entry.slug) !== undefined) enabled++
-    return {
-      root: storeRoot(),
-      dir,
-      migrated: index.migratedAt !== undefined,
-      migratedAt: index.migratedAt,
-      count: index.entries.length,
-      enabled,
-      failures: index.failures ?? [],
+    storeStatus(): StoreStatus {
+      const dir = this.storeDir()
+      const index = this.readStoreIndex()
+      let enabled = 0
+      for (const entry of index.entries) if (this.linkedSource(entry.slug) !== undefined) enabled++
+      // Count what is really on disk, not just what the manifest knows: a
+      // bundle an agent dropped in has no entry yet, but the banner should
+      // still say the store holds it.
+      const knownSlugs = new Set(index.entries.map((e) => e.slug))
+      let extra = 0
+      try {
+        for (const slug of readdirSync(dir)) {
+          if (slug.startsWith('.') || knownSlugs.has(slug)) continue
+          if (existsSync(join(dir, slug, 'SKILL.md'))) extra++
+        }
+      } catch { /* store not created yet */ }
+      return {
+        root: storeRoot(),
+        dir,
+        migrated: index.migratedAt !== undefined,
+        migratedAt: index.migratedAt,
+        count: index.entries.length + extra,
+        enabled,
+        failures: index.failures ?? [],
+      }
     }
-  }
 
   // ── import ──────────────────────────────────────────────────────────────
 

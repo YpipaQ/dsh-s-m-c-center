@@ -304,6 +304,48 @@ describe('rollback', () => {
   })
 })
 
+describe('agent-dropped bundles', () => {
+  it('lists a bundle dropped into the store after migration as a disabled row', () => {
+    const skills = new SkillsManager()
+    bundle(userSkills(), 'seed', 'seed')
+    skills.migrate() // index.json now exists and is valid
+
+    bundle(store(), 'agent-made', 'Agent Made') // agent writes directly — no manifest entry
+
+    const found = skills.listSkills().find((s) => s.slug === 'agent-made')
+    expect(found).toBeDefined()
+    expect(found?.enabled).toBe(false)
+    expect(found?.managed).toBe(true)
+    expect(found?.level).toBe('user')
+    expect(found?.path).toBe(join(store(), 'agent-made', 'SKILL.md'))
+  })
+
+  it('can be enabled through its store path, which adopts it into the manifest', () => {
+    const skills = new SkillsManager()
+    bundle(userSkills(), 'seed', 'seed')
+    skills.migrate()
+    bundle(store(), 'agent-made', 'Agent Made')
+
+    const row = skills.listSkills().find((s) => s.slug === 'agent-made')
+    expect(row).toBeDefined()
+    skills.setSkillEnabled(row!.path, true)
+
+    expect(isLinked(join(userSkills(), 'agent-made'))).toBe(true)
+    expect(skills.readStoreIndex().entries.some((e) => e.slug === 'agent-made')).toBe(true)
+    expect(skills.listSkills().find((s) => s.slug === 'agent-made')?.enabled).toBe(true)
+  })
+
+  it('counts dropped bundles in the store banner', () => {
+    const skills = new SkillsManager()
+    bundle(userSkills(), 'seed', 'seed')
+    skills.migrate()
+    expect(skills.storeStatus().count).toBe(1)
+
+    bundle(store(), 'agent-made', 'Agent Made')
+    expect(skills.storeStatus().count).toBe(2)
+  })
+})
+
 describe('store status', () => {
   it('reports counts and the store directory', () => {
     const skills = new SkillsManager()

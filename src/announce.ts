@@ -33,6 +33,7 @@ const INTRO = [
 
 /** Caveats the agent should know before promising anything. */
 const LIMITS = [
+  '注册新技能：为用户新建用户级技能时，把技能文件夹直接创建到 ~/.dsh/S-M-C/skills/<技能名>/（内含 SKILL.md，frontmatter 需有 name 与 description），不要写到 ~/.dsh/skills、~/.agents/skills 等储存库外的目录 —— 只有储存库里的技能才会被统一管理。写入后它会以「未启用」出现在管理页，用户启用（注入联接）后你即可通过 `skill` 工具加载；项目专用技能仍放当前项目的 .dsh/skills/。',
   '限制：本插件的数据统一存 ~/.dsh/S-M-C（MCP 激活 mcp.json、归档 mcp-archive.json、CLI 注册表 cli.json；密码/env 明文）；',
   '用户级技能的正本在 ~/.dsh/S-M-C/skills，启用/不启用等于在 skills 目录增删联接，不改写 SKILL.md；删除为物理删除，不可恢复。',
   '本清单在每次对话组装时生成，可能与管理页的即时操作有一处延迟。',
