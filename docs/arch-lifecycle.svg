@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 380" width="900" height="380" role="img" aria-label="三个开关在磁盘上的真实动作">
+  <title>三个开关在磁盘上的真实动作</title>
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="900" height="380" fill="#FFFFFF"/>
+
+  <text x="30" y="32" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="14" font-weight="500" fill="#0C447C">三个开关在磁盘上的真实动作（不是改配置字段，是真的动文件 / 动连接）</text>
+
+  <rect x="30" y="48" width="266" height="40" rx="8" fill="#E6F1FB" stroke="#378ADD"/>
+  <text x="163" y="72" text-anchor="middle" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="13" font-weight="500" fill="#0C447C">技能：启用 / 不启用</text>
+
+  <rect x="316" y="48" width="266" height="40" rx="8" fill="#E6F1FB" stroke="#378ADD"/>
+  <text x="449" y="72" text-anchor="middle" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="13" font-weight="500" fill="#0C447C">MCP：激活 / 归档</text>
+
+  <rect x="602" y="48" width="266" height="40" rx="8" fill="#E6F1FB" stroke="#378ADD"/>
+  <text x="735" y="72" text-anchor="middle" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="13" font-weight="500" fill="#0C447C">CLI：提供 / 不提供</text>
+
+  <rect x="30" y="100" width="266" height="76" rx="8" fill="#E1F5EE" stroke="#1D9E75"/>
+  <text x="48" y="122" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="13" font-weight="500" fill="#085041">启用</text>
+  <text x="48" y="144" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="12" fill="#0F6E56">在 skills 目录注入联接</text>
+  <text x="48" y="164" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="12" fill="#0F6E56">agent 可见并可调用</text>
+
+  <rect x="316" y="100" width="266" height="76" rx="8" fill="#E1F5EE" stroke="#1D9E75"/>
+  <text x="334" y="122" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="13" font-weight="500" fill="#085041">激活</text>
+  <text x="334" y="144" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="12" fill="#0F6E56">定义在 mcp.json，真的连上</text>
+  <text x="334" y="164" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="12" fill="#0F6E56">注册 mcp__&lt;s&gt;__&lt;t&gt; 工具</text>
+
+  <rect x="602" y="100" width="266" height="76" rx="8" fill="#E1F5EE" stroke="#1D9E75"/>
+  <text x="620" y="122" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="13" font-weight="500" fill="#085041">提供</text>
+  <text x="620" y="144" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="12" fill="#0F6E56">cli.json 中 available = true</text>
+  <text x="620" y="164" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="12" fill="#0F6E56">agent 可见</text>
+
+  <path d="M163 180 V208" fill="none" stroke="#5F5E5A" stroke-width="1.5" marker-start="url(#ar)" marker-end="url(#ar)"/>
+  <path d="M449 180 V208" fill="none" stroke="#5F5E5A" stroke-width="1.5" marker-start="url(#ar)" marker-end="url(#ar)"/>
+  <path d="M735 180 V208" fill="none" stroke="#5F5E5A" stroke-width="1.5" marker-start="url(#ar)" marker-end="url(#ar)"/>
+
+  <rect x="30" y="212" width="266" height="76" rx="8" fill="#F1EFE8" stroke="#888780"/>
+  <text x="48" y="234" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="13" font-weight="500" fill="#2C2C2A">不启用</text>
+  <text x="48" y="256" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="12" fill="#5F5E5A">移除联接，正本仍在库里</text>
+  <text x="48" y="276" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="12" fill="#5F5E5A">agent 完全看不到</text>
+
+  <rect x="316" y="212" width="266" height="76" rx="8" fill="#F1EFE8" stroke="#888780"/>
+  <text x="334" y="234" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="13" font-weight="500" fill="#2C2C2A">归档</text>
+  <text x="334" y="256" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="12" fill="#5F5E5A">定义移到 mcp-archive.json</text>
+  <text x="334" y="276" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="12" fill="#5F5E5A">不连接、不公告</text>
+
+  <rect x="602" y="212" width="266" height="76" rx="8" fill="#F1EFE8" stroke="#888780"/>
+  <text x="620" y="234" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="13" font-weight="500" fill="#2C2C2A">不提供</text>
+  <text x="620" y="256" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="12" fill="#5F5E5A">available = false</text>
+  <text x="620" y="276" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="12" fill="#5F5E5A">agent 看不到，登记项仍在</text>
+
+  <rect x="30" y="300" width="266" height="40" rx="8" fill="#F1EFE8" stroke="#B4B2A9"/>
+  <text x="48" y="324" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="12" fill="#5F5E5A">SKILL.md 一字不改</text>
+
+  <rect x="316" y="300" width="266" height="40" rx="8" fill="#F1EFE8" stroke="#B4B2A9"/>
+  <text x="334" y="324" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="12" fill="#5F5E5A">完整保留，可随时移回</text>
+
+  <rect x="602" y="300" width="266" height="40" rx="8" fill="#F1EFE8" stroke="#B4B2A9"/>
+  <text x="620" y="324" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="12" fill="#5F5E5A">只切可见性，不删除登记</text>
+</svg>

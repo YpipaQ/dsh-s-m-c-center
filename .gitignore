@@ -1,0 +1,35 @@
+# dependencies / build junk (.tgz build artifacts stay on disk, not in git)
+node_modules/
+dist/
+build/
+*.log
+*.tsbuildinfo
+*.tgz
+
+# 旧版界面截图（已被架构图取代，本地留档，不进仓库）
+docs/screenshot-settings.png
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+
+# secrets (never commit real tokens/keys)
+.env
+.env.*
+*.key
+token.txt
+.npmrc
+npm-token.txt
+_npmcache/
+
+# git-forge local credential helper
+.git-credentials
+
+# local scratch scripts (monorepo linking / one-off build helpers)
+_build.mjs
+_link_extra.mjs
+_link_local.mjs
+_link_result.txt

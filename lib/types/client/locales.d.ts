@@ -1,0 +1,19 @@
+/**
+ * Client locale dictionaries for the dsh-s-m-c-center settings card.
+ *
+ * The whole management surface is translated — nothing in components/ or
+ * hooks/ carries inline copy, so an English shell never shows Chinese.
+ *
+ * Copy that embeds a value (a count, a path, another term) uses `{name}`
+ * placeholders rendered through `format()` in utils/format.ts, so each language
+ * keeps its own word order.
+ */
+/** Locale keys this plugin's surface uses. */
+export type SkillsMcpKey = 'title' | 'description' | 'expand' | 'collapse' | 'notExposed' | 'readOnly' | 'unsaved' | 'discard' | 'save' | 'saving' | 'saveFailed' | 'inherit' | 'overridden' | 'reset' | 'invalid' | 'enabled' | 'enabledHint' | 'announce' | 'announceHint' | 'on' | 'off' | 'tabSkills' | 'tabMcp' | 'tabCli' | 'tabUninstall' | 'panelMcp' | 'panelCli' | 'panelUninstall' | 'sourceSystem' | 'skillList' | 'importSkill' | 'newServer' | 'registerCli' | 'modeForm' | 'modeJson' | 'refresh' | 'edit' | 'delete' | 'confirmDelete' | 'add' | 'testConnect' | 'testing' | 'loading' | 'chooseFolder' | 'scanDir' | 'scanning' | 'importSelected' | 'rollback' | 'rollingBack' | 'probe' | 'probing' | 'details' | 'announceTitle' | 'announceReading' | 'announceOnState' | 'announceOffState' | 'announceOnNote' | 'announceOffNote' | 'persistA' | 'persistB' | 'persistC' | 'pluginDisabled' | 'storeMigrated' | 'storeMigratedTitle' | 'storeMigratedNote' | 'storeCount' | 'storeFailures' | 'stConnecting' | 'stRunning' | 'stFailed' | 'stStopped' | 'stInstalled' | 'stNotFound' | 'stNotConnected' | 'suffixArchived' | 'suffixHidden' | 'suffixNotEnabled' | 'suffixDir' | 'suffixFile' | 'badgeStore' | 'badgeInPlace' | 'badgeArchive' | 'badgeActive' | 'badgeSkill' | 'cliAdvertised' | 'cliHidden' | 'cliSkillSource' | 'cliSkillHint' | 'mcpTabManage' | 'mcpTabCreate' | 'activate' | 'archive' | 'switchEnable' | 'switchDisable' | 'filterAll' | 'filterEnabled' | 'filterDisabled' | 'levelProject' | 'levelUser' | 'emptySkills' | 'emptySkillMatch' | 'emptyMcp' | 'emptyMcpMatch' | 'emptyCli' | 'emptyCliMatch' | 'phSearchSkill' | 'phSearchServer' | 'phSearchCli' | 'phImportDir' | 'phCliName' | 'phCliCall' | 'phServerName' | 'fieldName' | 'fieldTransport' | 'fieldCommand' | 'fieldArgs' | 'fieldEnv' | 'fieldCwd' | 'fieldUrl' | 'fieldHeaders' | 'cliIntro' | 'cliRegisterNote' | 'mcpArchiveNote' | 'mcpStoreNote' | 'rowExists' | 'rowPath' | 'rowVersion' | 'rowNeedUpdate' | 'rowApiKey' | 'rowKeyError' | 'yesUpdateRecommended' | 'no' | 'configured' | 'msgEnterCliName' | 'msgJsonFailed' | 'msgSaved' | 'msgConnectOk' | 'msgConnectFailed' | 'msgActivated' | 'msgArchived' | 'msgRollbackOk' | 'msgRollbackPartial' | 'msgEnterDir' | 'msgNoImportable' | 'msgSelectFirst' | 'msgImported' | 'uninstallIntro' | 'uninstallSkillsTitle' | 'uninstallSkillsNote' | 'uninstallMcpTitle' | 'uninstallMcpNote' | 'uninstallFilesTitle' | 'uninstallFilesNote' | 'uninstallFilesList' | 'uninstallSettingsPath' | 'uninstallNothing' | 'migrateSkills' | 'migratingSkills' | 'restoreAllMcp' | 'restoringMcp' | 'msgMigrateDone' | 'msgRestoreDone' | 'detailWhenToUse' | 'cliSkillPrefix';
+/** Translator bound to this plugin's namespace (what `PropsLocale` hands out). */
+export type Translate = (key: SkillsMcpKey) => string;
+/** Simplified Chinese dictionary (the key-set source of truth). */
+export declare const zh: Record<SkillsMcpKey, string>;
+/** English dictionary, checked complete against the zh key set. */
+export declare const en: Record<SkillsMcpKey, string>;
+//# sourceMappingURL=locales.d.ts.map
