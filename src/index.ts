@@ -84,7 +84,7 @@ function workspaceCwd(): string | undefined {
  * {@link renderAnnouncement} instead, which splices in the actual skills, MCP
  * servers and CLI tools — see `src/announce.ts` for why that matters.
  */
-export const SMC_GUIDANCE = '本机已安装 dsh-s-m-c-center 插件（工具管理：技能 / MCP / CLI 管理器）：设置页「Web UI 插件 → 工具管理」。能力：浏览/启用/不启用/删除/导入技能（项目级 .dsh/skills、.agents/skills 与用户级 ~/.dsh/skills、~/.agents/skills）；管理 MCP 服务器（stdio 与 streamable-http，激活/归档）；以及本地 CLI 工具清单与状态（发现 skill 内嵌的 CLI 包装脚本如 scripts/run-cli、以及系统 CLI 如 gh/git/tencent-news-cli，报告是否安装/版本/需更新/子命令/API-Key 状态）。MCP 是真实连接：激活的服务器经 @deepseek-ai/dsh-mcp-client 真正连接并把工具注册为 mcp__<server>__<tool>，激活/归档会实际连接/断开。注册新技能：为用户新建用户级技能时，把技能文件夹直接创建到 ~/.dsh/S-M-C/skills/<技能名>/（内含 SKILL.md），不要写到 ~/.dsh/skills、~/.agents/skills 等储存库外的目录 —— 只有储存库里的技能才会被统一管理；写入后会以「未启用」出现在管理页，用户启用后你即可通过 skill 工具加载，项目专用技能仍放当前项目的 .dsh/skills/。限制：本插件的数据统一存 ~/.dsh/S-M-C（MCP 激活 mcp.json、归档 mcp-archive.json、CLI 注册表 cli.json；密码/env 明文、权限 0600 由用户自行保证）；用户级技能正本在 ~/.dsh/S-M-C/skills，启用/不启用等于在 skills 目录增删联接（不改写 SKILL.md）；删除为物理删除，不可恢复。用户提到「技能管理 / 技能导入 / MCP 服务器 / MCP 连接 / CLI 工具 / CLI 状态」时即指本插件，请据此协作。'
+export const SMC_GUIDANCE = '本机装有 dsh-s-m-c-center 插件（技能/MCP/CLI 管理器，设置页「Web UI 插件 → 工具管理」）。协作规则：1. 新建用户级技能 → 写到 ~/.dsh/S-M-C/skills/<名>/（含 SKILL.md，frontmatter 需 name+description）；禁写 ~/.dsh/skills、~/.agents/skills 等库外目录；写入后为「未启用」，用户启用后可用；项目技能放 <项目>/.dsh/skills/。2. 技能加载：仅用 skill 工具加载已启用技能。3. MCP：仅调已连接服务器的 mcp__<server>__<tool>；未连接/归档不可用，需用户激活。4. 本地 CLI（gh/git 及 skill 内嵌 scripts/run-cli 包装的）：经终端按名调用，可报安装/版本/更新/API-Key/子命令状态；「未找到」先装。5. 技能删除＝物理删除不可恢复，先获用户确认。6. 启停/增删归用户在管理页操作。数据在 ~/.dsh/S-M-C（MCP 凭证明文）。提到「技能管理 / 技能导入 / MCP 服务器 / MCP 连接 / CLI 工具 / CLI 状态」即指本插件。'
 
 /**
  * Wire this plugin into a host context: adopt any legacy on-disk layout, build
