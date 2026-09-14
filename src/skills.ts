@@ -462,6 +462,7 @@ export class SkillsManager {
     kind: 'bundle' | 'file',
     source: SkillSource,
     enabled: boolean,
+    releaseDir?: string,
   ): string {
     const store = this.storeDir()
     mkdirSync(store, { recursive: true })
@@ -486,7 +487,12 @@ export class SkillsManager {
     this.upsertEntry({
       slug,
       name: parsed.name,
-      origin: sourcePath,
+      // Migration adopts keep the pre-adoption path (rollback restores the
+      // status quo ante). Imports come from arbitrary directories the user
+      // happened to pick — releasing them back there would scatter skills
+      // across the filesystem again, so their release target is pinned to
+      // the dsh user skills root.
+      origin: releaseDir !== undefined ? join(releaseDir, slug) : sourcePath,
       source,
       enabled,
       adoptedAt: new Date().toISOString(),
@@ -860,19 +866,20 @@ export class SkillsManager {
     return items
   }
 
-  /** Import selected skills into the store as enabled bundles. */
-  importSkills(items: ImportItem[]): ImportResult[] {
-    const results: ImportResult[] = []
-    for (const it of items) {
-      try {
-        const slug = this.adopt(it.sourcePath, it.kind, 'user-dsh', true)
-        results.push({ name: join(this.storeDir(), slug), ok: true })
-      } catch (e) {
-        results.push({ name: it.sourcePath, ok: false, reason: String((e as Error)?.message ?? e) })
+    /** Import selected skills into the store as enabled bundles. */
+    importSkills(items: ImportItem[]): ImportResult[] {
+      const results: ImportResult[] = []
+      const releaseDir = getRoots().userSkillsDir
+      for (const it of items) {
+        try {
+          const slug = this.adopt(it.sourcePath, it.kind, 'user-dsh', true, releaseDir)
+          results.push({ name: join(this.storeDir(), slug), ok: true })
+        } catch (e) {
+          results.push({ name: it.sourcePath, ok: false, reason: String((e as Error)?.message ?? e) })
+        }
       }
+      return results
     }
-    return results
-  }
 }
 
 /** `{ managed, slug }` for a scanned entry, when it is a link into the store. */

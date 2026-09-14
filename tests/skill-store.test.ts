@@ -267,16 +267,32 @@ describe('import', () => {
     expect(existsSync(flatSource)).toBe(false)
   })
 
-  it('reports a name collision instead of overwriting', () => {
-    const skills = new SkillsManager()
-    const first = bundle(join(home, 'incoming'), 'one', 'dup')
-    const second = bundle(join(home, 'incoming-two'), 'two', 'dup')
-    expect(skills.importSkills([{ sourcePath: first, kind: 'bundle' }])[0]?.ok).toBe(true)
-    // Second adoption lands under a unique slug rather than clobbering.
-    expect(skills.importSkills([{ sourcePath: second, kind: 'bundle' }])[0]?.ok).toBe(true)
-    expect(skills.readStoreIndex().entries).toHaveLength(2)
+    it('reports a name collision instead of overwriting', () => {
+      const skills = new SkillsManager()
+      const first = bundle(join(home, 'incoming'), 'one', 'dup')
+      const second = bundle(join(home, 'incoming-two'), 'two', 'dup')
+      expect(skills.importSkills([{ sourcePath: first, kind: 'bundle' }])[0]?.ok).toBe(true)
+      // Second adoption lands under a unique slug rather than clobbering.
+      expect(skills.importSkills([{ sourcePath: second, kind: 'bundle' }])[0]?.ok).toBe(true)
+      expect(skills.readStoreIndex().entries).toHaveLength(2)
+    })
+
+    it('releases imported skills into the dsh user skills root on rollback, not their arbitrary source', () => {
+      const skills = new SkillsManager()
+      // An "outside" directory an import has no business sending skills back to.
+      const outside = join(home, 'agents-skills')
+      const source = bundle(outside, 'traveler', 'traveler')
+
+      expect(skills.importSkills([{ sourcePath: source, kind: 'bundle' }])[0]?.ok).toBe(true)
+      expect(skills.readStoreIndex().entries.find((e) => e.slug === 'traveler')?.origin)
+        .toBe(join(userSkills(), 'traveler'))
+
+      skills.rollbackMigration()
+      // Landed in the dsh root, and the arbitrary source stays empty.
+      expect(existsSync(join(userSkills(), 'traveler', 'SKILL.md'))).toBe(true)
+      expect(existsSync(join(outside, 'traveler'))).toBe(false)
+    })
   })
-})
 
 describe('rollback', () => {
   it('restores every skill to its original path', () => {
