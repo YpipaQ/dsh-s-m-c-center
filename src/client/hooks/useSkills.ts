@@ -68,6 +68,8 @@ export interface UseSkillsResult {
   /** Transient action error. */
   message: string
   toggle: (skill: SkillSummary) => void
+  /** Adopt an in-place skill into the store (import + enable, junction managed). */
+  adoptOne: (skill: SkillSummary) => void
   /** Two-step delete: first call arms the confirm, second executes. */
   remove: (skill: SkillSummary) => void
   /** Path armed for deletion, or null. */
@@ -214,6 +216,27 @@ export function useSkills(options: UseSkillsOptions): UseSkillsResult {
     })
   }, [reloadAll, t])
 
+  const adoptOne = useCallback((skill: SkillSummary) => {
+    setBusyPath(skill.path)
+    setMessage('')
+    // The API takes the bundle directory for bundles; the list row carries the
+    // SKILL.md path, so strip the trailing segment (both separators occur —
+    // the host runs on Windows but stores what the OS join produced).
+    const sourcePath = skill.kind === 'bundle'
+      ? skill.path.replace(/[\\/]+SKILL\.md$/i, '')
+      : skill.path
+    api.importSkills([{ sourcePath, kind: skill.kind }])
+      .then((results) => {
+        setBusyPath('')
+        const first = results[0]
+        setMessage(first?.ok
+          ? format(t('msgAdopted'), { name: skill.name })
+          : errorText(first?.reason ?? 'adopt failed'))
+        reloadAll()
+      })
+      .catch((e) => { setBusyPath(''); setMessage(errorText(e)) })
+  }, [reloadAll, t])
+
   const filtered = useMemo(() => {
     const q = normalizeQuery(query)
     return list.items.filter((it) => {
@@ -251,7 +274,7 @@ export function useSkills(options: UseSkillsOptions): UseSkillsResult {
     query, setQuery,
     enabledFilter, setEnabledFilter,
     busyPath, message,
-    toggle, remove, confirmPath,
+    toggle, adoptOne, remove, confirmPath,
     detailPath, detail, view,
     store,
     scan, setScanDir, chooseDir, doScan, toggleSelect, doImport,

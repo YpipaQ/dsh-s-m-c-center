@@ -649,8 +649,12 @@ export class SkillsManager {
         slug,
       })
     }
+    // dsh-managed roots first (.dsh/skills before .agents/skills), then name.
+    const srcRank = (s: SkillSource) => (s === 'user-dsh' || s === 'project-dsh' ? 0 : 1)
     items.sort((a, b) => {
       if (a.level !== b.level) return a.level === 'project' ? -1 : 1
+      const d = srcRank(a.source) - srcRank(b.source)
+      if (d !== 0) return d
       return a.name < b.name ? -1 : a.name > b.name ? 1 : 0
     })
     return items

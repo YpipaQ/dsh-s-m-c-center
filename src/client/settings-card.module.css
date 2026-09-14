@@ -223,8 +223,11 @@
   margin-top: 2px;
   color: var(--muted);
   font-size: 12px;
-  overflow-wrap: anywhere;
-  word-break: break-word;
+  /* One line, then ellipsis — a long description must not blow up the row.
+     The full text stays available in the detail view. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .badge {

@@ -62,6 +62,13 @@ export type SkillsMcpKey =
   | 'guideDataP'
   | 'sourceSystem'
   | 'skillList'
+  | 'skillsTabInPlace'
+  | 'skillsTabStore'
+  | 'adopt'
+  | 'adoptBusy'
+  | 'msgAdopted'
+  | 'inPlaceNote'
+  | 'storePageNote'
   | 'importSkill'
   | 'newServer'
   | 'registerCli'
@@ -136,6 +143,8 @@ export type SkillsMcpKey =
   | 'levelUser'
   // empty states
   | 'emptySkills'
+  | 'emptyStoreTab'
+  | 'otherSubpageHint'
   | 'emptySkillMatch'
   | 'emptyMcp'
   | 'emptyMcpMatch'
@@ -260,6 +269,13 @@ export const zh: Record<SkillsMcpKey, string> = {
   guideDataP: '插件的全部数据都在统一储存库（默认 ~/.dsh/S-M-C，可用 DSH_STORE_ROOT 改位）：skills/ 放技能正本、mcp.json 放激活的服务器、mcp-archive.json 放归档的、cli.json 放 CLI 登记表。密码与环境变量为明文，文件权限 0600 需自行保证。',
   sourceSystem: '系统 CLI',
   skillList: '技能列表',
+  skillsTabInPlace: '就地管理',
+  skillsTabStore: '储存库',
+  adopt: '收容',
+  adoptBusy: '收容中…',
+  msgAdopted: '已收容进储存库并启用：{name}',
+  inPlaceNote: '开关＝写入 / 移除 SKILL.md 前言标记（此页技能不收容，文件会被改写）；「收容」把技能收进储存库，改由联接管理。',
+  storePageNote: '开关＝注入 / 移除目录联接（SKILL.md 永不改写）；导入的技能撤销迁移时释放到 ~/.dsh/skills。',
   importSkill: '导入技能',
   newServer: '新建 / 编辑服务器',
   registerCli: '登记系统 CLI',
@@ -334,6 +350,8 @@ export const zh: Record<SkillsMcpKey, string> = {
   levelUser: '用户级',
 
   emptySkills: '没有发现技能',
+  emptyStoreTab: '储存库为空',
+  otherSubpageHint: '其余技能在另一个子页。',
   emptySkillMatch: '没有匹配的技能',
   emptyMcp: '尚未配置任何 MCP 服务器',
   emptyMcpMatch: '没有匹配的服务器',
@@ -455,6 +473,13 @@ export const en: Record<SkillsMcpKey, string> = {
   guideDataP: 'Everything this plugin stores lives in one place — by default ~/.dsh/S-M-C (relocate with DSH_STORE_ROOT): skills/ holds the canonical skill copies, mcp.json the enabled servers, mcp-archive.json the archived ones, cli.json the CLI registry. Secrets and env vars are plain text; file permissions (0600) are up to you.',
   sourceSystem: 'System CLI',
   skillList: 'Skills',
+  skillsTabInPlace: 'In place',
+  skillsTabStore: 'Store',
+  adopt: 'Adopt',
+  adoptBusy: 'Adopting…',
+  msgAdopted: 'Adopted into the store and enabled: {name}',
+  inPlaceNote: 'Switch = write / remove the SKILL.md frontmatter marker (these skills stay in place; the file is rewritten). “Adopt” moves a skill into the store, managed by links instead.',
+  storePageNote: 'Switch = inject / remove a directory junction (SKILL.md is never rewritten); imported skills release into ~/.dsh/skills on rollback.',
   importSkill: 'Import skills',
   newServer: 'New / edit server',
   registerCli: 'Register a system CLI',
@@ -529,6 +554,8 @@ export const en: Record<SkillsMcpKey, string> = {
   levelUser: 'User',
 
   emptySkills: 'No skills found',
+  emptyStoreTab: 'The store is empty',
+  otherSubpageHint: 'Remaining skills live on the other sub-page.',
   emptySkillMatch: 'No matching skills',
   emptyMcp: 'No MCP servers configured yet',
   emptyMcpMatch: 'No matching servers',

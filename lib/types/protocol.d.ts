@@ -69,7 +69,11 @@ export interface StoreEntry {
     slug: string;
     /** Skill name from SKILL.md at adopt time. */
     name: string;
-    /** Absolute path the skill lived at before it was adopted. */
+    /**
+     * Where rollback releases the skill: its pre-adoption path for migrated
+     * skills, or the dsh user skills root for imported ones (imports may come
+     * from arbitrary directories that should not receive skills back).
+     */
     origin: string;
     /** Root the enabled link is written back to. */
     source: SkillSource;
