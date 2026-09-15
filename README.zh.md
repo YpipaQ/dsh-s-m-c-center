@@ -14,7 +14,9 @@
   <a href="./package.json"><img alt="node" src="https://img.shields.io/node/v/dsh-s-m-c-center?style=flat-square&amp;labelColor=555" /></a>
 </div>
 
-# dsh-s-m-c-center
+# 三合一工具台 · dsh-s-m-c-center
+
+> 中文名：**三合一工具台** ｜ 界面入口：「Web UI 插件 → 工具管理」 ｜ 别名：工具管理、工具中心、技能管理、MCP 服务器管理、CLI 工具管理、Skills / MCP / CLI 管理器
 
 > **工具管理** —— 一个自包含的 DSH Web 插件，在设置页新增一个一级页面，统一管理 agent 的**三类工具**：**技能（Skills）/ MCP 服务器 / 本地 CLI 工具**；另有一个使用说明页，讲清三者各自的工作方式，并在最下方负责把它们干净地还回去。
 >

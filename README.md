@@ -14,7 +14,9 @@
   <a href="./package.json"><img alt="node" src="https://img.shields.io/node/v/dsh-s-m-c-center?style=flat-square&amp;labelColor=555" /></a>
 </div>
 
-# dsh-s-m-c-center
+# 三合一工具台 · dsh-s-m-c-center
+
+> Chinese name: **三合一工具台** (Triple Tool Console) ｜ UI entry: Settings → Web UI Plugins → Tool Manager ｜ Aliases: 工具管理, 工具中心, 技能管理, MCP 服务器管理, CLI 工具管理, Skills / MCP / CLI manager
 
 > **Tool Manager** — a self-contained DSH web plugin that adds a first-class **settings page** for the
 > agent's three tool families: **Skills**, **MCP servers**, and **local CLI tools** — plus a guide
