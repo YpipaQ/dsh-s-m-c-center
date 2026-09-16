@@ -1,6 +1,6 @@
 {
   "id": "dsh-s-m-c-center",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "main": "./lib/index.js",
   "description": "三合一工具台：一个设置页统一管理 DeepSeek Harness agent 的三类工具——技能（Skills）、MCP 服务器、本地 CLI 工具；MCP 经 @deepseek-ai/dsh-mcp-client 真实连接并注册 mcp__<server>__<tool>；技能走统一储存库与目录联接；另附使用说明页（MIT）。 / DSH web plugin: one settings page for agent skills, MCP servers and local CLI tools; real MCP connections; store + junction based skill management; a guide tab covers how it all works.",
   "engines": {

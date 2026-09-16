@@ -86,8 +86,9 @@ changes:
 ## 🚀 Install
 
 > **Requires**: DeepSeek Harness **`>= 0.1.2-alpha.2`** (all `@deepseek-ai/*` packages are released
-> in lockstep). Verified end-to-end on **`0.1.5-rc.2`**; every API this plugin uses was checked to
-> exist with a matching signature from `0.1.2-alpha.2` onwards.
+> in lockstep). Verified end-to-end on **`0.1.6-alpha.1`** (current release) and **`0.1.5-rc.2`**;
+> every API this plugin uses was checked to exist with a matching signature from
+> `0.1.2-alpha.2` onwards.
 
 > **Install as a normal package — do NOT link it via a junction.** A junction makes dependencies
 > fail to resolve upward (e.g. `schemastery` / `react`) and desyncs the package name from

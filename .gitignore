@@ -33,3 +33,6 @@ _build.mjs
 _link_extra.mjs
 _link_local.mjs
 _link_result.txt
+
+# pnpm 11 自动生成的占位文件（allowBuilds 未决），不进仓库
+pnpm-workspace.yaml
