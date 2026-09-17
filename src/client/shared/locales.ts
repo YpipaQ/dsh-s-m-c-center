@@ -128,6 +128,8 @@ export type SkillsMcpKey =
   | 'archive'
   | 'btnLink'
   | 'btnUnlink'
+  | 'tipLink'
+  | 'tipUnlink'
   | 'btnMigrate'
   | 'btnUnregister'
   | 'btnVerify'
@@ -341,7 +343,9 @@ export const zh: Record<SkillsMcpKey, string> = {
   activate: '激活',
   archive: '归档',
   btnLink: '联接',
-  btnUnlink: '断开联接',
+  btnUnlink: '断开',
+  tipLink: '在技能目录里建立联接，AI 立刻能看到它',
+  tipUnlink: '移除联接；技能正本仍留在储存库，随时可重新联接',
   btnMigrate: '迁移入库',
   btnUnregister: '取消登记',
   btnVerify: '验证',
@@ -552,7 +556,9 @@ export const en: Record<SkillsMcpKey, string> = {
   activate: 'Enable',
   archive: 'Archive',
   btnLink: 'Link',
-  btnUnlink: 'Unlink',
+  btnUnlink: 'Disconnect',
+  tipLink: 'Create the link in the skills directory so the agent sees it at once',
+  tipUnlink: 'Remove the link; the canonical copy stays in the store and can be linked again',
   btnMigrate: 'Move to store',
   btnUnregister: 'Unregister',
   btnVerify: 'Verify',

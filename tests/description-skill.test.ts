@@ -88,8 +88,34 @@ describe('DESCRIPTION.md-only skills', () => {
     expect(found?.description).toBe('fallback description')
   })
 
-  it('keeps ignoring directories that hold neither document', () => {
+  // Markdown prose is soft-wrapped, so taking the first physical line alone
+  // cut sentences mid-clause. The summary joins the opening paragraph.
+  it('joins a soft-wrapped first paragraph into one description', () => {
     const skills = new SkillsManager()
+    descBundle(userSkills(), 'wrapped', 'Apple / macOS skills — tools that interact with the Mac desktop (Finder,\nnative apps) or system features (accessibility, screenshots).\n')
+
+    const found = skills.listSkills().find((s) => s.slug === 'wrapped')
+    expect(found?.description)
+      .toBe('Apple / macOS skills — tools that interact with the Mac desktop (Finder, native apps) or system features (accessibility, screenshots).')
+  })
+
+  it('stops the description at the first block boundary', () => {
+    const skills = new SkillsManager()
+    descBundle(userSkills(), 'listed', '一句话介绍。\n\n- 第一项\n- 第二项\n')
+
+    const found = skills.listSkills().find((s) => s.slug === 'listed')
+    expect(found?.description).toBe('一句话介绍。')
+  })
+
+  it('leaves a heading-only opener as the description', () => {
+    const skills = new SkillsManager()
+    descBundle(userSkills(), 'headed', '# 标题\n\n正文说明。\n')
+
+    const found = skills.listSkills().find((s) => s.slug === 'headed')
+    expect(found?.description).toBe('标题')
+  })
+
+  it('keeps ignoring directories that hold neither document', () => {    const skills = new SkillsManager()
     mkdirSync(join(userSkills(), 'not-a-skill'), { recursive: true })
     writeFileSync(join(userSkills(), 'not-a-skill', 'README.md'), 'hello', 'utf8')
 

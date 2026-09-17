@@ -51,7 +51,14 @@ export declare function textField(data: Record<string, unknown>, key: string): s
  *   (dsh requires both, so such a file is not a skill).
  */
 export declare function parseSkillFile(raw: string): ParsedSkill | null;
-/** First non-empty line of a markdown body, truncated for a description cell. */
+/**
+ * The opening of a markdown body, for a description cell.
+ *
+ * Prose in markdown is soft-wrapped, so the first *line* is not a unit of
+ * meaning — taking it alone cut sentences in half ("…the Mac desktop (Finder,").
+ * Join the whole first paragraph instead, but stop where the author changed
+ * block: a heading or a list item is a complete thought on its own.
+ */
 export declare function bodySummary(body: string): string;
 /**
  * Lenient parse for DESCRIPTION.md-style documents: frontmatter keys win when

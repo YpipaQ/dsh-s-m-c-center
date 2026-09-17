@@ -106,10 +106,39 @@ export function parseSkillFile(raw: string): ParsedSkill | null {
   }
 }
 
-/** First non-empty line of a markdown body, truncated for a description cell. */
+/**
+ * Markdown openers that end a paragraph: a summary must not swallow the list
+ * or heading that follows the opening line.
+ */
+const BLOCK_START = /^(?:#{1,6}\s|[-*+]\s|\d+[.)]\s|>|\||`{3,})/
+
+/** Consecutive lines from `start`, stopping at a blank line or a new block. */
+function paragraph(lines: string[], start: number): string[] {
+  const out: string[] = []
+  for (let i = start; i < lines.length; i++) {
+    const line = lines[i].trim()
+    if (line === '') break
+    if (i > start && BLOCK_START.test(line)) break
+    out.push(line)
+  }
+  return out
+}
+
+/**
+ * The opening of a markdown body, for a description cell.
+ *
+ * Prose in markdown is soft-wrapped, so the first *line* is not a unit of
+ * meaning — taking it alone cut sentences in half ("…the Mac desktop (Finder,").
+ * Join the whole first paragraph instead, but stop where the author changed
+ * block: a heading or a list item is a complete thought on its own.
+ */
 export function bodySummary(body: string): string {
-  const line = body.split(/\r?\n/).find((l) => l.trim() !== '') ?? ''
-  const trimmed = line.replace(/^#+\s*/, '').trim()
+  const lines = body.split(/\r?\n/)
+  const first = lines.findIndex((l) => l.trim() !== '')
+  if (first < 0) return ''
+  const head = lines[first].trim()
+  const opened = BLOCK_START.test(head) ? [head] : paragraph(lines, first)
+  const trimmed = opened.join(' ').replace(/^#+\s*/, '').trim()
   return trimmed.length > 160 ? trimmed.slice(0, 157) + '…' : trimmed
 }
 

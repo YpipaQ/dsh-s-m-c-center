@@ -202,6 +202,16 @@
   min-width: 200px;
 }
 
+/* A skill row's head (name + description) claims the whole line.
+   `.main` sizes itself to its content, so a *short* description left room for
+   the badges beside the name while a long one pushed them onto the action line
+   — the same list rendered two different ways. Reserving the line for the head
+   makes every row read the same: name, description, then badges + actions. */
+.rowHead {
+  flex: 1 1 100%;
+  min-width: 0;
+}
+
 /* `.name` is a flex row (badges + status + an inline text run). Wrap the
    inline text run in a `.nameText` so a long skill name can break onto a new
    line without dragging the badges with it; the row grows downward rather than

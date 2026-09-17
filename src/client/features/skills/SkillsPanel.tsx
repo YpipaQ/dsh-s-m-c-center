@@ -229,7 +229,7 @@ function SkillRow({ skill, skills, t }: SkillRowProps) {
   return (
     <div>
       <div className={css.row} style={redFlag ? { outline: '1px solid var(--dsh-danger, #d1242f)' } : undefined}>
-        <div className={css.main} style={{ cursor: 'pointer' }} onClick={() => { skills.view(skill) }}>
+        <div className={css.rowHead} style={{ cursor: 'pointer' }} onClick={() => { skills.view(skill) }}>
           <div className={css.name}>
             <span className={css.nameText}>
               {skill.name}
@@ -261,21 +261,22 @@ function SkillRow({ skill, skills, t }: SkillRowProps) {
                   </Button>
                 )
                 : null}
-              {/* Link state owns exactly one button: a linked row offers
-                  断开联接, an unlinked stored/registered row offers 联接. */}
-              {skill.group !== 'native' && skill.linked
-                ? (
-                  <Button disabled={isBusy} onClick={() => { skills.unlink(skill) }}>
-                    {t('btnUnlink')}
-                  </Button>
-                )
-                : null}
-              {(skill.group === 'stored' || skill.group === 'registered') && !skill.linked
-                ? (
-                  <Button disabled={isBusy} onClick={() => { skills.link(skill) }}>
-                    {t('btnLink')}
-                  </Button>
-                )
+              {/* Link state owns exactly one button, coloured by direction:
+                  green when pressing it links the skill in, red when it takes
+                  the link away. Native rows are the skill itself — nothing to
+                  link. */}
+              {skill.group !== 'native'
+                ? (skill.linked
+                  ? (
+                    <Button variant="danger" disabled={isBusy} title={t('tipUnlink')} onClick={() => { skills.unlink(skill) }}>
+                      {t('btnUnlink')}
+                    </Button>
+                  )
+                  : (
+                    <Button variant="success" disabled={isBusy} title={t('tipLink')} onClick={() => { skills.link(skill) }}>
+                      {t('btnLink')}
+                    </Button>
+                  ))
                 : null}
             </>
           )}
