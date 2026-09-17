@@ -9,8 +9,10 @@
  * engine only decides *which* skills a given conversation can see.
  *
  * Guarantees:
- * - Default is nothing: a conversation with no context file sees no managed
- *   skill through this engine (official roots keep working as dsh ships them).
+ * - A conversation with no selection file inherits the workspace default
+ *   (`contexts/_default.json`, edited through the panel's 默认配置 row); with
+ *   no default file either it sees no managed skill through this engine
+ *   (official roots keep working as dsh ships them).
  * - SKILL.md files are never touched; the choice lives in the JSON per
  *   conversation, so two conversations can hold different selections at once.
  * - The agent toggles through the registered `skill_select` tool, which writes
@@ -26,6 +28,14 @@ import { findProjectRoot, getRoots } from './skills.ts'
 
 /** Directory (inside the workspace) that holds per-conversation selections. */
 export const CONTEXTS_DIR_NAME = 'contexts'
+
+/**
+ * Session id the workspace default selection lives under. A conversation
+ * without a selection file of its own inherits this selection, so the panel's
+ * default row is "the skills new conversations start with". Real dsh session
+ * ids never look like this.
+ */
+export const DEFAULT_CONTEXT_ID = '_default'
 
 /** Per-conversation selection document. */
 export interface ContextSelection {
@@ -45,19 +55,32 @@ export interface ContextEngineDeps {
 }
 
 /**
- * Read one conversation's selection, or the empty default.
- * Tolerates a missing or corrupt file — a broken selection must never take
- * down the plugin or the conversation.
+ * Read one conversation's selection: its own file when it has one, otherwise
+ * the workspace default, otherwise the empty selection. The fallback is what
+ * makes the panel's 默认配置 row real — a fresh conversation starts with the
+ * default picks already registered. Tolerates a missing or corrupt file — a
+ * broken selection must never take down the plugin or the conversation.
  */
 export function readSelection(workspaceRoot: string, sessionId: string): ContextSelection {
+  const own = readSelectionFile(workspaceRoot, sessionId)
+  if (own !== undefined) return own
+  if (sessionId !== DEFAULT_CONTEXT_ID) {
+    const inherited = readSelectionFile(workspaceRoot, DEFAULT_CONTEXT_ID)
+    if (inherited !== undefined) return { ...inherited, sessionId }
+  }
+  return { sessionId, selected: [], updatedAt: '' }
+}
+
+/** Read one selection document, or undefined when absent/corrupt. */
+function readSelectionFile(workspaceRoot: string, sessionId: string): ContextSelection | undefined {
   const file = selectionPath(workspaceRoot, sessionId)
-  if (!existsSync(file)) return { sessionId, selected: [], updatedAt: '' }
+  if (!existsSync(file)) return undefined
   try {
     const parsed = JSON.parse(readFileSync(file, 'utf8')) as Partial<ContextSelection>
     const selected = Array.isArray(parsed.selected) ? parsed.selected.filter((s): s is string => typeof s === 'string') : []
     return { sessionId, selected, updatedAt: typeof parsed.updatedAt === 'string' ? parsed.updatedAt : '' }
   } catch {
-    return { sessionId, selected: [], updatedAt: '' }
+    return undefined
   }
 }
 
@@ -102,21 +125,33 @@ export function applySelection(
 
 /**
  * List every conversation selection under one workspace (panel index).
- * @returns session ids with their pick counts, newest change first.
+ * The workspace default (`_default`) is always present as the first row —
+ * the dropdown's "skills new conversations start with" entry — followed by
+ * the conversations that hold a file, newest change first.
  */
 export function listSelections(workspaceRoot: string): Array<{ sessionId: string; count: number; updatedAt: string }> {
   const dir = join(workspaceRoot, '.dsh', 'S-M-C', CONTEXTS_DIR_NAME)
-  if (!existsSync(dir)) return []
   const out: Array<{ sessionId: string; count: number; updatedAt: string }> = []
+  const defaultSelection = readSelectionFile(workspaceRoot, DEFAULT_CONTEXT_ID)
+  out.push({
+    sessionId: DEFAULT_CONTEXT_ID,
+    count: defaultSelection?.selected.length ?? 0,
+    updatedAt: defaultSelection?.updatedAt ?? '',
+  })
   try {
     for (const name of readdirSync(dir)) {
       if (!name.endsWith('.json')) continue
       const sessionId = name.slice(0, -'.json'.length)
-      const selection = readSelection(workspaceRoot, sessionId)
+      if (sessionId === DEFAULT_CONTEXT_ID) continue // already pinned first
+      const selection = readSelectionFile(workspaceRoot, sessionId)
+      if (selection === undefined) continue
       out.push({ sessionId, count: selection.selected.length, updatedAt: selection.updatedAt })
     }
-  } catch { /* unreadable dir → empty */ }
-  return out.sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1))
+  } catch { /* unreadable dir → default only */ }
+  return [
+    out[0],
+    ...out.slice(1).sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1)),
+  ]
 }
 
 /** Workspace root for a cwd: the nearest .git ancestor (dsh's own rule). */

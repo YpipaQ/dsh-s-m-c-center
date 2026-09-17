@@ -146,8 +146,8 @@ export class SkillsMcpApi {
 
   // ── conversation contexts ────────────────────────────────────────────────
 
-  /** Conversations that hold a selection under one workspace. */
-  async listContexts(cwd: string): Promise<{ workspace: string; selections: Array<{ sessionId: string; count: number; updatedAt: string }> }> {
+  /** Conversations that hold a selection under one workspace (default first). */
+  async listContexts(cwd: string): Promise<{ workspace: string; defaultId: string; selections: Array<{ sessionId: string; count: number; updatedAt: string }> }> {
     return await call('GET', withCwd(SMC_API.contexts, cwd))
   }
 

@@ -2,10 +2,11 @@
  * Conversation-context state for the phase-two block: which conversations
  * hold a selection, and the checkbox mapping for one of them.
  *
- * The panel lists conversations that already hold a selection file (a new
- * conversation starts with everything unselected by design — the agent can
- * flip its own skills through the `skill_select` tool at any time), and the
- * checkboxes map the workspace's full skill list against that selection.
+ * The dropdown's first entry is the workspace default (`_default`): it edits
+ * the selection every conversation without its own file inherits. Per-session
+ * entries appear for conversations that already hold a selection file (the
+ * agent can flip its own skills through the `skill_select` tool at any time),
+ * and the checkboxes map the workspace's skill list against that selection.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { SkillSummary } from '../../protocol.ts'
@@ -23,14 +24,16 @@ export interface UseContextsOptions {
 }
 
 export interface UseContextsResult {
-  /** Conversations holding a selection, newest first. */
+  /** Conversations holding a selection, newest first (default excluded). */
   sessions: Array<{ sessionId: string; count: number; updatedAt: string }>
+  /** The session id the default selection lives under (dropdown's first row). */
+  defaultId: string
   /** The conversation whose checkboxes are shown, or null. */
   activeId: string | null
   setActiveId: (id: string) => void
   /** slug → selected for the active conversation. */
   checked: Record<string, boolean>
-  /** Rows the checkboxes map over (user-level stored/registered/native). */
+  /** Rows the checkboxes map over (stored / registered rows carry a slug). */
   candidates: SkillSummary[]
   /** Row busy flag (slug currently being toggled). */
   busySlug: string
@@ -51,7 +54,9 @@ export function useContexts(options: UseContextsOptions): UseContextsResult {
   const reloadSessions = useCallback(() => {
     api.listContexts(cwd).then((body) => {
       setSessions(body.selections)
-      setActiveId((current) => current ?? body.selections[0]?.sessionId ?? null)
+      // Land on the default selection first: the page's main job is to set
+      // the skills new conversations start with.
+      setActiveId((current) => current ?? body.defaultId)
     }).catch(() => { setSessions([]) })
   }, [cwd])
 
@@ -86,15 +91,16 @@ export function useContexts(options: UseContextsOptions): UseContextsResult {
     }).catch((e) => { setBusySlug(''); setMessage(errorText(e)) })
   }, [activeId, cwd, reloadSessions, t])
 
-  // Row candidates: stored / registered / native user skills — everything the
-  // engine can resolve into a registration.
+  // Row candidates: rows the engine can resolve into a registration — a
+  // registration needs a slug, which only stored / registered rows carry.
   const candidates = useMemo(
-    () => skills.filter((s) => s.level === 'user' && (s.group === 'stored' || s.group === 'registered' || s.group === 'native')),
+    () => skills.filter((s) => s.level === 'user' && typeof s.slug === 'string' && s.slug !== ''),
     [skills],
   )
 
   return {
     sessions,
+    defaultId: DEFAULT_CONTEXT_ID,
     activeId,
     setActiveId,
     checked,
@@ -106,7 +112,5 @@ export function useContexts(options: UseContextsOptions): UseContextsResult {
   }
 }
 
-/** Shared export so the panel can render the empty copy with the right key. */
-export function contextEmptyKey(): SkillsMcpKey {
-  return 'emptyContexts'
-}
+/** Session id the workspace default selection is stored under (host mirror). */
+export const DEFAULT_CONTEXT_ID = '_default'

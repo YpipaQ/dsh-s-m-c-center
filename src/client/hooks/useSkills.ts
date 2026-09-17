@@ -109,7 +109,15 @@ export interface UseSkillsResult {
 }
 
 /** Group captions as locale keys; the panel resolves them with `t`. */
-const LEVEL_ORDER: Array<[string, SkillsMcpKey]> = [['project', 'levelProject'], ['user', 'levelUser']]
+const GROUP_ORDER: Array<{ level: string; group?: SkillGroup; label: SkillsMcpKey }> = [
+  // The user-level groups split by on-disk identity because their UIs differ:
+  // native rows offer 迁移入库, stored rows offer 撤销迁移/联接, registered
+  // rows offer 取消登记.
+  { level: 'user', group: 'native', label: 'levelUser' },
+  { level: 'user', group: 'stored', label: 'levelStore' },
+  { level: 'user', group: 'registered', label: 'groupRegistered' },
+  { level: 'project', label: 'levelProject' },
+]
 
 /** Skills tab controller. */
 export function useSkills(options: UseSkillsOptions): UseSkillsResult {
@@ -295,10 +303,12 @@ export function useSkills(options: UseSkillsOptions): UseSkillsResult {
   }, [list.items, query, enabledFilter])
 
   const groups = useMemo(() => {
-    const byLevel: Record<string, SkillSummary[]> = {}
-    for (const it of filtered) (byLevel[it.level] = byLevel[it.level] || []).push(it)
-    return LEVEL_ORDER
-      .map(([level, label]) => ({ level, label: t(label), items: byLevel[level] || [] }))
+    return GROUP_ORDER
+      .map(({ level, group, label }) => ({
+        level,
+        label: t(label),
+        items: filtered.filter((it) => it.level === level && (group === undefined || it.group === group)),
+      }))
       .filter((g) => g.items.length > 0)
   }, [filtered, t])
 

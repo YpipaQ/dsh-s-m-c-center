@@ -1,5 +1,5 @@
 import type { SkillSummary } from '../../protocol.ts';
-import type { SkillsMcpKey, Translate } from '../locales.ts';
+import type { Translate } from '../locales.ts';
 export interface UseContextsOptions {
     cwd: string;
     /** Bumped by the shell to force a refetch. */
@@ -9,18 +9,20 @@ export interface UseContextsOptions {
     t: Translate;
 }
 export interface UseContextsResult {
-    /** Conversations holding a selection, newest first. */
+    /** Conversations holding a selection, newest first (default excluded). */
     sessions: Array<{
         sessionId: string;
         count: number;
         updatedAt: string;
     }>;
+    /** The session id the default selection lives under (dropdown's first row). */
+    defaultId: string;
     /** The conversation whose checkboxes are shown, or null. */
     activeId: string | null;
     setActiveId: (id: string) => void;
     /** slug → selected for the active conversation. */
     checked: Record<string, boolean>;
-    /** Rows the checkboxes map over (user-level stored/registered/native). */
+    /** Rows the checkboxes map over (stored / registered rows carry a slug). */
     candidates: SkillSummary[];
     /** Row busy flag (slug currently being toggled). */
     busySlug: string;
@@ -29,6 +31,6 @@ export interface UseContextsResult {
     toggle: (slug: string) => void;
 }
 export declare function useContexts(options: UseContextsOptions): UseContextsResult;
-/** Shared export so the panel can render the empty copy with the right key. */
-export declare function contextEmptyKey(): SkillsMcpKey;
+/** Session id the workspace default selection is stored under (host mirror). */
+export declare const DEFAULT_CONTEXT_ID = "_default";
 //# sourceMappingURL=useContexts.d.ts.map

@@ -38,27 +38,9 @@ const GROUP_KEY: Record<SkillGroup, SkillsMcpKey> = {
 
 /** Skills tab. */
 export function SkillsPanel({ skills, contexts, t }: SkillsPanelProps) {
-  const { store } = skills
-
   return (
     <div className={css.panel}>
-      <ContextSection contexts={contexts} skills={skills} t={t} />
-
-      {store !== null && store.migrated
-        ? (
-          <div className={css.storeNote}>
-            <div className={css.noteLines}>
-              <div>
-                {format(t('storeMigrated'), { root: store.root || store.dir })}
-                {' '}
-                {format(t('storeCount'), { count: store.count, linked: store.linked })}
-                {store.untracked > 0 ? ` · ${format(t('storeUntracked'), { n: store.untracked })}` : ''}
-                {store.failures.length > 0 ? ` · ${format(t('storeFailures'), { n: store.failures.length })}` : ''}
-              </div>
-            </div>
-          </div>
-        )
-        : null}
+      <ContextSection contexts={contexts} t={t} />
 
       <div className={css.inline}>
         <div className={css.hGrow}>{t('skillList')}</div>
@@ -106,56 +88,69 @@ function Messages({ skills }: { skills: UseSkillsResult }) {
 }
 
 /**
- * Phase two: per-conversation skill selection. A conversation starts with
- * everything unselected — the agent flips its own skills through the
- * `skill_select` tool, and this block edits any conversation that already
- * holds a selection.
+ * Phase two: per-conversation skill selection, folded behind a toggle —
+ * day-to-day the page is about the stored list, so the block stays collapsed.
+ *
+ * The first dropdown entry is the workspace's default selection (`_default`):
+ * every conversation without a selection file of its own inherits it, and the
+ * agent can flip its own skills through the `skill_select` tool at any time.
  */
-function ContextSection({ contexts, skills, t }: { contexts: UseContextsResult; skills: UseSkillsResult; t: Translate }) {
+function ContextSection({ contexts, t }: { contexts: UseContextsResult; t: Translate }) {
+  const [open, setOpen] = useState(false)
+  const { sessions } = contexts
+  const totalPicks = sessions.reduce((sum, s) => sum + s.count, 0)
   return (
-    <div className={css.section}>
-      <div className={css.inline}>
-        <div className={css.hGrow}>{t('contextTitle')}</div>
-        <Button onClick={contexts.reload}>{t('refresh')}</Button>
-      </div>
-      <div className={css.descWrap}>{t('contextNote')}</div>
-      {contexts.sessions.length === 0
-        ? <EmptyState title={t('emptyContexts')} />
-        : (
-          <div className={css.inline}>
-            <select
-              className={css.filterSelect}
-              value={contexts.activeId ?? ''}
-              onChange={(e) => { contexts.setActiveId(e.target.value) }}
-            >
-              {contexts.sessions.map((s) => (
-                <option key={s.sessionId} value={s.sessionId}>
-                  {format(t('contextSessionItem'), { id: s.sessionId.slice(0, 8), n: s.count })}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-      {contexts.message ? <ErrorText>{contexts.message}</ErrorText> : null}
-      {contexts.activeId !== null
+    <div className={css.collapsible}>
+      <button type="button" className={css.collapsibleHead} onClick={() => { setOpen((v) => !v) }}>
+        <span className={css.collapsibleChev}>{open ? '▾' : '▸'}</span>
+        <span className={css.collapsibleLabel}>{t('contextTitle')}</span>
+        <span className={css.collapsibleAction}>{format(t('contextCount'), { n: totalPicks })}</span>
+        <span className={css.collapsibleAction}>{open ? t('collapse') : t('expand')}</span>
+      </button>
+      {open
         ? (
-          <div className={css.scanList}>
-            {contexts.candidates.length === 0
-              ? <div className={css.note}>{t('contextNoCandidates')}</div>
-              : contexts.candidates.map((skill) => (
-                <div key={skill.slug ?? skill.path} className={css.row}>
-                  <input
-                    type="checkbox"
-                    disabled={contexts.busySlug === (skill.slug ?? '')}
-                    checked={!!contexts.checked[skill.slug ?? '']}
-                    onChange={() => { contexts.toggle(skill.slug ?? '') }}
-                  />
-                  <div className={css.main}>
-                    <div className={css.name}><span className={css.nameText}>{skill.name}</span></div>
-                  </div>
-                  <Badge>{t(skill.group === 'stored' ? 'groupStored' : skill.group === 'registered' ? 'groupRegistered' : 'groupNative')}</Badge>
+          <div className={css.section}>
+            <div className={css.inline}>
+              <div className={css.descWrap}>{t('contextNote')}</div>
+            </div>
+            <div className={css.inline}>
+              <select
+                className={css.filterSelect}
+                value={contexts.activeId ?? ''}
+                onChange={(e) => { contexts.setActiveId(e.target.value) }}
+              >
+                <option value={contexts.defaultId}>{t('contextDefaultItem')}</option>
+                {sessions.filter((s) => s.sessionId !== contexts.defaultId).map((s) => (
+                  <option key={s.sessionId} value={s.sessionId}>
+                    {format(t('contextSessionItem'), { id: s.sessionId.slice(0, 8), n: s.count })}
+                  </option>
+                ))}
+              </select>
+              <Button onClick={contexts.reload}>{t('refresh')}</Button>
+            </div>
+            {contexts.message ? <ErrorText>{contexts.message}</ErrorText> : null}
+            {contexts.activeId !== null
+              ? (
+                <div className={css.scanList}>
+                  {contexts.candidates.length === 0
+                    ? <div className={css.note}>{t('contextNoCandidates')}</div>
+                    : contexts.candidates.map((skill) => (
+                      <div key={skill.slug ?? skill.path} className={css.row}>
+                        <input
+                          type="checkbox"
+                          disabled={contexts.busySlug === (skill.slug ?? '')}
+                          checked={!!contexts.checked[skill.slug ?? '']}
+                          onChange={() => { contexts.toggle(skill.slug ?? '') }}
+                        />
+                        <div className={css.main}>
+                          <div className={css.name}><span className={css.nameText}>{skill.name}</span></div>
+                        </div>
+                        <Badge>{t(skill.group === 'stored' ? 'groupStored' : skill.group === 'registered' ? 'groupRegistered' : 'groupNative')}</Badge>
+                      </div>
+                    ))}
                 </div>
-              ))}
+              )
+              : null}
           </div>
         )
         : null}
@@ -260,7 +255,6 @@ function SkillRow({ skill, skills, t }: SkillRowProps) {
           <div className={css.name}>
             <span className={css.nameText}>
               {skill.name}
-              {skill.linked ? '' : t('suffixUnlinked')}
               {redFlag ? t('suffixUntracked') : ''}
             </span>
           </div>
@@ -302,14 +296,16 @@ function SkillRow({ skill, skills, t }: SkillRowProps) {
                   </Button>
                 )
                 : null}
-              {skill.group !== 'native'
+              {/* Link state owns exactly one button: a linked row offers
+                  断开联接, an unlinked stored/registered row offers 联接. */}
+              {skill.group !== 'native' && skill.linked
                 ? (
                   <Button disabled={isBusy} onClick={() => { skills.unlink(skill) }}>
                     {t('btnUnlink')}
                   </Button>
                 )
                 : null}
-              {skill.group === 'stored' && !skill.linked
+              {(skill.group === 'stored' || skill.group === 'registered') && !skill.linked
                 ? (
                   <Button disabled={isBusy} onClick={() => { skills.link(skill) }}>
                     {t('btnLink')}

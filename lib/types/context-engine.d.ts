@@ -9,8 +9,10 @@
  * engine only decides *which* skills a given conversation can see.
  *
  * Guarantees:
- * - Default is nothing: a conversation with no context file sees no managed
- *   skill through this engine (official roots keep working as dsh ships them).
+ * - A conversation with no selection file inherits the workspace default
+ *   (`contexts/_default.json`, edited through the panel's 默认配置 row); with
+ *   no default file either it sees no managed skill through this engine
+ *   (official roots keep working as dsh ships them).
  * - SKILL.md files are never touched; the choice lives in the JSON per
  *   conversation, so two conversations can hold different selections at once.
  * - The agent toggles through the registered `skill_select` tool, which writes
@@ -21,6 +23,13 @@ import type { Context } from '@deepseek-ai/cordis';
 import type { SkillRegistration } from '@deepseek-ai/dsh-skill';
 /** Directory (inside the workspace) that holds per-conversation selections. */
 export declare const CONTEXTS_DIR_NAME = "contexts";
+/**
+ * Session id the workspace default selection lives under. A conversation
+ * without a selection file of its own inherits this selection, so the panel's
+ * default row is "the skills new conversations start with". Real dsh session
+ * ids never look like this.
+ */
+export declare const DEFAULT_CONTEXT_ID = "_default";
 /** Per-conversation selection document. */
 export interface ContextSelection {
     sessionId: string;
@@ -37,9 +46,11 @@ export interface ContextEngineDeps {
     resolve: (slug: string) => SkillRegistration | undefined;
 }
 /**
- * Read one conversation's selection, or the empty default.
- * Tolerates a missing or corrupt file — a broken selection must never take
- * down the plugin or the conversation.
+ * Read one conversation's selection: its own file when it has one, otherwise
+ * the workspace default, otherwise the empty selection. The fallback is what
+ * makes the panel's 默认配置 row real — a fresh conversation starts with the
+ * default picks already registered. Tolerates a missing or corrupt file — a
+ * broken selection must never take down the plugin or the conversation.
  */
 export declare function readSelection(workspaceRoot: string, sessionId: string): ContextSelection;
 /** Write one conversation's selection atomically (tmp + rename). */
@@ -54,7 +65,9 @@ export declare function selectionPath(workspaceRoot: string, sessionId: string):
 export declare function applySelection(agentCtx: Context, workspaceRoot: string, sessionId: string, deps: ContextEngineDeps): () => void;
 /**
  * List every conversation selection under one workspace (panel index).
- * @returns session ids with their pick counts, newest change first.
+ * The workspace default (`_default`) is always present as the first row —
+ * the dropdown's "skills new conversations start with" entry — followed by
+ * the conversations that hold a file, newest change first.
  */
 export declare function listSelections(workspaceRoot: string): Array<{
     sessionId: string;

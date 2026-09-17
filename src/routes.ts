@@ -15,7 +15,7 @@ import { McpManager, readMcpArchive, readMcpConfig, validateMcpServer } from './
 import { SkillsManager } from './skills.ts'
 import { SMC_API } from './protocol.ts'
 import type { CliRegistryEntry, ManagerSettings, McpServerConfig } from './protocol.ts'
-import { listSelections, readSelection, toggleSelection, workspaceOf } from './context-engine.ts'
+import { listSelections, readSelection, toggleSelection, workspaceOf, DEFAULT_CONTEXT_ID } from './context-engine.ts'
 
 /** Requests may not exceed this much JSON (definitions and import lists are small). */
 const MAX_BODY_BYTES = 1024 * 1024
@@ -187,6 +187,16 @@ export function makeRoutes(deps: RoutesDeps): { routes: WebRoute[] } {
 
   const ok = (data: Record<string, unknown> = {}): Record<string, unknown> => ({ ok: true, ...data })
 
+  /**
+   * The workspace cwd of a live conversation, when the host provides the agent
+   * registry: context files live under the conversation's own workspace, so a
+   * panel call without an explicit cwd still lands in the right directory for
+   * any conversation that is (or was recently) running. Undefined otherwise —
+   * callers fall back to the request's cwd / the default workspace.
+   */
+  const agentCwdOf = (sessionId: string): string | undefined =>
+    deps.agents?.get(sessionId)?.session?.header?.cwd
+
   /** Every definition name across both documents, for not-found checks. */
   const allKnownNames = (): string[] => [
     ...readMcpConfig().servers.map((s) => s.name),
@@ -330,13 +340,13 @@ export function makeRoutes(deps: RoutesDeps): { routes: WebRoute[] } {
       // ── conversation contexts (phase two: per-conversation selection) ────
       handle('GET', SMC_API.contexts, async (_req, res, _body, url) => {
         const workspace = workspaceOf(queryParam(url, 'cwd'))
-        writeJson(res, 200, ok({ workspace, selections: listSelections(workspace) }))
+        writeJson(res, 200, ok({ workspace, defaultId: DEFAULT_CONTEXT_ID, selections: listSelections(workspace) }))
       }),
 
       handle('POST', SMC_API.contextsGet, async (_req, res, body, _url) => {
         const sessionId = bodyText(body, 'sessionId')
         if (!sessionId) { writeJson(res, 400, { ok: false, error: 'sessionId required' }); return }
-        const workspace = workspaceOf(bodyText(body, 'cwd') || undefined)
+        const workspace = workspaceOf(agentCwdOf(sessionId) ?? (bodyText(body, 'cwd') || undefined))
         writeJson(res, 200, ok({ workspace, selection: readSelection(workspace, sessionId) }))
       }),
 
@@ -346,7 +356,7 @@ export function makeRoutes(deps: RoutesDeps): { routes: WebRoute[] } {
         const sessionId = bodyText(body, 'sessionId')
         const slug = bodyText(body, 'slug')
         if (!sessionId || !slug) { writeJson(res, 400, { ok: false, error: 'sessionId and slug required' }); return }
-        const workspace = workspaceOf(bodyText(body, 'cwd') || undefined)
+        const workspace = workspaceOf(agentCwdOf(sessionId) ?? (bodyText(body, 'cwd') || undefined))
         const selection = toggleSelection(workspace, sessionId, slug)
         const agent = deps.agents?.get(sessionId)
         if (agent !== undefined && deps.applyToAgent !== undefined) {

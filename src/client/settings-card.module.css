@@ -180,6 +180,10 @@
   border-radius: var(--r-md);
   background: var(--fill-1);
   transition: border-color 0.12s, background 0.12s;
+  /* A fully-loaded skill row (2 badges + switch + up to 5 buttons) cannot fit
+     one line in a narrow panel: wrap the trailing actions onto the next line
+     instead of squeezing the name column down to one character per line. */
+  flex-wrap: wrap;
 }
 
 .row:hover {
@@ -193,7 +197,9 @@
 
 .main {
   flex: 1 1 auto;
-  min-width: 0;
+  /* Never below a readable name width: the shrink that `min-width: 0` allowed
+     turned long skill names into vertical letter stacks. */
+  min-width: 200px;
 }
 
 /* `.name` is a flex row (badges + status + an inline text run). Wrap the
@@ -433,15 +439,6 @@
   background: var(--danger-fill);
   color: var(--danger);
   font-size: 12px;
-}
-
-/* Store banner: explains where the canonical skill copies went, and carries
-   the one escape hatch (undo the migration) so it never feels like a trap. */
-.storeNote {
-  padding: var(--sp-2) var(--sp-3);
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
-  background: var(--fill-1);
 }
 
 /* ------------------------------------------------------------- collapsible */

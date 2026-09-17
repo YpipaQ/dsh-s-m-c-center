@@ -101,10 +101,6 @@ export type SkillsMcpKey =
   | 'persistC'
   // banners
   | 'pluginDisabled'
-  | 'storeMigrated'
-  | 'storeCount'
-  | 'storeUntracked'
-  | 'storeFailures'
   // statuses / badges / suffixes
   | 'stConnecting'
   | 'stRunning'
@@ -115,7 +111,6 @@ export type SkillsMcpKey =
   | 'stNotConnected'
   | 'suffixArchived'
   | 'suffixHidden'
-  | 'suffixUnlinked'
   | 'suffixUntracked'
   | 'suffixOversize'
   | 'suffixDir'
@@ -146,6 +141,7 @@ export type SkillsMcpKey =
   | 'filterDisabled'
   | 'levelProject'
   | 'levelUser'
+  | 'levelStore'
   // empty states
   | 'emptySkills'
   | 'emptySkillMatch'
@@ -202,7 +198,8 @@ export type SkillsMcpKey =
   // conversation contexts (phase two)
   | 'contextTitle'
   | 'contextNote'
-  | 'emptyContexts'
+  | 'contextDefaultItem'
+  | 'contextCount'
   | 'contextSessionItem'
   | 'contextNoCandidates'
   | 'msgContextApplied'
@@ -325,10 +322,6 @@ export const zh: Record<SkillsMcpKey, string> = {
   persistC: '；切换即时生效，无需重启。',
 
   pluginDisabled: '插件已禁用：路由与 MCP 连接、CLI 探测均已停止，重新启用后刷新即可恢复。',
-  storeMigrated: '技能已迁入统一储存库：{root}',
-  storeCount: '共 {count} 个，已联接 {linked} 个。',
-  storeUntracked: '{n} 条联接无账本记录',
-  storeFailures: ' 有 {n} 个未能迁移，已保留在原位置。',
 
   stConnecting: '连接中',
   stRunning: '运行中',
@@ -339,7 +332,6 @@ export const zh: Record<SkillsMcpKey, string> = {
   stNotConnected: '未连接',
   suffixArchived: ' （已归档）',
   suffixHidden: ' （已隐藏）',
-  suffixUnlinked: ' （未联接）',
   suffixUntracked: ' （⚠ 无记录联接）',
   suffixOversize: ' （超过 10G 上限）',
   suffixDir: ' (目录)',
@@ -370,6 +362,7 @@ export const zh: Record<SkillsMcpKey, string> = {
   filterDisabled: '已隐藏',
   levelProject: '项目级',
   levelUser: '用户级',
+  levelStore: '储存库级',
 
   emptySkills: '没有发现技能',
   emptySkillMatch: '没有匹配的技能',
@@ -425,8 +418,9 @@ export const zh: Record<SkillsMcpKey, string> = {
   msgRefreshMissing: '溯源刷新：{n} 条记录的目录已不存在 → ',
 
   contextTitle: '会话技能（上下文级）',
-  contextNote: '每个对话独立选择注入哪些技能，默认全不选。对话里的 agent 也可以自己开关（写入同一份配置）。此列表只显示已有选择记录的会话。',
-  emptyContexts: '还没有会话保存过技能选择——在对话里让 agent 用 skill_select 启用即可',
+  contextNote: '「默认配置」是新会话的起始技能：在这里勾选的技能会自动注入每个尚未单独配置的对话；对话里的 agent 也可以自己开关（写入该会话自己的配置）。下方列表只显示已有选择记录的会话。',
+  contextDefaultItem: '默认配置（新会话的技能）',
+  contextCount: '已选 {n} 项',
   contextSessionItem: '会话 {id}…（{n} 个已选）',
   contextNoCandidates: '没有可勾选的技能（先在下方登记或迁移入库）',
   msgContextApplied: '已保存，本会话共选 {n} 个技能（{state}）',
@@ -546,10 +540,6 @@ export const en: Record<SkillsMcpKey, string> = {
   persistC: '; switching takes effect immediately, no restart needed.',
 
   pluginDisabled: 'Plugin disabled: routes, MCP connections and CLI probing have all stopped. Re-enable it and refresh to recover.',
-  storeMigrated: 'Skills moved into the unified store: {root}',
-  storeCount: '{count} in total, {linked} linked.',
-  storeUntracked: '{n} link(s) without a ledger record',
-  storeFailures: ' {n} could not be moved and were left in place.',
 
   stConnecting: 'Connecting',
   stRunning: 'Running',
@@ -560,7 +550,6 @@ export const en: Record<SkillsMcpKey, string> = {
   stNotConnected: 'Not connected',
   suffixArchived: ' (archived)',
   suffixHidden: ' (hidden)',
-  suffixUnlinked: ' (unlinked)',
   suffixUntracked: ' (⚠ untracked link)',
   suffixOversize: ' (over the 10 GB cap)',
   suffixDir: ' (dir)',
@@ -591,6 +580,7 @@ export const en: Record<SkillsMcpKey, string> = {
   filterDisabled: 'Hidden',
   levelProject: 'Project',
   levelUser: 'User',
+  levelStore: 'Store',
 
   emptySkills: 'No skills found',
   emptySkillMatch: 'No matching skills',
@@ -646,8 +636,9 @@ export const en: Record<SkillsMcpKey, string> = {
   msgRefreshMissing: 'Traceability refresh: {n} record(s) missing → ',
 
   contextTitle: 'Conversation skills (context level)',
-  contextNote: 'Each conversation picks which skills are injected, all unselected by default. The agent can flip its own skills in-conversation (same config file). This list shows conversations that already hold a selection.',
-  emptyContexts: 'No conversation has a selection yet — ask the agent to enable one via skill_select',
+  contextNote: 'The default row sets the skills every conversation without its own selection starts with; the agent can also flip its own skills in-conversation (written to that conversation\'s config). The list below shows conversations that already hold a selection.',
+  contextDefaultItem: 'Default selection (new conversations)',
+  contextCount: '{n} selected',
   contextSessionItem: 'Session {id}… ({n} selected)',
   contextNoCandidates: 'Nothing to tick (register or migrate skills first)',
   msgContextApplied: 'Saved; {n} skill(s) selected for this conversation ({state})',

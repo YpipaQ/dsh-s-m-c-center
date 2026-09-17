@@ -45,9 +45,10 @@ export declare class SkillsMcpApi {
         name: string;
         exists: boolean;
     }>>;
-    /** Conversations that hold a selection under one workspace. */
+    /** Conversations that hold a selection under one workspace (default first). */
     listContexts(cwd: string): Promise<{
         workspace: string;
+        defaultId: string;
         selections: Array<{
             sessionId: string;
             count: number;

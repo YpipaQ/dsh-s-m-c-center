@@ -3,14 +3,17 @@
  *
  * The settings card cannot host this block well (it has no notion of "the
  * conversation you are looking at"), so the entry lives in the web shell's
- * sidebar like the other plugin-family buttons, and the panel is a small
- * fixed-position window. Rendering is imperative DOM on purpose: the panel
- * outlives the settings card's React tree and must survive shell re-renders
- * with the same self-healing pattern the family uses.
+ * sidebar right under the New Session button, and the panel is a small
+ * fixed-position window docked beside it. Rendering is imperative DOM on
+ * purpose: the panel outlives the settings card's React tree and must survive
+ * shell re-renders with the same self-healing pattern the family uses.
  *
- * Data comes straight from the plugin's own routes (contexts + skills); every
- * toggle posts to contexts/toggle, and a running conversation applies the
- * change live through its agent context.
+ * The panel always shows *the conversation you are in*: the session id comes
+ * from the dsh client's persisted selection (`localStorage['dsh.sessions.current']`,
+ * written by the session controller on every switch) and the title from
+ * `document.title` (the layout layer projects the current session title there,
+ * suffixed with ` — <product>`). Toggling writes the same per-conversation JSON
+ * the settings page and the `skill_select` tool write, so all three always agree.
  * @module
  */
 
@@ -19,6 +22,10 @@ import { SMC_API } from '../protocol.ts'
 const ENTRY_ID = 'data-dsh-s-m-c-entry'
 const STYLE_ID = 'dsh-s-m-c-sidebar-style'
 const PANEL_Z = 9999
+/** localStorage key the dsh session controller persists its selection under. */
+const SESSION_STORAGE_KEY = 'dsh.sessions.current'
+/** Separator dsh's DocumentTitle layer puts between session and product title. */
+const TITLE_SEPARATOR = ' — '
 
 /** One fetch round trip with the same error shape as the settings client. */
 async function api<T>(method: 'GET' | 'POST', path: string, payload?: unknown): Promise<T> {
@@ -41,12 +48,14 @@ function ensureStyle(): void {
   style.textContent = `
 [data-dsh-frame][data-sidebar-collapsed] [${ENTRY_ID}]{justify-content:center!important;width:100%!important;padding:0!important}
 [data-dsh-frame][data-sidebar-collapsed] [${ENTRY_ID}]>span:not(:first-child){display:none!important}
-.smc-fp{position:fixed;right:16px;bottom:16px;width:min(420px,92vw);max-height:min(560px,72vh);z-index:${PANEL_Z};
+.smc-fp{position:fixed;left:280px;top:80px;width:min(420px,92vw);max-height:min(560px,72vh);z-index:${PANEL_Z};
   display:flex;flex-direction:column;background:var(--dsw-alias-bg-base,#fdfdfd);color:var(--dsw-alias-label-primary,#1f2328);
   border:1px solid var(--dsw-alias-border-l1,#e2e5ea);border-radius:12px;box-shadow:0 12px 40px rgba(8,10,16,.18);
   font-size:13px;overflow:hidden}
 .smc-fp-head{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--dsw-alias-border-l2,#eceef1)}
 .smc-fp-head b{flex:1;font-size:13px}
+.smc-fp-sub{padding:8px 12px 0;color:var(--dsw-alias-label-tertiary,#8a8f98);font-size:12px}
+.smc-fp-sub .t{color:inherit;font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .smc-fp-body{overflow:auto;padding:8px 12px 12px;flex:1}
 .smc-fp-row{display:flex;align-items:center;gap:8px;padding:6px 2px;border-bottom:1px solid var(--dsw-alias-border-l2,#f1f2f4)}
 .smc-fp-row .t{flex:1;min-width:0}
@@ -54,7 +63,6 @@ function ensureStyle(): void {
 .smc-fp-row .t .d{color:var(--dsw-alias-label-tertiary,#8a8f98);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .smc-fp-note{color:var(--dsw-alias-label-tertiary,#8a8f98);font-size:12px;padding:4px 2px}
 .smc-fp-err{color:var(--dsw-alias-state-error-primary,#d1242f);font-size:12px;padding:4px 2px}
-.smc-fp select{max-width:180px;background:var(--dsw-alias-bg-layer-1,#f7f8fa);color:inherit;border:1px solid var(--dsw-alias-border-l1,#e2e5ea);border-radius:6px;padding:3px 6px}
 `
   document.head.appendChild(style)
 }
@@ -79,10 +87,29 @@ function buildEntry(onClick: () => void): HTMLButtonElement {
   return button
 }
 
-/** Place the entry after the plugin-family block inside the sidebar. */
+/**
+ * Place the entry as the first item under the New Session button.
+ *
+ * The button is found by its CSS-module class (hashed names keep the original
+ * word) with the localized aria-label as the backup — the brand button shares
+ * the aria-label, so class matching wins. Falls back to the plugin-family
+ * block while the shell renders a layout without the button.
+ */
 function placeEntry(entry: HTMLElement): boolean {
   const column = document.querySelector('[data-pane="sidebar"], [class*="sidebarCol"]')
   if (column === null) return false
+  const buttons = Array.from(column.querySelectorAll('button'))
+  const newSession = buttons.find((b) => /newSession/i.test(b.className))
+    ?? buttons.find((b) => {
+      const label = b.getAttribute('aria-label') ?? ''
+      return (label === '新建会话' || label === 'New session') && !/brand/i.test(b.className)
+    })
+  if (newSession !== undefined) {
+    if (entry.parentElement === newSession.parentElement && entry.previousElementSibling === newSession) return true
+    newSession.after(entry)
+    return true
+  }
+  // Fallback: after the plugin-family block (the pre-新会话 layout).
   const logoRow = column.querySelector('[class*="logoRow"]')
   const root = (logoRow?.parentElement ?? column.firstElementChild) as HTMLElement | null
   if (root === null) return false
@@ -94,8 +121,25 @@ function placeEntry(entry: HTMLElement): boolean {
   return true
 }
 
-interface ContextRow { sessionId: string; count: number; updatedAt: string }
 interface SkillRow { name: string; description: string; group: string; slug?: string; path: string; kind: 'bundle' | 'file'; level?: string }
+
+/** The conversation the user is looking at, read from the dsh client's own state. */
+function currentConversation(): { id: string | undefined; title: string } {
+  let id: string | undefined
+  try {
+    const raw = localStorage.getItem(SESSION_STORAGE_KEY)
+    if (raw !== null) {
+      const parsed = JSON.parse(raw) as { sessionId?: unknown }
+      if (typeof parsed?.sessionId === 'string' && parsed.sessionId !== '') id = parsed.sessionId
+    }
+  } catch { /* corrupt or unavailable storage → no session */ }
+  // document.title is `${session title} — ${product}` while a titled session
+  // is open; the bare product title means a blank/new conversation.
+  const full = document.title
+  const at = full.lastIndexOf(TITLE_SEPARATOR)
+  const title = at > 0 ? full.slice(0, at) : ''
+  return { id, title }
+}
 
 /** One toggle round trip against the live routes. */
 async function toggleSkill(sessionId: string, slug: string, cwd: string): Promise<{ selected: string[] }> {
@@ -106,13 +150,18 @@ async function toggleSkill(sessionId: string, slug: string, cwd: string): Promis
 }
 
 /**
- * Open (or refresh) the floating panel for one conversation. Data is fetched
- * fresh on every open; toggles update the row in place.
+ * Open (or refresh) the floating panel docked beside the sidebar entry.
+ * Data is fetched fresh on every open; toggles update the row in place and
+ * the head's refresh button re-reads everything.
  */
-function openPanel(sessionId: string, cwd: string): void {
+function openPanel(entry: HTMLElement): void {
   ensureStyle()
   const existing = document.getElementById('smc-fp')
   if (existing !== null) existing.remove()
+
+  const conversation = currentConversation()
+  const sessionId = conversation.id
+  const cwd = ''
 
   const panel = document.createElement('div')
   panel.id = 'smc-fp'
@@ -120,18 +169,48 @@ function openPanel(sessionId: string, cwd: string): void {
   const head = document.createElement('div')
   head.className = 'smc-fp-head'
   const title = document.createElement('b')
-  title.textContent = '会话技能 · ' + sessionId.slice(0, 8)
+  title.textContent = '会话技能'
+  const refresh = document.createElement('button')
+  refresh.type = 'button'
+  refresh.textContent = '↻ 刷新'
+  refresh.style.cssText = 'border:none;background:transparent;color:inherit;cursor:pointer;font-size:12px;opacity:.75'
   const close = document.createElement('button')
   close.type = 'button'
   close.textContent = '✕'
   close.style.cssText = 'border:none;background:transparent;color:inherit;cursor:pointer;font-size:14px'
   close.addEventListener('click', () => { panel.remove() })
-  head.append(title, close)
+  head.append(title, refresh, close)
+
+  const sub = document.createElement('div')
+  sub.className = 'smc-fp-sub'
+  const subTitle = document.createElement('div')
+  subTitle.className = 't'
+  subTitle.textContent = sessionId === undefined ? '新会话（尚未开始对话）' : (conversation.title || '当前会话')
+  const subId = document.createElement('div')
+  subId.textContent = sessionId === undefined ? '开始对话后即可在此选择技能' : sessionId.slice(0, 8) + '…'
+  sub.append(subTitle, subId)
+
   const bodyEl = document.createElement('div')
   bodyEl.className = 'smc-fp-body'
   bodyEl.textContent = '加载中…'
-  panel.append(head, bodyEl)
+  panel.append(head, sub, bodyEl)
   document.body.appendChild(panel)
+
+  // Dock beside the entry (viewport-clamped): the block the user clicked is
+  // the anchor, so the panel never covers the conversation it describes.
+  const entryRect = entry.getBoundingClientRect()
+  panel.style.visibility = 'hidden'
+  requestAnimationFrame(() => {
+    const panelRect = panel.getBoundingClientRect()
+    let left = entryRect.right + 12
+    if (left + panelRect.width > window.innerWidth - 8) {
+      left = Math.max(8, entryRect.left - panelRect.width - 12)
+    }
+    const top = Math.min(Math.max(entryRect.top - 4, 8), Math.max(8, window.innerHeight - panelRect.height - 8))
+    panel.style.left = `${Math.round(left)}px`
+    panel.style.top = `${Math.round(top)}px`
+    panel.style.visibility = ''
+  })
 
   const note = (text: string, isError = false): void => {
     const el = document.createElement('div')
@@ -140,29 +219,13 @@ function openPanel(sessionId: string, cwd: string): void {
     bodyEl.appendChild(el)
   }
 
-  const render = (skillRows: SkillRow[], selected: string[], sessionList: ContextRow[]): void => {
+  const render = (skillRows: SkillRow[], selected: string[]): void => {
     bodyEl.textContent = ''
-    const picked = new Set(selected)
-    const switcher = document.createElement('div')
-    switcher.className = 'smc-fp-note'
-    const label = document.createElement('span')
-    label.textContent = '会话：'
-    const select = document.createElement('select')
-    for (const row of sessionList) {
-      const option = document.createElement('option')
-      option.value = row.sessionId
-      option.textContent = row.sessionId.slice(0, 8) + `…（${row.count}）`
-      if (row.sessionId === sessionId) option.selected = true
-      select.appendChild(option)
+    if (sessionId === undefined) {
+      note('新会话还没有会话 ID——发第一条消息后，这里就会跟随该对话的技能选择')
+      return
     }
-    select.addEventListener('change', () => {
-      const next = select.value
-      panel.remove()
-      openPanel(next, cwd)
-    })
-    switcher.append(label, select)
-    bodyEl.appendChild(switcher)
-
+    const picked = new Set(selected)
     if (skillRows.length === 0) {
       note('没有可勾选的技能（先在管理页登记或迁移入库）')
       return
@@ -196,28 +259,33 @@ function openPanel(sessionId: string, cwd: string): void {
           box.disabled = false
         })
       })
-      line.append(box, text)
       bodyEl.appendChild(line)
     }
   }
 
-  void (async () => {
-    try {
-      const [skillBody, contextBody] = await Promise.all([
-        api<{ items: SkillRow[] }>('GET', cwd !== '' ? `${SMC_API.skills}?cwd=${encodeURIComponent(cwd)}` : SMC_API.skills),
-        api<{ selections: ContextRow[] }>('POST', SMC_API.contextsGet, { sessionId, cwd })
-          .then(() => api<{ selections: ContextRow[] }>('GET', cwd !== '' ? `${SMC_API.contexts}?cwd=${encodeURIComponent(cwd)}` : SMC_API.contexts)),
-      ])
-      const selectionBody = await api<{ selection: { selected: string[] } }>(
-        'POST', SMC_API.contextsGet, { sessionId, cwd },
-      )
-      const rows = skillBody.items.filter((s) => s.level === 'user')
-      render(rows, selectionBody.selection.selected, contextBody.selections)
-    } catch (e) {
-      bodyEl.textContent = ''
-      note(String((e as Error)?.message ?? e), true)
-    }
-  })()
+  const load = (): void => {
+    bodyEl.textContent = ''
+    bodyEl.textContent = '加载中…'
+    void (async () => {
+      try {
+        const [skillBody, selectionBody] = await Promise.all([
+          api<{ items: SkillRow[] }>('GET', cwd !== '' ? `${SMC_API.skills}?cwd=${encodeURIComponent(cwd)}` : SMC_API.skills),
+          sessionId === undefined
+            ? Promise.resolve({ selection: { selected: [] as string[] } })
+            : api<{ selection: { selected: string[] } }>('POST', SMC_API.contextsGet, { sessionId, cwd }),
+        ])
+        // Only rows the context engine can resolve carry a slug
+        // (stored / registered); native rows have nothing to register yet.
+        const rows = skillBody.items.filter((s) => s.level === 'user' && typeof s.slug === 'string' && s.slug !== '')
+        render(rows, selectionBody.selection.selected)
+      } catch (e) {
+        bodyEl.textContent = ''
+        note(String((e as Error)?.message ?? e), true)
+      }
+    })()
+  }
+  refresh.addEventListener('click', load)
+  load()
 }
 
 /** Mount the sidebar entry with the family's self-healing pattern. */
@@ -227,9 +295,7 @@ export function mountSidebarEntry(ctx: {
   const run = (): (() => void) => {
     ensureStyle()
     const entry = buildEntry(() => {
-      // cwd: best effort — the plugin routes treat a missing cwd as the
-      // process workspace, and the workspace picker can be added later.
-      openPanel('default', '')
+      openPanel(entry)
     })
     document.body.appendChild(entry)
 
