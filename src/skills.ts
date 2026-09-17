@@ -1,15 +1,24 @@
 /**
- * Skills filesystem engine — scans the four manageable skill roots, parses
- * SKILL.md frontmatter, and performs enable/disable, delete, scan-for-import,
- * and import. Runs in the Host process with direct node:fs access (a real npm
- * package no longer needs the shell+node hack the dynamic plugin used).
+ * Skills filesystem engine — the real-level manager behind the four groups:
  *
- * Skills adopted into the store live in `~/.dsh/S-M-C/skills/<slug>/` as the
- * single canonical copy; enabling one writes a directory link back into its
- * source root (`~/.dsh/skills/<slug>`), disabling removes that link. dsh's own
- * scanner follows links (`skill-filesystem` `nodeEntryKind` stats a symlink
- * entry), so a linked skill is fully visible to the agent while an unlinked one
- * is invisible — and the SKILL.md itself is never rewritten.
+ * 1. **native** — skills sitting as real files/directories in a scanned root
+ *    (`~/.dsh/skills`, `~/.agents/skills`, or the project roots). Migrating one
+ *    moves the canonical copy into the store and replaces the original with a
+ *    link.
+ * 2. **stored** — canonical copies under `~/.dsh/S-M-C/skills/<slug>/` (with
+ *    `index.json` as the manifest).
+ * 3. **registered** — external skills whose canonical copy stays wherever the
+ *    user pointed at; only a record in `skills-registry.json` marks them.
+ * 4. **links** — the junctions themselves, always under `~/.dsh/skills`, every
+ *    one of them written down in `skills-links.json` when created so it can be
+ *    audited and precisely undone. A link found on disk without a ledger
+ *    record is reported as untracked (red flag) instead of silently adopted.
+ *
+ * Every registration runs the same safety flow: walk the candidate directory
+ * level by level until a SKILL.md shows up, require a parseable frontmatter
+ * (name + description), and only then write the record. SKILL.md files are
+ * never rewritten — visibility is decided by link presence, and the per-skill
+ * announcement flag lives in the JSON ledgers, not in the file.
  * @module
  */
 
@@ -22,11 +31,14 @@ import type { Dirent } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, dirname, extname, join, resolve, sep } from 'node:path'
 import type {
-  ImportItem, ImportResult, ScannedSkill, SkillDetail, SkillLevel,
-  SkillSource, SkillSummary, StoreEntry, StoreFailure, StoreIndex,
-  StoreOperation, StoreStatus,
+  LinkRecord, RegistryEntry, ScannedSkill, SkillDetail, SkillGroup,
+  SkillSource, SkillSummary, SkillLinks, SkillsRegistry, StoreEntry,
+  StoreFailure, StoreIndex, StoreOperation, StoreStatus, VerifyResult,
 } from './protocol.ts'
-import { dshHomeDir, movePath, storeRoot, storeSkillsDir } from './store.ts'
+import {
+  dshHomeDir, movePath, storeRoot, storeSkillsDir,
+  storeSkillsRegistryPath, storeSkillsLinksPath,
+} from './store.ts'
 
 /** User-level skill roots (project roots are derived from the workspace cwd). */
 export interface SkillRoots {
@@ -41,8 +53,7 @@ export interface SkillRoots {
 
 /**
  * Directory name of the legacy store, kept only so {@link migrateStoreRoot}
- * can recognise an old layout and move it. New code uses `storeSkillsDir()`
- * from ./store.ts — the skills live under the unified S-M-C root now.
+ * can recognise an old layout and move it.
  */
 export const STORE_DIR_NAME = 'skills-store'
 
@@ -127,9 +138,12 @@ export function findProjectRoot(cwd?: string): string {
 }
 
 /** Project-level sources are the ones that belong to a workspace. */
-function levelOf(source: SkillSource): SkillLevel {
+function levelOf(source: SkillSource): SkillLevelOf {
   return source.startsWith('project') ? 'project' : 'user'
 }
+
+/** Alias so the protocol import stays a type-only concern. */
+type SkillLevelOf = SkillSummary['level']
 
 /** The exact spellings a YAML scalar may use for each literal. */
 const TRUE_LITERALS = new Set(['true', 'True', 'TRUE'])
@@ -142,26 +156,6 @@ function scalarValue(raw: string): unknown {
   if (FALSE_LITERALS.has(raw)) return false
   if (NULL_LITERALS.has(raw)) return null
   return /^-?\d+$/.test(raw) ? Number.parseInt(raw, 10) : raw
-}
-
-/** Boolean reading of a frontmatter value; undefined when it is not one. */
-function parseBool(value: unknown): boolean | undefined {
-  if (typeof value === 'boolean') return value
-  if (value === 1 || value === '1') return true
-  if (value === 0 || value === '0') return false
-  if (typeof value !== 'string') return undefined
-  switch (value.toLowerCase()) {
-    case 'true':
-    case 'yes':
-    case 'on':
-      return true
-    case 'false':
-    case 'no':
-    case 'off':
-      return false
-    default:
-      return undefined
-  }
 }
 
 /** Separator line that opens and closes a frontmatter block. */
@@ -196,7 +190,7 @@ function parseFrontmatter(raw: string): Frontmatter | null {
   return { data, body: lines.slice(closing + 1).join('\n') }
 }
 
-interface ParsedSkill { name: string; description: string; whenToUse: string; enabled: boolean; content: string }
+interface ParsedSkill { name: string; description: string; whenToUse: string; content: string }
 
 /** A frontmatter field read as text; anything non-string reads as ''. */
 function textField(data: Record<string, unknown>, key: string): string {
@@ -215,47 +209,12 @@ function parseSkillFile(raw: string): ParsedSkill | null {
   const name = textField(front.data, 'name')
   const description = textField(front.data, 'description')
   if (name === '' || description === '') return null
-  const disableModel = parseBool(front.data['disable-model-invocation'])
-  const userInvocable = parseBool(front.data['user-invocable'])
   return {
     name,
     description,
     whenToUse: textField(front.data, 'whenToUse'),
-    // Hidden only when both switches say so: a skill stays visible if the
-    // model may still invoke it, or if the user still can.
-    enabled: (disableModel !== true) || (userInvocable !== false),
     content: front.body.trim(),
   }
-}
-
-/** Frontmatter keys that decide whether a skill is visible to the agent. */
-const INVOCATION_KEYS = [
-  'disable-model-invocation',
-  'disableModelInvocation',
-  'modelInvocable',
-  'user-invocable',
-  'userInvocable',
-]
-
-/** Matches a frontmatter line that sets one of the invocation keys. */
-const INVOCATION_LINE = new RegExp(`^\\s*(${INVOCATION_KEYS.join('|')})\\s*:`)
-
-/**
- * Rewrite the frontmatter so the skill reads as enabled or disabled.
- *
- * Only ever used for project-level skills: a managed skill is switched off by
- * removing its link, which leaves the file untouched. The old spellings are
- * stripped along with the current ones, because dsh drops a whole skill when
- * it meets a retired spelling.
- */
-function toggleInvocation(raw: string, enabled: boolean): string {
-  const lines = raw.split(/\r?\n/)
-  if (lines[0]?.trim() !== FENCE) return raw
-  const closing = lines.findIndex((line, index) => index > 0 && line.trim() === FENCE)
-  if (closing < 0) return raw
-  const kept = lines.slice(1, closing).filter((line) => !INVOCATION_LINE.test(line))
-  if (!enabled) kept.push('disable-model-invocation: true', 'user-invocable: false')
-  return [lines[0], ...kept, ...lines.slice(closing)].join('\n')
 }
 
 /** Filesystem-safe store directory name for a skill. */
@@ -277,13 +236,29 @@ function uniqueSlug(taken: Set<string>, base: string): string {
   }
 }
 
-/** Root directory a link is written back to for one source. */
-function rootFor(source: SkillSource, roots: SkillRoots): string {
-  return source === 'user-agents' ? roots.agentsSkillsDir : roots.userSkillsDir
-}
-
 /** Link kind: junctions need no elevation on Windows, symlinks elsewhere. */
 const LINK_TYPE = process.platform === 'win32' ? 'junction' : 'dir'
+
+/** Cap for one imported skill's on-disk size. */
+export const MAX_SKILL_BYTES = 10 * 1024 * 1024 * 1024
+
+/** How deep {@link SkillsManager.scanSkills} descends below the picked root. */
+export const SCAN_DEPTH = 2
+
+/** Recursively sum the on-disk size of a directory or file. */
+function treeSize(path: string): number {
+  let info
+  try { info = statSync(path) } catch { return 0 }
+  if (!info.isDirectory()) return info.size
+  let total = 0
+  try {
+    for (const entry of readdirSync(path, { withFileTypes: true })) {
+      total += treeSize(join(path, entry.name))
+      if (total > MAX_SKILL_BYTES) return total // early out
+    }
+  } catch { /* unreadable entries contribute 0 */ }
+  return total
+}
 
 export class SkillsManager {
   /** The skills directory (created on demand inside the unified store root). */
@@ -291,7 +266,7 @@ export class SkillsManager {
     return storeSkillsDir()
   }
 
-  // ── store manifest ──────────────────────────────────────────────────────
+  // ── store manifest (group 2: stored) ─────────────────────────────────────
 
   /**
    * Read the store manifest, rebuilding it from disk when missing or corrupt.
@@ -343,29 +318,15 @@ export class SkillsManager {
       let parsed: ParsedSkill | null = null
       try { parsed = parseSkillFile(readFileSync(mdPath, 'utf8')) } catch { continue }
       if (parsed === null) continue
-        entries.push({
-          slug,
-          name: parsed.name,
-          origin: '',
-          source: this.linkedSource(slug) ?? 'user-dsh',
-          enabled: this.linkedSource(slug) !== undefined,
-          linked: this.linkedSource(slug) !== undefined,
-          adoptedAt: new Date().toISOString(),
+      entries.push({
+        slug,
+        name: parsed.name,
+        origin: '',
+        announce: true,
+        adoptedAt: new Date().toISOString(),
       })
     }
     return { version: 1, entries }
-  }
-
-  /** Which root currently holds a link for `slug`, if any. */
-  private linkedSource(slug: string): SkillSource | undefined {
-    const roots = getRoots()
-    const store = this.storeDir()
-    for (const source of ['user-dsh', 'user-agents'] as const) {
-      const link = join(rootFor(source, roots), slug)
-      const target = linkTarget(link)
-      if (target !== undefined && inside(store, resolve(link, '..', target))) return source
-    }
-    return undefined
   }
 
   /** Replace (or insert) one manifest entry. */
@@ -384,189 +345,507 @@ export class SkillsManager {
     this.writeStoreIndex(index)
   }
 
-  // ── linking ─────────────────────────────────────────────────────────────
+  /** Manifest entry for one slug, when present. */
+  private entryOf(slug: string): StoreEntry | undefined {
+    return this.readStoreIndex().entries.find((e) => e.slug === slug)
+  }
+
+  // ── registry ledger (group 3: registered + native announce flags) ────────
+
+  /** Read the external-skills registry, tolerating a missing or corrupt file. */
+  readRegistry(): SkillsRegistry {
+    const file = storeSkillsRegistryPath()
+    if (!existsSync(file)) return { version: 1, entries: [] }
+    try {
+      const parsed: unknown = JSON.parse(readFileSync(file, 'utf8'))
+      if (typeof parsed !== 'object' || parsed === null || !Array.isArray((parsed as SkillsRegistry).entries)) {
+        throw new Error('malformed registry')
+      }
+      return parsed as SkillsRegistry
+    } catch {
+      return { version: 1, entries: [] }
+    }
+  }
+
+  /** Write the registry atomically. */
+  private writeRegistry(reg: SkillsRegistry): void {
+    mkdirSync(storeRoot(), { recursive: true })
+    const file = storeSkillsRegistryPath()
+    const tmp = file + '.tmp'
+    writeFileSync(tmp, JSON.stringify(reg, null, 2), 'utf8')
+    renameSync(tmp, file)
+  }
+
+  /** Replace (or insert) one registry entry. */
+  private upsertRegistryEntry(entry: RegistryEntry): void {
+    const reg = this.readRegistry()
+    const idx = reg.entries.findIndex((e) => e.slug === entry.slug)
+    if (idx >= 0) reg.entries[idx] = entry
+    else reg.entries.push(entry)
+    this.writeRegistry(reg)
+  }
+
+  /** Drop one registry entry by slug. */
+  private dropRegistryEntry(slug: string): void {
+    const reg = this.readRegistry()
+    reg.entries = reg.entries.filter((e) => e.slug !== slug)
+    this.writeRegistry(reg)
+  }
+
+  /** Registry entry for one slug, when present. */
+  private registryEntryOf(slug: string): RegistryEntry | undefined {
+    return this.readRegistry().entries.find((e) => e.slug === slug)
+  }
+
+  // ── link ledger (group 4: links) ─────────────────────────────────────────
+
+  /** Read the link ledger, tolerating a missing or corrupt file. */
+  readLinks(): SkillLinks {
+    const file = storeSkillsLinksPath()
+    if (!existsSync(file)) return { version: 1, links: [] }
+    try {
+      const parsed: unknown = JSON.parse(readFileSync(file, 'utf8'))
+      if (typeof parsed !== 'object' || parsed === null || !Array.isArray((parsed as SkillLinks).links)) {
+        throw new Error('malformed link ledger')
+      }
+      return parsed as SkillLinks
+    } catch {
+      return { version: 1, links: [] }
+    }
+  }
+
+  /** Write the link ledger atomically. */
+  private writeLinks(links: SkillLinks): void {
+    mkdirSync(storeRoot(), { recursive: true })
+    const file = storeSkillsLinksPath()
+    const tmp = file + '.tmp'
+    writeFileSync(tmp, JSON.stringify(links, null, 2), 'utf8')
+    renameSync(tmp, file)
+  }
+
+  /** Ledger record for one link path, when present. */
+  private linkRecordOf(linkPath: string): LinkRecord | undefined {
+    const want = resolve(linkPath).toLowerCase()
+    return this.readLinks().links.find((l) => resolve(l.linkPath).toLowerCase() === want)
+  }
+
+  /** Append one ledger record. */
+  private trackLink(record: LinkRecord): void {
+    const ledger = this.readLinks()
+    const want = resolve(record.linkPath).toLowerCase()
+    ledger.links = ledger.links.filter((l) => resolve(l.linkPath).toLowerCase() !== want)
+    ledger.links.push(record)
+    this.writeLinks(ledger)
+  }
+
+  /** Remove the ledger record for one link path. */
+  private untrackLink(linkPath: string): void {
+    const ledger = this.readLinks()
+    const want = resolve(linkPath).toLowerCase()
+    const next = ledger.links.filter((l) => resolve(l.linkPath).toLowerCase() !== want)
+    if (next.length !== ledger.links.length) this.writeLinks({ version: 1, links: next })
+  }
+
+  // ── linking ──────────────────────────────────────────────────────────────
 
   /**
-   * Materialise the link for one stored skill. No-op when it already exists;
-   * refuses to overwrite a real directory.
+   * Create the link `~/.dsh/skills/<slug>` → `target` and write the ledger
+   * record. Refuses to overwrite a real directory; a tracked link is a no-op.
    */
-  private linkInto(slug: string, source: SkillSource): void {
+  private createLink(slug: string, target: string): void {
     const roots = getRoots()
-    const root = rootFor(source, roots)
-    mkdirSync(root, { recursive: true })
-    const link = join(root, slug)
-    const target = join(this.storeDir(), slug)
+    mkdirSync(roots.userSkillsDir, { recursive: true })
+    const link = join(roots.userSkillsDir, slug)
     if (isLink(link)) return
     if (existsSync(link)) throw new Error('已存在同名条目：' + link)
-    symlinkSync(target, link, LINK_TYPE)
+    symlinkSync(resolve(target), link, LINK_TYPE)
+    this.trackLink({
+      slug,
+      linkPath: link,
+      targetPath: resolve(target),
+      createdAt: new Date().toISOString(),
+    })
   }
 
   /**
-   * Remove the link for one stored skill. Only ever removes a link — a real
-   * directory is left alone so a stray path can never delete the store copy.
+   * Remove the link `~/.dsh/skills/<slug>` and its ledger record. Only ever
+   * removes a link — a real directory is left alone so a stray path can never
+   * delete real skills.
    */
-  private unlinkFrom(slug: string, source: SkillSource): void {
-    const link = join(rootFor(source, getRoots()), slug)
+  private removeLink(slug: string): void {
+    const link = join(getRoots().userSkillsDir, slug)
+    this.untrackLink(link)
     if (!isLink(link)) return
     if (process.platform === 'win32') rmdirSync(link)
     else unlinkSync(link)
   }
 
+  /** Which root currently holds a tracked/untracked link for `slug`, if any. */
+  private linkedPath(slug: string): string | undefined {
+    const link = join(getRoots().userSkillsDir, slug)
+    if (!isLink(link)) return undefined
+    return link
+  }
+
   /**
-   * Repoint every link that targets `from` at `to`.
+   * Repoint every ledger-tracked link that targets `from` at `to`.
    *
    * A junction stores an absolute target string, so moving the store silently
-   * breaks every link into it: the bundles are intact, but `~/.dsh/skills/x`
-   * still names the old path and the agent stops seeing the skill entirely.
-   * This is the repair step the store-root migration runs right after moving.
-   * @param from - the old store directory (may no longer exist).
-   * @param to - the new store directory.
-   * @returns how many links were rebuilt.
+   * breaks every link into it. This is the repair step the store-root
+   * migration runs right after moving.
    */
   relinkSkills(from: string, to: string): number {
-    const roots = getRoots()
+    const ledger = this.readLinks()
     const base = resolve(from)
     let count = 0
-    for (const dir of [roots.userSkillsDir, roots.agentsSkillsDir]) {
+    for (const record of ledger.links) {
+      if (!inside(base, record.targetPath)) continue
+      const slug = record.slug
+      const link = join(getRoots().userSkillsDir, slug)
+      try {
+        if (isLink(link)) {
+          if (process.platform === 'win32') rmdirSync(link)
+          else unlinkSync(link)
+        }
+        symlinkSync(join(to, basename(record.targetPath)), link, LINK_TYPE)
+        this.trackLink({ ...record, linkPath: link, targetPath: join(to, basename(record.targetPath)) })
+        count++
+      } catch { /* the caller reports the state through a rescan */ }
+    }
+    // Links the ledger never saw still deserve a repair pass.
+    for (const dir of [getRoots().userSkillsDir, getRoots().agentsSkillsDir]) {
       if (!existsSync(dir)) continue
       for (const entry of readdirSync(dir, { withFileTypes: true })) {
         const full = join(dir, entry.name)
         if (!isLink(full)) continue
         const target = linkTarget(full)
-        if (target === undefined || !inside(base, target)) continue
-        // Drop the stale link first: creating over an existing one fails.
+        if (target === undefined || !inside(base, resolve(dir, target))) continue
         try {
           if (process.platform === 'win32') rmdirSync(full)
           else unlinkSync(full)
-        } catch { continue }
-        try {
           symlinkSync(join(to, basename(target)), full, LINK_TYPE)
           count++
-        } catch { /* the caller reports the state through a rescan */ }
+        } catch { /* rescan reports */ }
       }
     }
     return count
   }
 
-  // ── adoption ────────────────────────────────────────────────────────────
+  // ── adoption (native → stored) ───────────────────────────────────────────
 
   /**
-   * Move one skill into the store as a bundle and (when enabled) link it back.
-   *
-   * The stored copy is normalised: any `disable-model-invocation` /
-   * `user-invocable` flags are stripped, because from here on visibility is
-   * decided by link presence alone — leaving the flags in place would keep a
-   * re-enabled skill hidden from the model.
+   * Move one native skill into the store, link it back from
+   * `~/.dsh/skills/<slug>`, record the link, and drop its registry entry
+   * (the skill is a stored one now). The SKILL.md is copied verbatim — no
+   * frontmatter rewriting, ever.
+   * @returns the store slug.
    */
-  private adopt(
-    sourcePath: string,
-    kind: 'bundle' | 'file',
-    source: SkillSource,
-    enabled: boolean,
-    releaseDir?: string,
-  ): string {
+  migrateToStore(sourcePath: string, kind: 'bundle' | 'file', source: SkillSource): string {
     const store = this.storeDir()
     mkdirSync(store, { recursive: true })
     const mdPath = kind === 'bundle' ? join(sourcePath, 'SKILL.md') : sourcePath
-    const raw = readFileSync(mdPath, 'utf8')
-    const parsed = parseSkillFile(raw)
+    const parsed = parseSkillFile(readFileSync(mdPath, 'utf8'))
     if (parsed === null) throw new Error('不是有效的技能文件：' + mdPath)
     const taken = new Set<string>(readdirSync(store).filter((n) => !n.startsWith('.')))
     const slug = uniqueSlug(taken, slugify(parsed.name || basename(sourcePath, extname(sourcePath))))
     const dest = join(store, slug)
 
-    if (kind === 'bundle') {
-      movePath(sourcePath, dest)
-      writeFileSync(join(dest, 'SKILL.md'), toggleInvocation(raw, true), 'utf8')
-    } else {
+    if (kind === 'bundle') movePath(sourcePath, dest)
+    else {
       mkdirSync(dest, { recursive: true })
       movePath(sourcePath, join(dest, 'SKILL.md'))
-      writeFileSync(join(dest, 'SKILL.md'), toggleInvocation(raw, true), 'utf8')
     }
 
-    if (enabled) this.linkInto(slug, source)
+    const previous = this.registryEntryOf(slug) ?? this.registryEntryOf(slugify(parsed.name))
+    const announce = previous?.announce ?? true
+    this.dropRegistryEntry(slug)
+    this.dropRegistryEntry(slugify(parsed.name))
+
+    this.createLink(slug, dest)
     this.upsertEntry({
       slug,
       name: parsed.name,
-      // Migration adopts keep the pre-adoption path (rollback restores the
-      // status quo ante). Imports come from arbitrary directories the user
-      // happened to pick — releasing them back there would scatter skills
-      // across the filesystem again, so their release target is pinned to
-      // the dsh user skills root.
-      origin: releaseDir !== undefined ? join(releaseDir, slug) : sourcePath,
-      source,
-      enabled,
-      linked: enabled,
+      origin: sourcePath,
+      announce,
       adoptedAt: new Date().toISOString(),
     })
     return slug
   }
 
   /**
-   * Resolve a skill path back to its store identity, or undefined when the
-   * skill is not managed (still in place, toggled by frontmatter).
+   * Undo a migration: remove the link, move the canonical copy back to its
+   * origin, and drop the manifest entry. The registry entry is restored so
+   * the announcement flag survives the round trip.
    */
-  private resolveManaged(path: string): { slug: string; source: SkillSource } | undefined {
+  unmigrate(slug: string): string {
+    const entry = this.entryOf(slug)
+    if (entry === undefined) throw new Error('储存库中没有这个技能：' + slug)
+    const bundle = join(this.storeDir(), slug)
+    if (!existsSync(bundle)) throw new Error('储存库副本已不存在：' + bundle)
+    if (entry.origin === '') throw new Error('缺少原始路径，无法撤销迁移：' + slug)
+    this.removeLink(slug)
+    mkdirSync(dirname(entry.origin), { recursive: true })
+    if (extname(entry.origin).toLowerCase() === '.md') {
+      movePath(join(bundle, 'SKILL.md'), entry.origin)
+      rmSync(bundle, { recursive: true, force: true })
+    } else {
+      movePath(bundle, entry.origin)
+    }
+    this.dropEntry(slug)
+    this.upsertRegistryEntry({
+      slug,
+      name: entry.name,
+      description: '',
+      path: entry.origin,
+      kind: extname(entry.origin).toLowerCase() === '.md' ? 'file' : 'bundle',
+      origin: 'native',
+      announce: entry.announce,
+      registeredAt: new Date().toISOString(),
+    })
+    return entry.origin
+  }
+
+  /** Resolve a link path back to the skill it serves, or undefined. */
+  private resolveByLink(linkPath: string): { slug: string; target: string } | undefined {
+    const target = linkTarget(linkPath)
+    if (target === undefined) return undefined
+    const resolved = resolve(dirname(linkPath), target)
     const store = this.storeDir()
-    const dir = dirname(path)
-    const target = linkTarget(dir)
-    if (target !== undefined) {
-      const resolvedTarget = resolve(dir, target)
-      if (inside(store, resolvedTarget)) {
-        const slug = basename(resolvedTarget)
-        return { slug, source: this.linkedSource(slug) ?? this.entryOf(slug)?.source ?? 'user-dsh' }
-      }
-    }
-    if (inside(store, path)) {
-      const slug = basename(dir)
-      return { slug, source: this.entryOf(slug)?.source ?? 'user-dsh' }
-    }
+    if (inside(store, resolved)) return { slug: basename(resolved), target: resolved }
+    const reg = this.readRegistry().entries.find((e) => inside(resolve(e.path), resolved) || resolve(e.path) === resolved)
+    if (reg !== undefined) return { slug: reg.slug, target: resolved }
     return undefined
   }
 
-  /** Manifest entry for one slug, when present. */
-  private entryOf(slug: string): StoreEntry | undefined {
-    return this.readStoreIndex().entries.find((e) => e.slug === slug)
+  // ── link operations (public) ─────────────────────────────────────────────
+
+  /** Create (or confirm) the link for a stored or registered skill. */
+  linkSkill(slug: string): void {
+    const stored = this.entryOf(slug)
+    if (stored !== undefined) {
+      this.createLink(slug, join(this.storeDir(), slug))
+      return
+    }
+    const registered = this.registryEntryOf(slug)
+    if (registered === undefined) throw new Error('找不到技能：' + slug)
+    const target = registered.kind === 'file' ? dirname(registered.path) : registered.path
+    this.createLink(slug, target)
   }
 
-  // ── scanning ────────────────────────────────────────────────────────────
+  /** Remove the link for a skill (the canonical copy is never touched). */
+  unlinkSkill(slug: string): void {
+    this.removeLink(slug)
+  }
 
-  /** Scan one skill root directory into SkillSummary records. */
-  scanRoot(dir: string, source: SkillSource): SkillSummary[] {
-    const items: SkillSummary[] = []
-    if (!existsSync(dir)) return items
-    let entries
-    try { entries = readdirSync(dir, { withFileTypes: true }) } catch { return items }
+  /**
+   * Verify a link: does it still resolve, and does the target still hold a
+   * parseable SKILL.md? Used by the UI for red-flagged (untracked) links.
+   */
+  verifyLink(slugOrPath: string): VerifyResult {
+    const link = existsSync(slugOrPath) && isLink(slugOrPath)
+      ? slugOrPath
+      : join(getRoots().userSkillsDir, slugOrPath)
+    if (!isLink(link)) return { ok: false, reason: '不是联接：' + link }
+    const target = linkTarget(link)
+    if (target === undefined) return { ok: false, reason: '联接目标不可读：' + link }
+    const resolved = resolve(dirname(link), target)
+    if (!existsSync(resolved)) return { ok: false, reason: '联接目标已不存在：' + resolved }
+    const mdPath = statSync(resolved).isDirectory() ? join(resolved, 'SKILL.md') : resolved
+    if (!existsSync(mdPath)) return { ok: false, reason: '联接目标里没有 SKILL.md：' + resolved }
+    const tracked = this.linkRecordOf(link) !== undefined
+    const stored = inside(this.storeDir(), resolved)
+    return { ok: true, tracked, stored, target: resolved, mdPath }
+  }
+
+  /** Delete an untracked link (the ledger has no record of it). */
+  deleteUntrackedLink(linkPath: string): void {
+    if (!isLink(linkPath)) throw new Error('不是联接：' + linkPath)
+    if (this.linkRecordOf(linkPath) !== undefined) {
+      throw new Error('联接有账本记录，请用常规取消联接：' + linkPath)
+    }
+    if (process.platform === 'win32') rmdirSync(linkPath)
+    else unlinkSync(linkPath)
+  }
+
+  // ── registry operations (public) ─────────────────────────────────────────
+
+  /**
+   * Register external skills: the canonical copy stays where it is, only a
+   * record goes into `skills-registry.json`. This is the flow for "skills in
+   * arbitrary directories" per the four-group model.
+   */
+  registerExternal(items: Array<{ sourcePath: string; kind: 'bundle' | 'file' }>): Array<{ name: string; ok: boolean; reason?: string }> {
+    const results: Array<{ name: string; ok: boolean; reason?: string }> = []
+    for (const it of items) {
+      try {
+        const mdPath = it.kind === 'bundle' ? join(it.sourcePath, 'SKILL.md') : it.sourcePath
+        const parsed = parseSkillFile(readFileSync(mdPath, 'utf8'))
+        if (parsed === null) throw new Error('不是有效的技能文件：' + mdPath)
+        const taken = new Set<string>([
+          ...this.readRegistry().entries.map((e) => e.slug),
+          ...this.readStoreIndex().entries.map((e) => e.slug),
+        ])
+        const slug = uniqueSlug(taken, slugify(parsed.name || basename(it.sourcePath, extname(it.sourcePath))))
+        this.upsertRegistryEntry({
+          slug,
+          name: parsed.name,
+          description: parsed.description,
+          path: it.sourcePath,
+          kind: it.kind,
+          origin: 'external',
+          announce: true,
+          registeredAt: new Date().toISOString(),
+        })
+        results.push({ name: parsed.name, ok: true })
+      } catch (e) {
+        results.push({ name: it.sourcePath, ok: false, reason: String((e as Error)?.message ?? e) })
+      }
+    }
+    return results
+  }
+
+  /** Drop a registry entry (and its link, when one exists). */
+  unregisterExternal(slug: string): void {
+    this.removeLink(slug)
+    this.dropRegistryEntry(slug)
+  }
+
+  /**
+   * Walk the registry and refresh `lastSeen`: the cheap traceability pass that
+   * only checks whether the canonical path still exists — no content parsing.
+   */
+  refreshRegistry(): Array<{ slug: string; name: string; exists: boolean }> {
+    const reg = this.readRegistry()
+    const out: Array<{ slug: string; name: string; exists: boolean }> = []
+    for (const entry of reg.entries) {
+      const exists = existsSync(entry.path)
+      entry.lastSeen = exists ? new Date().toISOString() : entry.lastSeen
+      out.push({ slug: entry.slug, name: entry.name, exists })
+    }
+    this.writeRegistry(reg)
+    return out
+  }
+
+  /** The announcement flag for one skill, from whichever ledger holds it. */
+  setAnnounce(group: SkillGroup, slug: string, announce: boolean): void {
+    if (group === 'stored') {
+      const entry = this.entryOf(slug)
+      if (entry === undefined) throw new Error('储存库中没有这个技能：' + slug)
+      this.upsertEntry({ ...entry, announce })
+      return
+    }
+    const entry = this.registryEntryOf(slug)
+    if (entry === undefined) throw new Error('登记表中没有这个技能：' + slug)
+    this.upsertRegistryEntry({ ...entry, announce })
+  }
+
+  // ── scanning / listing ───────────────────────────────────────────────────
+
+  /** Parse one SKILL.md (bundle) safely; undefined when it is not a skill. */
+  private parseBundleDir(full: string): ParsedSkill | undefined {
+    const mdPath = join(full, 'SKILL.md')
+    if (!existsSync(mdPath)) return undefined
+    try { return parseSkillFile(readFileSync(mdPath, 'utf8')) ?? undefined } catch { return undefined }
+  }
+
+  /** Parse one flat `.md` file safely; undefined when it is not a skill. */
+  private parseFlatFile(full: string): ParsedSkill | undefined {
+    try { return parseSkillFile(readFileSync(full, 'utf8')) ?? undefined } catch { return undefined }
+  }
+
+  /**
+   * Walk one skill root and produce rows for everything found there. Real
+   * directories/files become native rows (auto-registered); links become
+   * linked rows whose group follows the link target (stored / registered),
+   * or untracked red-flag rows when the ledger has no record of them.
+   */
+  private scanRootInto(dir: string, source: SkillSource, seen: Set<string>, items: SkillSummary[]): void {
+    if (!existsSync(dir)) return
+    let entries: Dirent[]
+    try { entries = readdirSync(dir, { withFileTypes: true }) } catch { return }
     const store = this.storeDir()
     for (const entry of entries) {
       const name = entry.name
       if (!name || name === '.system' || name[0] === '.') continue
       const full = join(dir, name)
       const kind = entryKind(full, entry)
-      if (kind === 'directory') {
-        const mdPath = join(full, 'SKILL.md')
-        if (!existsSync(mdPath)) continue
-        let raw: string
-        try { raw = readFileSync(mdPath, 'utf8') } catch { continue }
-        const parsed = parseSkillFile(raw)
-        if (parsed === null) continue
+      if (kind === undefined) continue
+
+      // Linked entry: the interesting case.
+      if (isLink(full)) {
+        if (seen.has(full)) continue
+        seen.add(full)
+        const target = linkTarget(full)
+        const resolved = target === undefined ? undefined : resolve(dir, target)
+        const tracked = this.linkRecordOf(full)
+        const parsed = resolved !== undefined && existsSync(resolved)
+          ? (statSync(resolved).isDirectory() ? this.parseBundleDir(resolved) : this.parseFlatFile(resolved))
+          : undefined
+        if (resolved === undefined) continue
+        const stored = inside(store, resolved)
+        const slug = stored ? basename(resolved) : (tracked?.slug ?? this.registryEntryOfByPath(resolved)?.slug ?? slugify(name))
         items.push({
-          ...parsed, source, level: levelOf(source), kind: 'bundle', path: mdPath,
-          ...managedFields(store, full),
+          name: parsed?.name ?? name,
+          description: parsed?.description ?? '',
+          whenToUse: parsed?.whenToUse ?? '',
+          group: stored ? 'stored' : 'registered',
+          announce: stored
+            ? (this.entryOf(slug)?.announce ?? true)
+            : (this.registryEntryOf(slug)?.announce ?? this.registryEntryOfByPath(resolved)?.announce ?? true),
+          linked: true,
+          untracked: tracked === undefined,
+          source,
+          level: levelOf(source),
+          kind: 'bundle',
+          path: stored ? join(store, slug, 'SKILL.md') : resolved,
+          slug,
         })
-      } else if (kind === 'file' && name.endsWith('.md')) {
-        let raw: string
-        try { raw = readFileSync(full, 'utf8') } catch { continue }
-        const parsed = parseSkillFile(raw)
-        if (parsed === null) continue
-        items.push({
-          ...parsed, source, level: levelOf(source), kind: 'file', path: full,
-          managed: false,
-          linked: false,
+        continue
+      }
+
+      // Real file/directory: a native skill (or something that is not one).
+      const parsed = kind === 'directory' ? this.parseBundleDir(full) : (name.endsWith('.md') ? this.parseFlatFile(full) : undefined)
+      if (parsed === undefined) continue
+      if (seen.has(full)) continue
+      seen.add(full)
+      const slug = slugify(parsed.name)
+      // Auto-register so the announcement flag has a home ("find one → record it").
+      const known = this.registryEntryOf(slug)
+      if (known === undefined || known.origin !== 'native') {
+        this.upsertRegistryEntry({
+          slug,
+          name: parsed.name,
+          description: parsed.description,
+          path: kind === 'directory' ? full : full,
+          kind: kind === 'directory' ? 'bundle' : 'file',
+          origin: 'native',
+          announce: known?.announce ?? true,
+          registeredAt: known?.registeredAt ?? new Date().toISOString(),
         })
       }
+      items.push({
+        name: parsed.name,
+        description: parsed.description,
+        whenToUse: parsed.whenToUse,
+        group: 'native',
+        announce: known?.announce ?? true,
+        linked: false,
+        source,
+        level: levelOf(source),
+        kind: kind === 'directory' ? 'bundle' : 'file',
+        path: kind === 'directory' ? join(full, 'SKILL.md') : full,
+        slug,
+      })
     }
-    return items
+  }
+
+  /** Registry entry whose canonical path matches `resolved`. */
+  private registryEntryOfByPath(resolved: string): RegistryEntry | undefined {
+    const want = resolve(resolved).toLowerCase()
+    return this.readRegistry().entries.find((e) => {
+      const base = e.kind === 'file' ? dirname(resolve(e.path)) : resolve(e.path)
+      return base.toLowerCase() === want || want.startsWith(base.toLowerCase() + sep.toLowerCase())
+    })
   }
 
   /** The roots to walk for a listing, in display order: project, then user. */
@@ -586,26 +865,27 @@ export class SkillsManager {
   }
 
   /**
-   * List skills across project and/or user roots, de-duplicated by path, plus
-   * every stored skill that is currently unlinked (so it can be re-enabled).
+   * List every skill across the four groups, de-duplicated by path: native
+   * roots first, then stored-but-unlinked rows, then registered-but-unlinked
+   * rows. Announce flags come from the ledgers; link presence comes from the
+   * filesystem cross-checked against the link ledger.
    */
   listSkills(cwd?: string): SkillSummary[] {
     const seen = new Set<string>()
     const items: SkillSummary[] = []
     for (const target of this.scanTargets(cwd)) {
-      for (const found of this.scanRoot(target.path, target.source)) {
-        if (seen.has(found.path)) continue
-        seen.add(found.path)
-        items.push(found)
-      }
+      this.scanRootInto(target.path, target.source, seen, items)
     }
-    // Stored-but-unlinked skills are invisible to every root scan, yet the user
-    // still needs a row to switch them back on.
+
     const store = this.storeDir()
+    // Stored skills with no link in any scanned root still need a row (so
+    // they can be linked or unmigrated). The scan covers linked ones already.
+    const linkedSlugs = new Set(items.filter((i) => i.group === 'stored').map((i) => i.slug))
     for (const entry of this.readStoreIndex().entries) {
-      if (this.linkedSource(entry.slug) !== undefined) continue
+      if (linkedSlugs.has(entry.slug)) continue
       const mdPath = join(store, entry.slug, 'SKILL.md')
       if (seen.has(mdPath)) continue
+      if (this.linkedPath(entry.slug) !== undefined) continue
       let parsed: ParsedSkill | null = null
       try { parsed = parseSkillFile(readFileSync(mdPath, 'utf8')) } catch { continue }
       if (parsed === null) continue
@@ -614,47 +894,73 @@ export class SkillsManager {
         name: parsed.name,
         description: parsed.description,
         whenToUse: parsed.whenToUse,
-          enabled: false,
-          source: entry.source,
-          level: levelOf(entry.source),
-          kind: 'bundle',
-          path: mdPath,
-          managed: true,
-          // B: no link — the 1/2 axis is locked to 2 (disabled) by the UI.
-          linked: false,
-          slug: entry.slug,
-        })
+        group: 'stored',
+        announce: entry.announce,
+        linked: false,
+        source: 'user-dsh',
+        level: 'user',
+        kind: 'bundle',
+        path: mdPath,
+        slug: entry.slug,
+      })
     }
     // Bundles dropped straight into the store — an agent following the
-    // announcement's registration guidance — have no manifest entry yet, so
-    // the loop above cannot see them. List them as disabled managed rows:
-    // enabling goes through setSkillEnabled(), which upserts the manifest
-    // entry, and that is the moment the skill is adopted for good.
+    // announcement's guidance — get adopted into the manifest on sight.
     const knownSlugs = new Set(this.readStoreIndex().entries.map((e) => e.slug))
     let stored: string[] = []
     try { stored = readdirSync(store) } catch { /* store not created yet */ }
     for (const slug of stored) {
       if (slug.startsWith('.') || knownSlugs.has(slug)) continue
       const mdPath = join(store, slug, 'SKILL.md')
+      if (!existsSync(mdPath)) continue
+      const parsed = this.parseBundleDir(join(store, slug))
+      if (parsed === undefined) continue
+      this.upsertEntry({
+        slug,
+        name: parsed.name,
+        origin: '',
+        announce: false,
+        adoptedAt: new Date().toISOString(),
+      })
       if (seen.has(mdPath)) continue
-      let parsed: ParsedSkill | null = null
-      try { parsed = parseSkillFile(readFileSync(mdPath, 'utf8')) } catch { continue }
-      if (parsed === null) continue
       seen.add(mdPath)
       items.push({
         name: parsed.name,
         description: parsed.description,
         whenToUse: parsed.whenToUse,
-        enabled: false,
+        group: 'stored',
+        announce: false,
+        linked: false,
         source: 'user-dsh',
-          level: 'user',
-          kind: 'bundle',
-          path: mdPath,
-          managed: true,
-          linked: false,
-          slug,
-        })
+        level: 'user',
+        kind: 'bundle',
+        path: mdPath,
+        slug,
+      })
     }
+    // Registered-but-unlinked external skills need their rows too.
+    const regLinked = new Set(items.filter((i) => i.group === 'registered' && i.linked).map((i) => i.slug))
+    for (const entry of this.readRegistry().entries) {
+      if (entry.origin !== 'external' || regLinked.has(entry.slug)) continue
+      if (this.linkedPath(entry.slug) !== undefined) continue
+      const mdPath = entry.kind === 'bundle' ? join(entry.path, 'SKILL.md') : entry.path
+      if (seen.has(mdPath)) continue
+      seen.add(mdPath)
+      items.push({
+        name: entry.name,
+        description: entry.description,
+        whenToUse: '',
+        group: 'registered',
+        announce: entry.announce,
+        linked: false,
+        source: 'user-dsh',
+        level: 'user',
+        kind: entry.kind,
+        path: mdPath,
+        slug: entry.slug,
+      })
+    }
+
     // dsh-managed roots first (.dsh/skills before .agents/skills), then name.
     const srcRank = (s: SkillSource) => (s === 'user-dsh' || s === 'project-dsh' ? 0 : 1)
     items.sort((a, b) => {
@@ -675,91 +981,74 @@ export class SkillsManager {
     return { ...parsed, path }
   }
 
-  // ── mutation ────────────────────────────────────────────────────────────
+  // ── deletion ─────────────────────────────────────────────────────────────
 
   /**
-   * Enable/disable a skill. Managed skills are linked/unlinked (their SKILL.md
-   * is never touched); everything else still falls back to rewriting the
-   * frontmatter invocation flags.
+   * Delete a skill wherever it lives: native → the real file goes; stored →
+   * link, ledger record, manifest entry and store copy all go; registered →
+   * link and registry record go, the external canonical copy stays.
    */
-  /**
-   * The 1/2 axis: whether the skill is injected into the agent context.
-   *
-   * Always a frontmatter rewrite — including for store-managed skills, whose
-   * canonical copy is reachable through the link, so dsh still reads its
-   * frontmatter there. The A/B link axis is a separate control
-   * ({@link setSkillLinked}) and is never touched here.
-   */
-  setSkillEnabled(path: string, enabled: boolean): void {
-    const raw = readFileSync(path, 'utf8')
-    writeFileSync(path, toggleInvocation(raw, enabled), 'utf8')
-    const managed = this.resolveManaged(path)
-    if (managed === undefined) return
-    const entry = this.entryOf(managed.slug)
-    this.upsertEntry({
-      slug: managed.slug,
-      name: entry?.name ?? basename(managed.slug),
-      origin: entry?.origin ?? '',
-      source: managed.source,
-      enabled,
-      linked: entry?.linked ?? this.linkedSource(managed.slug) !== undefined,
-      adoptedAt: entry?.adoptedAt ?? new Date().toISOString(),
-    })
-  }
-
-  /**
-   * The A/B axis: whether a link to the canonical copy sits in the skill root.
-   *
-   * For a skill that is not adopted yet, turning A on means adopting it into
-   * the store first (that is how an outside skill gains a link at all).
-   * Removing the link (B) leaves the canonical copy in the store — the skill
-   * simply stops being reachable, and its 1/2 switch locks to 2.
-   */
-  setSkillLinked(path: string, linked: boolean): void {
-    const managed = this.resolveManaged(path)
-    // Unmanaged skills have no A/B axis at all: their file already sits in a
-    // scanned root, and giving them a link would mean adopting them first —
-    // which is the import flow's job, not this switch's.
-    if (managed === undefined) return
-    if (linked) this.linkInto(managed.slug, managed.source)
-    else this.unlinkFrom(managed.slug, managed.source)
-    const entry = this.entryOf(managed.slug)
-    this.upsertEntry({
-      slug: managed.slug,
-      name: entry?.name ?? basename(managed.slug),
-      origin: entry?.origin ?? '',
-      source: managed.source,
-      enabled: entry?.enabled ?? true,
-      linked,
-      adoptedAt: entry?.adoptedAt ?? new Date().toISOString(),
-    })
-  }
-
-  /** Delete a skill: for managed ones, drop the link and the store copy. */
   deleteSkill(path: string, kind: 'bundle' | 'file'): string {
-    const managed = this.resolveManaged(path)
-    if (managed !== undefined) {
-      this.unlinkFrom(managed.slug, managed.source)
-      const bundle = join(this.storeDir(), managed.slug)
+    const store = this.storeDir()
+
+    // Reached through a link: identify the skill by the link target, never by
+    // following the path (a rmSync past a junction would gut the store copy).
+    const link = dirname(path)
+    if (isLink(link)) {
+      const target = linkTarget(link)
+      const resolved = target === undefined ? undefined : resolve(link, target)
+      const slug = basename(link)
+      this.removeLink(slug)
+      if (resolved !== undefined && inside(store, resolved)) {
+        const bundle = join(store, slug)
+        if (existsSync(bundle) && !isLink(bundle)) rmSync(bundle, { recursive: true, force: true })
+        this.dropEntry(slug)
+        return bundle
+      }
+      const reg = resolved === undefined
+        ? undefined
+        : this.readRegistry().entries.find((e) => inside(resolve(e.path), resolved))
+      if (reg !== undefined) this.dropRegistryEntry(reg.slug)
+      return link
+    }
+
+    // Stored: the SKILL.md path sits inside the store directory itself.
+    if (inside(store, path)) {
+      const slug = basename(dirname(path))
+      this.removeLink(slug)
+      const bundle = join(store, slug)
       if (existsSync(bundle) && !isLink(bundle)) rmSync(bundle, { recursive: true, force: true })
-      this.dropEntry(managed.slug)
+      this.dropEntry(slug)
+      this.dropRegistryEntry(slug)
       return bundle
     }
+
+    // Registered external: the link (if any) and the record go; the files stay.
+    const reg = this.readRegistry().entries.find((e) =>
+      resolve(e.path).toLowerCase() === resolve(dirname(path)).toLowerCase()
+      || resolve(path).toLowerCase() === resolve(e.path).toLowerCase(),
+    )
+    if (reg !== undefined) {
+      this.removeLink(reg.slug)
+      this.dropRegistryEntry(reg.slug)
+      return reg.path
+    }
+
+    // Native: delete the real thing (no link involved at this point).
     const target = kind === 'bundle' ? dirname(path) : path
+    const slug = slugify(basename(target))
+    this.removeLink(slug)
+    this.dropRegistryEntry(slug)
     rmSync(target, { recursive: true, force: true })
     return target
   }
 
-  // ── migration ───────────────────────────────────────────────────────────
+  // ── one-shot migration (uninstall-page compatible) ───────────────────────
 
   /**
-   * One-shot migration: move every user-level skill into the store and link
-   * back the ones that were enabled. Project-level skills stay in place —
-   * moving them into `$DSH_HOME` would detach them from the repository that
-   * owns them.
-   *
-   * Idempotent: a second call is a no-op. Individual failures are collected
-   * rather than thrown, and the offending skill is simply left where it was.
+   * One-shot migration: move every user-level native skill into the store and
+   * link it back from `~/.dsh/skills`. Project-level skills stay in place.
+   * Idempotent; individual failures are collected, not thrown.
    */
   migrate(): StoreOperation {
     const index = this.readStoreIndex()
@@ -773,20 +1062,31 @@ export class SkillsManager {
       { path: roots.userSkillsDir, source: 'user-dsh' as SkillSource },
       { path: roots.agentsSkillsDir, source: 'user-agents' as SkillSource },
     ]) {
-      for (const item of this.scanRoot(scan.path, scan.source)) {
-        if (item.managed) continue
-        const sourcePath = item.kind === 'bundle' ? dirname(item.path) : item.path
+      if (!existsSync(scan.path)) continue
+      let entries: Dirent[] = []
+      try { entries = readdirSync(scan.path, { withFileTypes: true }) } catch { continue }
+      for (const entry of entries) {
+        const name = entry.name
+        if (!name || name[0] === '.') continue
+        const full = join(scan.path, name)
+        if (isLink(full)) continue
+        const kind = entryKind(full, entry)
+        const parsed = kind === 'directory'
+          ? this.parseBundleDir(full)
+          : (kind === 'file' && name.endsWith('.md') ? this.parseFlatFile(full) : undefined)
+        if (parsed === undefined) continue
         try {
-          this.adopt(sourcePath, item.kind, scan.source, item.enabled)
+          this.migrateToStore(
+            full,
+            kind === 'directory' ? 'bundle' : 'file',
+            scan.source,
+          )
           moved++
         } catch (e) {
-          failures.push({ path: sourcePath, reason: String((e as Error)?.message ?? e) })
+          failures.push({ path: full, reason: String((e as Error)?.message ?? e) })
         }
       }
     }
-    // Persisting the marker is best effort too: if the store itself cannot be
-    // written, reporting what happened beats throwing out of plugin startup —
-    // and re-running later is the correct recovery anyway.
     const next = this.readStoreIndex()
     next.migratedAt = new Date().toISOString()
     next.failures = failures
@@ -795,9 +1095,8 @@ export class SkillsManager {
   }
 
   /**
-   * Undo {@link migrate}: restore every stored skill to its original path and
-   * drop the store manifest. The invocation flags are re-applied so a skill
-   * that was disabled before the migration comes back disabled.
+   * Undo {@link migrate}: restore every stored skill to its original path
+   * (removing links along the way) and drop the manifest.
    */
   rollbackMigration(): StoreOperation {
     const index = this.readStoreIndex()
@@ -806,43 +1105,33 @@ export class SkillsManager {
     for (const entry of index.entries) {
       const bundle = join(this.storeDir(), entry.slug)
       if (!existsSync(bundle)) continue
-      this.unlinkFrom(entry.slug, entry.source)
-      const origin = entry.origin
-      if (origin === '') {
-        failures.push({ path: bundle, reason: '缺少原始路径，已保留在储存器中' })
-        continue
-      }
       try {
-        mkdirSync(dirname(origin), { recursive: true })
-        if (extname(origin).toLowerCase() === '.md') {
-          movePath(join(bundle, 'SKILL.md'), origin)
-          writeFileSync(origin, toggleInvocation(readFileSync(origin, 'utf8'), entry.enabled), 'utf8')
+        if (entry.origin === '') {
+          failures.push({ path: bundle, reason: '缺少原始路径，已保留在储存器中' })
+          continue
+        }
+        this.removeLink(entry.slug)
+        mkdirSync(dirname(entry.origin), { recursive: true })
+        if (extname(entry.origin).toLowerCase() === '.md') {
+          movePath(join(bundle, 'SKILL.md'), entry.origin)
           rmSync(bundle, { recursive: true, force: true })
         } else {
-          movePath(bundle, origin)
-          const mdPath = join(origin, 'SKILL.md')
-          writeFileSync(mdPath, toggleInvocation(readFileSync(mdPath, 'utf8'), entry.enabled), 'utf8')
+          movePath(bundle, entry.origin)
         }
         moved++
       } catch (e) {
-        failures.push({ path: origin, reason: String((e as Error)?.message ?? e) })
+        failures.push({ path: entry.origin, reason: String((e as Error)?.message ?? e) })
       }
     }
-      if (failures.length === 0) {
-        try { rmSync(join(this.storeDir(), 'index.json'), { force: true }) } catch { /* ignore */ }
-      }
-      return { moved, failures }
+    if (failures.length === 0) {
+      try { rmSync(join(this.storeDir(), 'index.json'), { force: true }) } catch { /* ignore */ }
     }
-
+    return { moved, failures }
+  }
 
   /**
-   * Undo a rollback: run the one-shot migration again.
-   *
-   * This is the uninstall page's "undo" for the skills half of 归还 — a skill
-   * given back to its original location can be re-adopted into the store at
-   * any time. A rollback that fully succeeded deleted the manifest, so
-   * {@link migrate} would re-run on its own; when failures kept the manifest
-   * alive, the marker has to be cleared first or migrate() would no-op.
+   * Undo a rollback: run the one-shot migration again (the uninstall page's
+   * "undo" for the skills half of 归还).
    */
   reMigrate(): StoreOperation {
     const index = this.readStoreIndex()
@@ -854,89 +1143,88 @@ export class SkillsManager {
   }
 
   /** Store state for the UI banner. */
-    storeStatus(): StoreStatus {
-      const dir = this.storeDir()
-      const index = this.readStoreIndex()
-      let enabled = 0
-      for (const entry of index.entries) if (this.linkedSource(entry.slug) !== undefined) enabled++
-      // Count what is really on disk, not just what the manifest knows: a
-      // bundle an agent dropped in has no entry yet, but the banner should
-      // still say the store holds it.
-      const knownSlugs = new Set(index.entries.map((e) => e.slug))
-      let extra = 0
-      try {
-        for (const slug of readdirSync(dir)) {
-          if (slug.startsWith('.') || knownSlugs.has(slug)) continue
-          if (existsSync(join(dir, slug, 'SKILL.md'))) extra++
-        }
-      } catch { /* store not created yet */ }
-      return {
-        root: storeRoot(),
-        dir,
-        migrated: index.migratedAt !== undefined,
-        migratedAt: index.migratedAt,
-        count: index.entries.length + extra,
-        enabled,
-        failures: index.failures ?? [],
-      }
+  storeStatus(): StoreStatus {
+    const dir = this.storeDir()
+    const index = this.readStoreIndex()
+    let linked = 0
+    for (const entry of index.entries) {
+      if (this.linkedPath(entry.slug) !== undefined) linked++
     }
-
-  // ── import ──────────────────────────────────────────────────────────────
-
-  /** Scan an arbitrary directory for importable skills. */
-  scanSkills(dir: string): ScannedSkill[] {
-    if (!existsSync(dir)) throw new Error('directory not found: ' + dir)
-    const entries = readdirSync(dir, { withFileTypes: true })
-    const items: ScannedSkill[] = []
-    for (const entry of entries) {
-      const name = entry.name
-      if (!name || name[0] === '.') continue
-      const full = join(dir, name)
-      const kind = entryKind(full, entry)
-      if (kind === 'directory') {
-        const mdPath = join(full, 'SKILL.md')
-        if (!existsSync(mdPath)) continue
-        let raw: string
-        try { raw = readFileSync(mdPath, 'utf8') } catch { continue }
-        const parsed = parseSkillFile(raw)
-        if (parsed !== null) items.push({ name: parsed.name, description: parsed.description, sourcePath: full, kind: 'bundle' })
-      } else if (kind === 'file' && name.endsWith('.md') && name !== 'SKILL.md') {
-        let raw: string
-        try { raw = readFileSync(full, 'utf8') } catch { continue }
-        const parsed = parseSkillFile(raw)
-        if (parsed !== null) items.push({ name: parsed.name, description: parsed.description, sourcePath: full, kind: 'file' })
+    // Count what is really on disk, not just what the manifest knows.
+    const knownSlugs = new Set(index.entries.map((e) => e.slug))
+    let extra = 0
+    try {
+      for (const slug of readdirSync(dir)) {
+        if (slug.startsWith('.') || knownSlugs.has(slug)) continue
+        if (existsSync(join(dir, slug, 'SKILL.md'))) extra++
       }
+    } catch { /* store not created yet */ }
+    const untracked = this.readLinks().links.filter((l) => !isLink(l.linkPath)).length
+    return {
+      root: storeRoot(),
+      dir,
+      migrated: index.migratedAt !== undefined,
+      migratedAt: index.migratedAt,
+      count: index.entries.length + extra,
+      linked,
+      failures: index.failures ?? [],
+      untracked,
     }
-    return items
   }
 
-    /** Import selected skills into the store as enabled bundles. */
-    importSkills(items: ImportItem[]): ImportResult[] {
-      const results: ImportResult[] = []
-      const releaseDir = getRoots().userSkillsDir
-      for (const it of items) {
-        try {
-          const slug = this.adopt(it.sourcePath, it.kind, 'user-dsh', true, releaseDir)
-          results.push({ name: join(this.storeDir(), slug), ok: true })
-        } catch (e) {
-          results.push({ name: it.sourcePath, ok: false, reason: String((e as Error)?.message ?? e) })
+  // ── external scan (import candidates) ────────────────────────────────────
+
+  /**
+   * Scan an arbitrary directory for importable skills: the root plus two
+   * levels of sub-directories, skipping anything bigger than 10 GB. Every
+   * hit is a *registration* candidate — the canonical copy stays in place.
+   */
+  scanSkills(dir: string): ScannedSkill[] {
+    if (!existsSync(dir)) throw new Error('directory not found: ' + dir)
+    const items: ScannedSkill[] = []
+    const seen = new Set<string>()
+    const walk = (current: string, depth: number): void => {
+      let entries: Dirent[] = []
+      try { entries = readdirSync(current, { withFileTypes: true }) } catch { return }
+      for (const entry of entries) {
+        const name = entry.name
+        if (!name || name[0] === '.') continue
+        const full = join(current, name)
+        if (seen.has(full)) continue
+        const kind = entryKind(full, entry)
+        if (kind === 'directory') {
+          const parsed = this.parseBundleDir(full)
+          if (parsed !== undefined) {
+            seen.add(full)
+            const size = treeSize(full)
+            items.push({
+              name: parsed.name,
+              description: parsed.description,
+              sourcePath: full,
+              kind: 'bundle',
+              oversize: size > MAX_SKILL_BYTES,
+              size,
+            })
+            continue
+          }
+          if (depth < SCAN_DEPTH) walk(full, depth + 1)
+        } else if (kind === 'file' && name.endsWith('.md') && name !== 'SKILL.md') {
+          const parsed = this.parseFlatFile(full)
+          if (parsed !== undefined) {
+            seen.add(full)
+            items.push({
+              name: parsed.name,
+              description: parsed.description,
+              sourcePath: full,
+              kind: 'file',
+              oversize: false,
+              size: treeSize(full),
+            })
+          }
         }
       }
-      return results
     }
+    walk(dir, 0)
+    return items
+  }
 }
-
-/** `{ managed, slug }` for a scanned entry, when it is a link into the store. */
-function managedFields(store: string, full: string): Pick<SkillSummary, 'managed' | 'linked' | 'slug'> {
-  const target = linkTarget(full)
-  // Reached through a link into the store: the A/B axis applies and is on (A).
-  if (target === undefined) return { managed: false, linked: false }
-  const resolved = resolve(dirname(full), target)
-  if (!inside(store, resolved)) return { managed: false, linked: false }
-  return { managed: true, linked: true, slug: basename(resolved) }
-}
-
-/**
- * Move a path, falling back to copy+delete when the source and destination sit
- * on different devices (rename cannot cross them).
- */

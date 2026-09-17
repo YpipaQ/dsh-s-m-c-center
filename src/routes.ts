@@ -200,23 +200,6 @@ export function makeRoutes(deps: RoutesDeps): { routes: WebRoute[] } {
         writeJson(res, 200, ok({ skill }))
       }),
 
-      handle('POST', SMC_API.skillToggle, async (_req, res, body, _url) => {
-        const path = bodyText(body, 'path')
-        if (!path) { writeJson(res, 400, { ok: false, error: 'path required' }); return }
-        const enabled = bodyFlag(body, 'enabled')
-        skills.setSkillEnabled(path, enabled)
-        writeJson(res, 200, ok({ path, enabled }))
-      }),
-
-      // The A/B axis: create or remove the link to a stored skill's copy.
-      handle('POST', SMC_API.skillLinked, async (_req, res, body, _url) => {
-        const path = bodyText(body, 'path')
-        if (!path) { writeJson(res, 400, { ok: false, error: 'path required' }); return }
-        const linked = bodyFlag(body, 'linked')
-        skills.setSkillLinked(path, linked)
-        writeJson(res, 200, ok({ path, linked }))
-      }),
-
       handle('POST', SMC_API.skillDelete, async (_req, res, body, _url) => {
         const path = bodyText(body, 'path')
         if (!path) { writeJson(res, 400, { ok: false, error: 'path required' }); return }
@@ -225,10 +208,101 @@ export function makeRoutes(deps: RoutesDeps): { routes: WebRoute[] } {
         writeJson(res, 200, ok({ path, removed }))
       }),
 
+      // Native → stored: canonical copy into the store, link back in place.
+      handle('POST', SMC_API.skillMigrate, async (_req, res, body, _url) => {
+        const path = bodyText(body, 'path')
+        if (!path) { writeJson(res, 400, { ok: false, error: 'path required' }); return }
+        const kind = body.kind === 'bundle' ? 'bundle' : 'file'
+        const source = bodyText(body, 'source')
+        const known = ['project-dsh', 'project-agents', 'user-dsh', 'user-agents'] as const
+        const src = (known as readonly string[]).includes(source)
+          ? source as (typeof known)[number]
+          : 'user-dsh'
+        const slug = skills.migrateToStore(path, kind, src)
+        writeJson(res, 200, ok({ slug }))
+      }),
+
+      // Undo a migration: link + ledger + manifest entry all go, the copy
+      // returns to its origin.
+      handle('POST', SMC_API.skillUnmigrate, async (_req, res, body, _url) => {
+        const slug = bodyText(body, 'slug')
+        if (!slug) { writeJson(res, 400, { ok: false, error: 'slug required' }); return }
+        const restored = skills.unmigrate(slug)
+        writeJson(res, 200, ok({ slug, restored }))
+      }),
+
+      // Create (or confirm) the link for a stored/registered skill.
+      handle('POST', SMC_API.skillLink, async (_req, res, body, _url) => {
+        const slug = bodyText(body, 'slug')
+        if (!slug) { writeJson(res, 400, { ok: false, error: 'slug required' }); return }
+        skills.linkSkill(slug)
+        writeJson(res, 200, ok({ slug, linked: true }))
+      }),
+
+      handle('POST', SMC_API.skillUnlink, async (_req, res, body, _url) => {
+        const slug = bodyText(body, 'slug')
+        if (!slug) { writeJson(res, 400, { ok: false, error: 'slug required' }); return }
+        skills.unlinkSkill(slug)
+        writeJson(res, 200, ok({ slug, linked: false }))
+      }),
+
+      // The per-skill announcement flag (公告 / 隐藏).
+      handle('POST', SMC_API.skillAnnounce, async (_req, res, body, _url) => {
+        const slug = bodyText(body, 'slug')
+        const group = bodyText(body, 'group')
+        if (!slug) { writeJson(res, 400, { ok: false, error: 'slug required' }); return }
+        const known = ['native', 'stored', 'registered'] as const
+        const g = (known as readonly string[]).includes(group)
+          ? group as (typeof known)[number]
+          : 'native'
+        const announce = bodyFlag(body, 'announce')
+        skills.setAnnounce(g, slug, announce)
+        writeJson(res, 200, ok({ slug, announce }))
+      }),
+
+      handle('POST', SMC_API.skillVerify, async (_req, res, body, _url) => {
+        const slug = bodyText(body, 'slug')
+        if (!slug) { writeJson(res, 400, { ok: false, error: 'slug required' }); return }
+        const result = skills.verifyLink(slug)
+        writeJson(res, 200, ok({ result }))
+      }),
+
+      // Delete a link the ledger has no record of (red-flagged row action).
+      handle('POST', SMC_API.skillDeleteLink, async (_req, res, body, _url) => {
+        const path = bodyText(body, 'path')
+        if (!path) { writeJson(res, 400, { ok: false, error: 'path required' }); return }
+        skills.deleteUntrackedLink(path)
+        writeJson(res, 200, ok({ path }))
+      }),
+
       handle('POST', SMC_API.skillScan, async (_req, res, body, _url) => {
         const dir = bodyText(body, 'dir')
         if (!dir) { writeJson(res, 400, { ok: false, error: 'directory is required' }); return }
         writeJson(res, 200, ok({ items: skills.scanSkills(dir) }))
+      }),
+
+      // Register external skills: the canonical copy stays where it is, only
+      // a record goes into skills-registry.json.
+      handle('POST', SMC_API.skillRegister, async (_req, res, body, _url) => {
+        const items = Array.isArray(body?.items) ? body.items as Array<{ sourcePath?: unknown; kind?: unknown }> : []
+        if (items.length === 0) { writeJson(res, 400, { ok: false, error: 'nothing selected' }); return }
+        const results = skills.registerExternal(items.map((it) => ({
+          sourcePath: typeof it.sourcePath === 'string' ? it.sourcePath : '',
+          kind: it.kind === 'bundle' ? 'bundle' : 'file',
+        })))
+        writeJson(res, 200, ok({ results }))
+      }),
+
+      handle('POST', SMC_API.skillUnregister, async (_req, res, body, _url) => {
+        const slug = bodyText(body, 'slug')
+        if (!slug) { writeJson(res, 400, { ok: false, error: 'slug required' }); return }
+        skills.unregisterExternal(slug)
+        writeJson(res, 200, ok({ slug }))
+      }),
+
+      // Traceability pass: does every registered canonical path still exist?
+      handle('POST', SMC_API.skillRefresh, async (_req, res, _body, _url) => {
+        writeJson(res, 200, ok({ results: skills.refreshRegistry() }))
       }),
 
       handle('GET', SMC_API.skillStore, async (_req, res, _body, _url) => {
@@ -243,16 +317,6 @@ export function makeRoutes(deps: RoutesDeps): { routes: WebRoute[] } {
       // a rollback gave them to their original locations.
       handle('POST', SMC_API.skillRemigrate, async (_req, res, _body, _url) => {
         writeJson(res, 200, ok({ result: skills.reMigrate() }))
-      }),
-
-      handle('POST', SMC_API.skillImport, async (_req, res, body, _url) => {
-        const items = Array.isArray(body?.items) ? body.items as Array<{ sourcePath?: unknown; kind?: unknown }> : []
-        if (items.length === 0) { writeJson(res, 400, { ok: false, error: 'nothing selected' }); return }
-        const results = skills.importSkills(items.map((it) => ({
-          sourcePath: typeof it.sourcePath === 'string' ? it.sourcePath : '',
-          kind: it.kind === 'bundle' ? 'bundle' : 'file',
-        })))
-        writeJson(res, 200, ok({ results }))
       }),
 
       // ── mcp ──────────────────────────────────────────────────────────────

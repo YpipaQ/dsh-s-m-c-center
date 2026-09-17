@@ -82,7 +82,7 @@ describe('reMigrate (undo of the skills give-back)', () => {
     const status = skills.storeStatus()
     expect(status.migrated).toBe(true)
     expect(status.count).toBe(1)
-    expect(status.enabled).toBe(1)
+    expect(status.linked).toBe(1)
   })
 
   it('restores the original body (no frontmatter rewriting beyond invocation flags)', () => {

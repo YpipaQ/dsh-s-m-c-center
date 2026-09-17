@@ -9,6 +9,15 @@
 export type SkillSource = 'project-dsh' | 'project-agents' | 'user-dsh' | 'user-agents';
 /** How the UI groups skills: by the workspace they belong to, or the user. */
 export type SkillLevel = 'project' | 'user';
+/**
+ * Which of the four groups a row belongs to:
+ * 1. `native` — a real file/directory in a scanned skill root;
+ * 2. `stored` — the canonical copy lives in the store (`S-M-C/skills`);
+ * 3. `registered` — an external skill whose copy stays where it was, recorded
+ *    in `skills-registry.json`.
+ * (Group 4 — the links themselves — is a property of the rows above: `linked`.)
+ */
+export type SkillGroup = 'native' | 'stored' | 'registered';
 /** One row of the skills list. */
 export interface SkillSummary {
     /** Skill name, from SKILL.md frontmatter. */
@@ -17,8 +26,14 @@ export interface SkillSummary {
     description: string;
     /** Optional "when to use this" note ('' when frontmatter has none). */
     whenToUse: string;
-    /** False when this manager has the skill switched off. */
-    enabled: boolean;
+    /** Which of the four groups this row belongs to. */
+    group: SkillGroup;
+    /** Whether the skill appears in the agent announcement. */
+    announce: boolean;
+    /** Whether a link to the canonical copy exists under `~/.dsh/skills`. */
+    linked: boolean;
+    /** True for a link on disk that the link ledger has no record of (red flag). */
+    untracked?: boolean;
     /** The root it lives under, which also decides its level. */
     source: SkillSource;
     level: SkillLevel;
@@ -26,19 +41,7 @@ export interface SkillSummary {
     kind: 'bundle' | 'file';
     /** Absolute path of the SKILL.md (bundle) or of the `.md` file. */
     path: string;
-    /**
-     * True when the canonical copy lives in the store, making this row
-     * link-managed: enabling adds a link under the source root, disabling
-     * removes it, and the SKILL.md is never rewritten.
-     */
-    managed: boolean;
-    /**
-     * The A/B axis: whether a link to the canonical copy exists in a skill root.
-     * Meaningless for unmanaged skills (their file already sits in a scanned
-     * root, so they only follow the 1/2 frontmatter axis).
-     */
-    linked: boolean;
-    /** Store directory name; present exactly when `managed` is true. */
+    /** Store / registry slug; present for stored and registered rows. */
     slug?: string;
 }
 /** One skill including its body, for the detail pane. */
@@ -46,7 +49,6 @@ export interface SkillDetail {
     name: string;
     description: string;
     whenToUse: string;
-    enabled: boolean;
     /** Markdown body with the frontmatter block stripped. */
     content: string;
     path: string;
@@ -55,20 +57,24 @@ export interface SkillDetail {
 export interface ScannedSkill {
     name: string;
     description: string;
-    /** Where to import from: the bundle directory, or the `.md` file. */
+    /** Where to register from: the bundle directory, or the `.md` file. */
     sourcePath: string;
     kind: 'bundle' | 'file';
+    /** True when the candidate exceeds the 10 GB import cap. */
+    oversize: boolean;
+    /** On-disk size in bytes (best effort). */
+    size: number;
 }
-/** One checked row of a scan, sent back to be imported. */
+/** One checked row of a scan, sent back to be registered. */
 export interface ImportItem {
     sourcePath: string;
     kind: 'bundle' | 'file';
 }
 /**
  * One skill held in the store: the canonical copy lives under
- * `~/.dsh/S-M-C/skills/<slug>/` and is linked into `source`'s root only while
- * it is enabled. `origin` records where it came from so a migration can be
- * undone.
+ * `~/.dsh/S-M-C/skills/<slug>/`. `origin` records where it came from so a
+ * migration can be undone. Link state lives in the link ledger, visibility
+ * in the announcement flag — never in the SKILL.md itself.
  */
 export interface StoreEntry {
     /** Store directory name (unique within the store). */
@@ -76,17 +82,12 @@ export interface StoreEntry {
     /** Skill name from SKILL.md at adopt time. */
     name: string;
     /**
-     * Where rollback releases the skill: its pre-adoption path for migrated
-     * skills, or the dsh user skills root for imported ones (imports may come
-     * from arbitrary directories that should not receive skills back).
+     * Where an unmigrate releases the skill: its pre-adoption path. Empty for
+     * skills dropped straight into the store by an agent (no origin to restore).
      */
     origin: string;
-    /** Root the enabled link is written back to. */
-    source: SkillSource;
-    /** The 1/2 axis: whether the skill is injected into the agent context. */
-    enabled: boolean;
-    /** The A/B axis: whether the link currently exists in `source`. */
-    linked: boolean;
+    /** Whether the skill appears in the agent announcement. */
+    announce: boolean;
     adoptedAt: string;
 }
 /** Persisted store manifest (`~/.dsh/S-M-C/skills/index.json`). */
@@ -119,14 +120,59 @@ export interface StoreStatus {
     migratedAt?: string;
     /** Skills currently held in the store. */
     count: number;
-    enabled: number;
+    /** Stored skills currently linked into `~/.dsh/skills`. */
+    linked: number;
+    /** Ledger records whose link no longer exists on disk. */
+    untracked: number;
     failures: StoreFailure[];
 }
-/** Result of importing one skill. */
-export interface ImportResult {
+/** One registered external/native skill (a row of `skills-registry.json`). */
+export interface RegistryEntry {
+    /** Registry slug (unique across registry + store). */
+    slug: string;
     name: string;
+    description: string;
+    /** Canonical path: the bundle directory or the flat `.md` file. */
+    path: string;
+    kind: 'bundle' | 'file';
+    /** `native` for skills found in a scanned root, `external` for imports. */
+    origin: 'native' | 'external';
+    /** Whether the skill appears in the agent announcement. */
+    announce: boolean;
+    registeredAt: string;
+    /** Last successful existence check (the refresh button's traceability). */
+    lastSeen?: string;
+}
+/** Persisted external-skills registry (`~/.dsh/S-M-C/skills-registry.json`). */
+export interface SkillsRegistry {
+    version: 1;
+    entries: RegistryEntry[];
+}
+/** One ledger record for a link this plugin created. */
+export interface LinkRecord {
+    /** Skill slug the link serves. */
+    slug: string;
+    /** Absolute path of the link (always under `~/.dsh/skills`). */
+    linkPath: string;
+    /** Absolute path of the canonical copy the link points at. */
+    targetPath: string;
+    createdAt: string;
+}
+/** Persisted link ledger (`~/.dsh/S-M-C/skills-links.json`). */
+export interface SkillLinks {
+    version: 1;
+    links: LinkRecord[];
+}
+/** Outcome of verifying one link. */
+export interface VerifyResult {
     ok: boolean;
     reason?: string;
+    /** Whether the link has a ledger record. */
+    tracked?: boolean;
+    /** Whether the target is a store copy. */
+    stored?: boolean;
+    target?: string;
+    mdPath?: string;
 }
 /** MCP transport kinds the manager supports. */
 export type McpTransport = 'stdio' | 'streamable-http';
@@ -250,15 +296,30 @@ export interface ManagerSettings {
 export declare const SMC_API: {
     readonly skills: "/api/dsh-s-m-c-center/skills";
     readonly skillRead: "/api/dsh-s-m-c-center/skills/read";
-    readonly skillToggle: "/api/dsh-s-m-c-center/skills/toggle";
     readonly skillDelete: "/api/dsh-s-m-c-center/skills/delete";
     readonly skillScan: "/api/dsh-s-m-c-center/skills/scan";
-    readonly skillImport: "/api/dsh-s-m-c-center/skills/import";
+    /** Register external skills: the canonical copy stays where it is. */
+    readonly skillRegister: "/api/dsh-s-m-c-center/skills/register";
+    /** Drop a registry entry (and its link, when one exists). */
+    readonly skillUnregister: "/api/dsh-s-m-c-center/skills/unregister";
+    /** Traceability pass: check every registry entry's path still exists. */
+    readonly skillRefresh: "/api/dsh-s-m-c-center/skills/refresh";
+    /** Move a native skill into the store (canonical copy + back-link). */
+    readonly skillMigrate: "/api/dsh-s-m-c-center/skills/migrate";
+    /** Undo a migration: remove the link, restore the origin, drop the entry. */
+    readonly skillUnmigrate: "/api/dsh-s-m-c-center/skills/unmigrate";
+    /** Create (or confirm) the `~/.dsh/skills/<slug>` link for one skill. */
+    readonly skillLink: "/api/dsh-s-m-c-center/skills/link";
+    /** Remove the link for one skill (the canonical copy is never touched). */
+    readonly skillUnlink: "/api/dsh-s-m-c-center/skills/unlink";
+    /** The per-skill announcement flag (公告 / 隐藏). */
+    readonly skillAnnounce: "/api/dsh-s-m-c-center/skills/announce";
+    /** Verify one link (resolves? target alive? tracked?). */
+    readonly skillVerify: "/api/dsh-s-m-c-center/skills/verify";
+    /** Delete an untracked link (one the ledger has no record of). */
+    readonly skillDeleteLink: "/api/dsh-s-m-c-center/skills/delete-link";
     readonly skillStore: "/api/dsh-s-m-c-center/skills/store";
     readonly skillRollback: "/api/dsh-s-m-c-center/skills/rollback";
-    /** The A/B axis: create or remove the link to a stored skill's canonical copy. */
-    readonly skillLinked: "/api/dsh-s-m-c-center/skills/linked";
-    /** Release one stored skill back to the dsh user skills root (store row action). */
     /** Re-run the one-shot migration after a rollback (the uninstall page's undo). */
     readonly skillRemigrate: "/api/dsh-s-m-c-center/skills/remigrate";
     readonly mcp: "/api/dsh-s-m-c-center/mcp";

@@ -62,14 +62,12 @@ export type SkillsMcpKey =
   | 'guideDataP'
   | 'sourceSystem'
   | 'skillList'
-  | 'skillsTabInPlace'
-  | 'skillsTabStore'
-  | 'adopt'
-  | 'adoptBusy'
-  | 'msgAdopted'
-  | 'inPlaceNote'
-  | 'storePageNote'
-  | 'importSkill'
+  | 'groupNative'
+  | 'groupStored'
+  | 'groupRegistered'
+  | 'registerSkill'
+  | 'refreshRegistry'
+  | 'registerSelected'
   | 'newServer'
   | 'registerCli'
   | 'modeForm'
@@ -86,7 +84,6 @@ export type SkillsMcpKey =
   | 'chooseFolder'
   | 'scanDir'
   | 'scanning'
-  | 'importSelected'
   | 'rollback'
   | 'rollingBack'
   | 'probe'
@@ -106,6 +103,7 @@ export type SkillsMcpKey =
   | 'pluginDisabled'
   | 'storeMigrated'
   | 'storeCount'
+  | 'storeUntracked'
   | 'storeFailures'
   // statuses / badges / suffixes
   | 'stConnecting'
@@ -117,11 +115,11 @@ export type SkillsMcpKey =
   | 'stNotConnected'
   | 'suffixArchived'
   | 'suffixHidden'
-  | 'suffixNotEnabled'
+  | 'suffixUnlinked'
+  | 'suffixUntracked'
+  | 'suffixOversize'
   | 'suffixDir'
   | 'suffixFile'
-  | 'badgeStore'
-  | 'badgeInPlace'
   | 'badgeArchive'
   | 'badgeActive'
   | 'badgeSkill'
@@ -133,12 +131,15 @@ export type SkillsMcpKey =
   | 'mcpTabCreate'
   | 'activate'
   | 'archive'
-  | 'switchEnable'
-  | 'switchLocked'
-  | 'linkOn'
-  | 'linkOff'
-  | 'linkNone'
-  | 'switchDisable'
+  | 'announceOn'
+  | 'announceOff'
+  | 'btnLink'
+  | 'btnUnlink'
+  | 'btnMigrate'
+  | 'btnUnmigrate'
+  | 'btnUnregister'
+  | 'btnVerify'
+  | 'btnDeleteLink'
   // filters + grouping
   | 'filterAll'
   | 'filterEnabled'
@@ -147,8 +148,6 @@ export type SkillsMcpKey =
   | 'levelUser'
   // empty states
   | 'emptySkills'
-  | 'emptyStoreTab'
-  | 'otherSubpageHint'
   | 'emptySkillMatch'
   | 'emptyMcp'
   | 'emptyMcpMatch'
@@ -158,7 +157,7 @@ export type SkillsMcpKey =
   | 'phSearchSkill'
   | 'phSearchServer'
   | 'phSearchCli'
-  | 'phImportDir'
+  | 'phRegisterDir'
   | 'phCliName'
   | 'phCliCall'
   | 'phServerName'
@@ -195,7 +194,11 @@ export type SkillsMcpKey =
   | 'msgEnterDir'
   | 'msgNoImportable'
   | 'msgSelectFirst'
-  | 'msgImported'
+  | 'msgRegistered'
+  | 'msgVerifyTracked'
+  | 'msgVerifyUntracked'
+  | 'msgRefreshOk'
+  | 'msgRefreshMissing'
 
   // uninstall preparation page
   | 'uninstallIntro'
@@ -216,6 +219,7 @@ export type SkillsMcpKey =
   | 'msgRestoreDone'
   // skill detail / CLI source prefixes (avoid inline English in zh runs)
   | 'detailWhenToUse'
+  | 'helpToggle'
   | 'cliSkillPrefix'
 
 /** Translator bound to this plugin's namespace (what `PropsLocale` hands out). */
@@ -273,14 +277,12 @@ export const zh: Record<SkillsMcpKey, string> = {
   guideDataP: '插件的全部数据都在统一储存库（默认 ~/.dsh/S-M-C，可用 DSH_STORE_ROOT 改位）：skills/ 放技能正本、mcp.json 放激活的服务器、mcp-archive.json 放归档的、cli.json 放 CLI 登记表。密码与环境变量为明文，文件权限 0600 需自行保证。',
   sourceSystem: '系统 CLI',
   skillList: '技能列表',
-  skillsTabInPlace: '就地管理',
-  skillsTabStore: '储存库',
-  adopt: '收容',
-  adoptBusy: '收容中…',
-  msgAdopted: '已收容进储存库并启用：{name}',
-  inPlaceNote: '启用 / 禁用＝是否注入 agent 上下文（写入 / 移除 SKILL.md 前言标记）。未收容的技能（文件本来就在扫描目录里）与已发送快捷方式的技能都可切换；快捷方式被移除时锁定为禁用。',
-  storePageNote: '是否在 skills 文件夹发送快捷方式（A/B）。发送＝agent 经联接看到该技能；移除＝联接消失，就地管理页的启用 / 禁用随之锁定。未收容的技能不参与此轴——需先导入或收容。',
-  importSkill: '导入技能',
+  groupNative: '原生',
+  groupStored: '储存库',
+  groupRegistered: '已登记',
+  registerSkill: '登记外部技能（正本留在原地，仅写入登记表）',
+  refreshRegistry: '溯源刷新',
+  registerSelected: '登记选中 ({n})',
   newServer: '新建 / 编辑服务器',
   registerCli: '登记系统 CLI',
   modeForm: '表单',
@@ -297,7 +299,6 @@ export const zh: Record<SkillsMcpKey, string> = {
   chooseFolder: '选择文件夹',
   scanDir: '扫描目录',
   scanning: '扫描中…',
-  importSelected: '导入选中 ({n})',
   rollback: '撤销迁移',
   rollingBack: '撤销中…',
   probe: '探测',
@@ -316,7 +317,8 @@ export const zh: Record<SkillsMcpKey, string> = {
 
   pluginDisabled: '插件已禁用：路由与 MCP 连接、CLI 探测均已停止，重新启用后刷新即可恢复。',
   storeMigrated: '技能已迁入统一储存库：{root}',
-  storeCount: '共 {count} 个，已启用 {enabled} 个。',
+  storeCount: '共 {count} 个，已联接 {linked} 个。',
+  storeUntracked: '{n} 条联接无账本记录',
   storeFailures: ' 有 {n} 个未能迁移，已保留在原位置。',
 
   stConnecting: '连接中',
@@ -328,11 +330,11 @@ export const zh: Record<SkillsMcpKey, string> = {
   stNotConnected: '未连接',
   suffixArchived: ' （已归档）',
   suffixHidden: ' （已隐藏）',
-  suffixNotEnabled: ' （未启用）',
+  suffixUnlinked: ' （未联接）',
+  suffixUntracked: ' （⚠ 无记录联接）',
+  suffixOversize: ' （超过 10G 上限）',
   suffixDir: ' (目录)',
   suffixFile: ' (文件)',
-  badgeStore: '储存器',
-  badgeInPlace: '就地管理',
   badgeArchive: '归档库',
   badgeActive: '已启用',
   badgeSkill: 'Skill',
@@ -344,22 +346,23 @@ export const zh: Record<SkillsMcpKey, string> = {
   mcpTabCreate: '新建',
   activate: '激活',
   archive: '归档',
-  switchEnable: '启用',
-  switchLocked: '锁定禁用（无快捷方式）',
-  linkOn: '已发送快捷方式',
-  linkOff: '无快捷方式',
-  linkNone: '未收容',
-  switchDisable: '禁用',
+  announceOn: '公告中',
+  announceOff: '已隐藏',
+  btnLink: '联接',
+  btnUnlink: '断开联接',
+  btnMigrate: '迁移入库',
+  btnUnmigrate: '撤销迁移',
+  btnUnregister: '取消登记',
+  btnVerify: '验证',
+  btnDeleteLink: '删除联接',
 
   filterAll: '全部',
-  filterEnabled: '已启用',
-  filterDisabled: '未启用',
+  filterEnabled: '公告中',
+  filterDisabled: '已隐藏',
   levelProject: '项目级',
   levelUser: '用户级',
 
   emptySkills: '没有发现技能',
-  emptyStoreTab: '储存库为空',
-  otherSubpageHint: '其余技能在另一个子页。',
   emptySkillMatch: '没有匹配的技能',
   emptyMcp: '尚未配置任何 MCP 服务器',
   emptyMcpMatch: '没有匹配的服务器',
@@ -369,7 +372,7 @@ export const zh: Record<SkillsMcpKey, string> = {
   phSearchSkill: '搜索技能名称…',
   phSearchServer: '搜索服务器名称…',
   phSearchCli: '搜索 CLI 名称…',
-  phImportDir: '目录路径（含 SKILL.md 的技能目录或平铺 .md）',
+  phRegisterDir: '目录路径（向下两层扫描 SKILL.md，单技能上限 10G）',
   phCliName: 'CLI 命令名，例如 gh',
   phCliCall: '调用名（可留空，默认同命令名）',
   phServerName: '例如 github',
@@ -404,11 +407,16 @@ export const zh: Record<SkillsMcpKey, string> = {
   msgRollbackOk: '已撤销迁移，恢复 {moved} 个技能到原位置',
   msgRollbackPartial: '恢复 {moved} 个技能，{failed} 个失败',
   msgEnterDir: '请输入目录路径',
-  msgNoImportable: '未发现可导入的技能',
-  msgSelectFirst: '请先勾选要导入的技能',
-  msgImported: '已导入 {n} 个技能',
+  msgNoImportable: '未发现可登记的技能',
+  msgSelectFirst: '请先勾选要登记的技能',
+  msgRegistered: '已登记 {n} 个技能',
+  msgVerifyTracked: '联接有效（有账本记录）→ ',
+  msgVerifyUntracked: '联接有效（无账本记录）→ ',
+  msgRefreshOk: '溯源刷新完成：{n} 条记录均存在',
+  msgRefreshMissing: '溯源刷新：{n} 条记录的目录已不存在 → ',
 
   detailWhenToUse: '何时使用',
+  helpToggle: '/help 帮助文本',
   cliSkillPrefix: '技能',
 
   uninstallIntro: '准备卸载本插件时，先在这里把托管的数据归还回系统默认位置，再手动删除储存库目录。',
@@ -481,14 +489,12 @@ export const en: Record<SkillsMcpKey, string> = {
   guideDataP: 'Everything this plugin stores lives in one place — by default ~/.dsh/S-M-C (relocate with DSH_STORE_ROOT): skills/ holds the canonical skill copies, mcp.json the enabled servers, mcp-archive.json the archived ones, cli.json the CLI registry. Secrets and env vars are plain text; file permissions (0600) are up to you.',
   sourceSystem: 'System CLI',
   skillList: 'Skills',
-  skillsTabInPlace: 'In place',
-  skillsTabStore: 'Store',
-  adopt: 'Adopt',
-  adoptBusy: 'Adopting…',
-  msgAdopted: 'Adopted into the store and enabled: {name}',
-  inPlaceNote: 'Enable / disable = whether the skill is injected into the agent context (written as / removed from the SKILL.md frontmatter marker). Switchable for unmanaged skills (their file already sits in a scanned root) and for skills whose link is in place; locked to disabled once the link is removed.',
-  storePageNote: 'Whether a link is sent into the skills folder (A/B). Sending it makes the skill reachable through the link; removing it drops the link and locks the in-place enable/disable switch. Unmanaged skills are outside this axis — import or adopt them first.',
-  importSkill: 'Import skills',
+  groupNative: 'Native',
+  groupStored: 'Stored',
+  groupRegistered: 'Registered',
+  registerSkill: 'Register external skills (copies stay put; only the ledger is written)',
+  refreshRegistry: 'Refresh traceability',
+  registerSelected: 'Register selected ({n})',
   newServer: 'New / edit server',
   registerCli: 'Register a system CLI',
   modeForm: 'Form',
@@ -505,7 +511,6 @@ export const en: Record<SkillsMcpKey, string> = {
   chooseFolder: 'Choose folder',
   scanDir: 'Scan directory',
   scanning: 'Scanning…',
-  importSelected: 'Import selected ({n})',
   rollback: 'Undo migration',
   rollingBack: 'Undoing…',
   probe: 'Probe',
@@ -524,7 +529,8 @@ export const en: Record<SkillsMcpKey, string> = {
 
   pluginDisabled: 'Plugin disabled: routes, MCP connections and CLI probing have all stopped. Re-enable it and refresh to recover.',
   storeMigrated: 'Skills moved into the unified store: {root}',
-  storeCount: '{count} in total, {enabled} enabled.',
+  storeCount: '{count} in total, {linked} linked.',
+  storeUntracked: '{n} link(s) without a ledger record',
   storeFailures: ' {n} could not be moved and were left in place.',
 
   stConnecting: 'Connecting',
@@ -536,11 +542,11 @@ export const en: Record<SkillsMcpKey, string> = {
   stNotConnected: 'Not connected',
   suffixArchived: ' (archived)',
   suffixHidden: ' (hidden)',
-  suffixNotEnabled: ' (disabled)',
+  suffixUnlinked: ' (unlinked)',
+  suffixUntracked: ' (⚠ untracked link)',
+  suffixOversize: ' (over the 10 GB cap)',
   suffixDir: ' (dir)',
   suffixFile: ' (file)',
-  badgeStore: 'Store',
-  badgeInPlace: 'In place',
   badgeArchive: 'Archive',
   badgeActive: 'Enabled',
   badgeSkill: 'Skill',
@@ -552,22 +558,23 @@ export const en: Record<SkillsMcpKey, string> = {
   mcpTabCreate: 'Create',
   activate: 'Enable',
   archive: 'Archive',
-  switchEnable: 'Enable',
-  switchLocked: 'Locked off (no link)',
-  linkOn: 'Link sent',
-  linkOff: 'No link',
-  linkNone: 'Not adopted',
-  switchDisable: 'Disable',
+  announceOn: 'Announced',
+  announceOff: 'Hidden',
+  btnLink: 'Link',
+  btnUnlink: 'Unlink',
+  btnMigrate: 'Move to store',
+  btnUnmigrate: 'Undo migration',
+  btnUnregister: 'Unregister',
+  btnVerify: 'Verify',
+  btnDeleteLink: 'Delete link',
 
   filterAll: 'All',
-  filterEnabled: 'Enabled',
-  filterDisabled: 'Disabled',
+  filterEnabled: 'Announced',
+  filterDisabled: 'Hidden',
   levelProject: 'Project',
   levelUser: 'User',
 
   emptySkills: 'No skills found',
-  emptyStoreTab: 'The store is empty',
-  otherSubpageHint: 'Remaining skills live on the other sub-page.',
   emptySkillMatch: 'No matching skills',
   emptyMcp: 'No MCP servers configured yet',
   emptyMcpMatch: 'No matching servers',
@@ -577,7 +584,7 @@ export const en: Record<SkillsMcpKey, string> = {
   phSearchSkill: 'Search skill names…',
   phSearchServer: 'Search server names…',
   phSearchCli: 'Search CLI names…',
-  phImportDir: 'Directory path (a skill dir with SKILL.md, or flat .md files)',
+  phRegisterDir: 'Directory path (scans two levels down for SKILL.md, 10 GB cap per skill)',
   phCliName: 'CLI command name, e.g. gh',
   phCliCall: 'Invoked name (optional; defaults to the command name)',
   phServerName: 'e.g. github',
@@ -612,11 +619,16 @@ export const en: Record<SkillsMcpKey, string> = {
   msgRollbackOk: 'Migration undone: {moved} skills restored to their original locations',
   msgRollbackPartial: 'Restored {moved} skills, {failed} failed',
   msgEnterDir: 'Enter a directory path',
-  msgNoImportable: 'No importable skills found',
-  msgSelectFirst: 'Select the skills to import first',
-  msgImported: 'Imported {n} skills',
+  msgNoImportable: 'No registrable skills found',
+  msgSelectFirst: 'Select the skills to register first',
+  msgRegistered: 'Registered {n} skills',
+  msgVerifyTracked: 'Link is valid (tracked in the ledger) → ',
+  msgVerifyUntracked: 'Link is valid (no ledger record) → ',
+  msgRefreshOk: 'Traceability refresh done: all {n} records exist',
+  msgRefreshMissing: 'Traceability refresh: {n} record(s) missing → ',
 
   detailWhenToUse: 'When to use',
+  helpToggle: '/help text',
   cliSkillPrefix: 'Skill',
 
   uninstallIntro: 'Before uninstalling this plugin, give its managed data back to the system default locations here, then delete the store directory by hand.',

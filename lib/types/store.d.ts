@@ -28,6 +28,10 @@ export declare const STORE_MCP_NAME = "mcp.json";
 export declare const STORE_MCP_ARCHIVE_NAME = "mcp-archive.json";
 /** File name of the CLI registry. */
 export declare const STORE_CLI_NAME = "cli.json";
+/** File name of the external-skills registry (canonical copies stay in place). */
+export declare const STORE_SKILLS_REGISTRY_NAME = "skills-registry.json";
+/** File name of the link ledger (every junction this plugin ever created). */
+export declare const STORE_SKILLS_LINKS_NAME = "skills-links.json";
 /** The dsh home directory: `$DSH_HOME`, falling back to `~/.dsh`. */
 export declare function dshHomeDir(): string;
 /**
@@ -46,6 +50,10 @@ export declare function storeMcpPath(): string;
 export declare function storeMcpArchivePath(): string;
 /** `$STORE_ROOT/cli.json` — the local CLI registry. */
 export declare function storeCliPath(): string;
+/** `$STORE_ROOT/skills-registry.json` — external skills registered in place. */
+export declare function storeSkillsRegistryPath(): string;
+/** `$STORE_ROOT/skills-links.json` — the ledger of links this plugin created. */
+export declare function storeSkillsLinksPath(): string;
 /**
  * Move a file or directory, falling back to copy-then-delete across devices.
  *

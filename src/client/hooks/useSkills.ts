@@ -1,23 +1,23 @@
 /**
- * Skills tab state: the skill list, the detail pane, the scan/import flow and
- * the toolbar filters.
+ * Skills tab state: the four-group skill list, the detail pane, the
+ * scan/register flow and the toolbar filters.
  *
  * The view layer receives ready-to-render values (`filtered`, `groups`) plus
  * the action callbacks; it never touches the API client or the raw fetch shape.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { ScannedSkill, SkillSummary, StoreStatus } from '../../protocol.ts'
+import type { ScannedSkill, SkillGroup, SkillSummary, StoreStatus } from '../../protocol.ts'
 import { api } from './useApi.ts'
 import { useAsyncList } from './useAsyncList.ts'
 import { errorText, format, normalizeQuery } from '../utils/format.ts'
 import type { EnabledFilter } from '../utils/constants.ts'
 import type { SkillsMcpKey, Translate } from '../locales.ts'
 
-/** Scan/import sub-panel state. */
+/** Scan/register sub-panel state. */
 export interface ScanState {
   /** Directory being scanned (editable by the user). */
   dir: string
-  /** True while scanning or importing. */
+  /** True while scanning or registering. */
   busy: boolean
   /** Discovered candidates. */
   items: ScannedSkill[]
@@ -46,13 +46,13 @@ export interface UseSkillsResult {
   /** True while any list fetch is in flight, background refetches included. */
   refreshing: boolean
   error: string
-  /** Rows after the query/enabled filters. */
+  /** Rows after the query/announce filters. */
   filtered: SkillSummary[]
   /** Filtered rows grouped by level, in display order. */
   groups: Array<{ level: string; label: string; items: SkillSummary[] }>
   /** Total rows before filtering (drives the empty copy). */
   total: number
-  /** User-level skills still living at their original location (not managed). */
+  /** User-level native skills still at their original location. */
   userUnmanaged: number
   reload: () => void
 
@@ -67,11 +67,24 @@ export interface UseSkillsResult {
   busyPath: string
   /** Transient action error. */
   message: string
-  toggle: (skill: SkillSummary) => void
-  /** The A/B axis: create or remove the link (adopting first when needed). */
-  toggleLink: (skill: SkillSummary) => void
-  /** Adopt an in-place skill into the store (import + enable, junction managed). */
-  adoptOne: (skill: SkillSummary) => void
+  /** The per-skill announcement flag (公告 / 隐藏). */
+  toggleAnnounce: (skill: SkillSummary) => void
+  /** Create (or confirm) the link for a stored/registered skill. */
+  link: (skill: SkillSummary) => void
+  /** Remove the link (the canonical copy is never touched). */
+  unlink: (skill: SkillSummary) => void
+  /** Native → stored: canonical copy into the store, link back in place. */
+  migrate: (skill: SkillSummary) => void
+  /** Undo a migration: link + ledger + manifest go, the copy returns home. */
+  unmigrate: (skill: SkillSummary) => void
+  /** Drop a registry entry (and its link, when one exists). */
+  unregister: (skill: SkillSummary) => void
+  /** Verify one link; the result lands in `message`. */
+  verify: (skill: SkillSummary) => void
+  /** Delete an untracked link (one the ledger has no record of). */
+  deleteUntracked: (skill: SkillSummary) => void
+  /** Traceability pass over the registry; the summary lands in `message`. */
+  refreshRegistry: () => void
   /** Two-step delete: first call arms the confirm, second executes. */
   remove: (skill: SkillSummary) => void
   /** Path armed for deletion, or null. */
@@ -86,13 +99,13 @@ export interface UseSkillsResult {
   /** Store state for the migration banner, or null while loading. */
   store: StoreStatus | null
 
-  // scan / import
+  // scan / register
   scan: ScanState
   setScanDir: (dir: string) => void
   chooseDir: () => void
   doScan: () => void
   toggleSelect: (sourcePath: string) => void
-  doImport: () => void
+  doRegister: () => void
 }
 
 /** Group captions as locale keys; the panel resolves them with `t`. */
@@ -134,36 +147,78 @@ export function useSkills(options: UseSkillsOptions): UseSkillsResult {
   // eslint-disable-next-line react-hooks/exhaustive-deps -- refreshKey is the caller's contract
   useEffect(() => { reloadStore() }, [refreshKey, reloadStore])
 
-  const toggle = useCallback((skill: SkillSummary) => {
+  /** Run one mutation against the API, then refresh list + banner. */
+  const act = useCallback((skill: SkillSummary, run: () => Promise<unknown>, done?: (result: unknown) => string | void) => {
     setBusyPath(skill.path)
     setMessage('')
-    api.toggleSkill(skill.path, !skill.enabled).then(() => {
+    run().then((result) => {
       setBusyPath('')
+      const note = done?.(result)
+      if (typeof note === 'string') setMessage(note)
       reloadAll()
     }).catch((e) => { setBusyPath(''); setMessage(errorText(e)) })
   }, [reloadAll])
 
-  // The A/B axis. Flipping to "no link" is not an optimistic update: the row
-  // may vanish from the in-place sub-page afterwards.
-  const toggleLink = useCallback((skill: SkillSummary) => {
-    setBusyPath(skill.path)
+  const toggleAnnounce = useCallback((skill: SkillSummary) => {
+    act(skill, () => api.setSkillAnnounce(skill.group, skill.slug ?? '', !skill.announce))
+  }, [act])
+
+  const link = useCallback((skill: SkillSummary) => {
+    act(skill, () => api.linkSkill(skill.slug ?? ''))
+  }, [act])
+
+  const unlink = useCallback((skill: SkillSummary) => {
+    act(skill, () => api.unlinkSkill(skill.slug ?? ''))
+  }, [act])
+
+  const migrate = useCallback((skill: SkillSummary) => {
+    // The API takes the bundle directory for bundles; the list row carries the
+    // SKILL.md path, so strip the trailing segment (both separators occur).
+    const sourcePath = skill.kind === 'bundle'
+      ? skill.path.replace(/[\\/]+SKILL\.md$/i, '')
+      : skill.path
+    act(skill, () => api.migrateSkill(sourcePath, skill.kind, skill.source))
+  }, [act])
+
+  const unmigrate = useCallback((skill: SkillSummary) => {
+    act(skill, () => api.unmigrateSkill(skill.slug ?? ''))
+  }, [act])
+
+  const unregister = useCallback((skill: SkillSummary) => {
+    act(skill, () => api.unregisterSkill(skill.slug ?? ''))
+  }, [act])
+
+  const verify = useCallback((skill: SkillSummary) => {
+    const key = skill.slug ?? skill.path
+    act(skill, () => api.verifyLink(key), (result) => {
+      const v = result as { ok: boolean; reason?: string; tracked?: boolean; target?: string }
+      if (!v.ok) return errorText(v.reason ?? 'verify failed')
+      return v.tracked
+        ? t('msgVerifyTracked') + (v.target ?? '')
+        : t('msgVerifyUntracked') + (v.target ?? '')
+    })
+  }, [act, t])
+
+  const deleteUntracked = useCallback((skill: SkillSummary) => {
+    act(skill, () => api.deleteUntrackedLink(skill.path))
+  }, [act])
+
+  const refreshRegistry = useCallback(() => {
     setMessage('')
-    api.setSkillLinked(skill.path, !skill.linked).then(() => {
-      setBusyPath('')
+    api.refreshRegistry().then((results) => {
+      const missing = results.filter((r) => !r.exists)
+      setMessage(missing.length === 0
+        ? format(t('msgRefreshOk'), { n: results.length })
+        : format(t('msgRefreshMissing'), { n: missing.length }) + ' ' + missing.map((m) => m.name).join(', '))
       reloadAll()
-    }).catch((e) => { setBusyPath(''); setMessage(errorText(e)) })
-  }, [reloadAll])
+    }).catch((e) => { setMessage(errorText(e)) })
+  }, [reloadAll, t])
 
   const remove = useCallback((skill: SkillSummary) => {
     if (confirmPath !== skill.path) { setConfirmPath(skill.path); return }
     setConfirmPath(null)
-    setBusyPath(skill.path)
-    setMessage('')
-    api.deleteSkill(skill.path, skill.kind).then(() => {
-      setBusyPath('')
-      reloadAll()
-    }).catch((e) => { setBusyPath(''); setMessage(errorText(e)) })
-  }, [confirmPath, reloadAll])
+    act(skill, () => api.deleteSkill(skill.path, skill.kind))
+  }, [act, confirmPath])
 
   const view = useCallback((skill: SkillSummary) => {
     if (detailPath === skill.path) { setDetailPath(null); setDetail(null); return }
@@ -213,14 +268,14 @@ export function useSkills(options: UseSkillsOptions): UseSkillsResult {
     })
   }, [])
 
-  const doImport = useCallback(() => {
+  const doRegister = useCallback(() => {
     setScan((prev) => {
-      const chosen = prev.items.filter((it) => prev.selected[it.sourcePath])
+      const chosen = prev.items.filter((it) => prev.selected[it.sourcePath] && !it.oversize)
       if (chosen.length === 0) return { ...prev, error: t('msgSelectFirst') }
-      api.importSkills(chosen.map((it) => ({ sourcePath: it.sourcePath, kind: it.kind })))
+      api.registerSkills(chosen.map((it) => ({ sourcePath: it.sourcePath, kind: it.kind })))
         .then((results) => {
-          const imported = results.filter((x) => x.ok).length
-          setScan((cur) => ({ ...cur, busy: false, selected: {}, note: format(t('msgImported'), { n: imported }) }))
+          const registered = results.filter((x) => x.ok).length
+          setScan((cur) => ({ ...cur, busy: false, selected: {}, note: format(t('msgRegistered'), { n: registered }) }))
           reloadAll()
         }).catch((e) => {
           setScan((cur) => ({ ...cur, busy: false, error: errorText(e) }))
@@ -229,33 +284,12 @@ export function useSkills(options: UseSkillsOptions): UseSkillsResult {
     })
   }, [reloadAll, t])
 
-  const adoptOne = useCallback((skill: SkillSummary) => {
-    setBusyPath(skill.path)
-    setMessage('')
-    // The API takes the bundle directory for bundles; the list row carries the
-    // SKILL.md path, so strip the trailing segment (both separators occur —
-    // the host runs on Windows but stores what the OS join produced).
-    const sourcePath = skill.kind === 'bundle'
-      ? skill.path.replace(/[\\/]+SKILL\.md$/i, '')
-      : skill.path
-    api.importSkills([{ sourcePath, kind: skill.kind }])
-      .then((results) => {
-        setBusyPath('')
-        const first = results[0]
-        setMessage(first?.ok
-          ? format(t('msgAdopted'), { name: skill.name })
-          : errorText(first?.reason ?? 'adopt failed'))
-        reloadAll()
-      })
-      .catch((e) => { setBusyPath(''); setMessage(errorText(e)) })
-  }, [reloadAll, t])
-
   const filtered = useMemo(() => {
     const q = normalizeQuery(query)
     return list.items.filter((it) => {
       if (q !== '' && !it.name.toLowerCase().includes(q)) return false
-      if (enabledFilter === 'enabled' && !it.enabled) return false
-      if (enabledFilter === 'disabled' && it.enabled) return false
+      if (enabledFilter === 'enabled' && !it.announce) return false
+      if (enabledFilter === 'disabled' && it.announce) return false
       return true
     })
   }, [list.items, query, enabledFilter])
@@ -269,9 +303,9 @@ export function useSkills(options: UseSkillsOptions): UseSkillsResult {
   }, [filtered, t])
 
   // Drives the uninstall page's conditional button: with an empty store but
-  // unmanaged user-level skills on disk, "undo migration" becomes "migrate".
+  // native user-level skills on disk, "undo migration" becomes "migrate".
   const userUnmanaged = useMemo(
-    () => list.items.filter((it) => it.level === 'user' && !it.managed).length,
+    () => list.items.filter((it) => it.level === 'user' && it.group === 'native' as SkillGroup).length,
     [list.items],
   )
 
@@ -287,9 +321,11 @@ export function useSkills(options: UseSkillsOptions): UseSkillsResult {
     query, setQuery,
     enabledFilter, setEnabledFilter,
     busyPath, message,
-    toggle, toggleLink, adoptOne, remove, confirmPath,
+    toggleAnnounce, link, unlink, migrate, unmigrate, unregister,
+    verify, deleteUntracked, refreshRegistry,
+    remove, confirmPath,
     detailPath, detail, view,
     store,
-    scan, setScanDir, chooseDir, doScan, toggleSelect, doImport,
+    scan, setScanDir, chooseDir, doScan, toggleSelect, doRegister,
   }
 }

@@ -1,11 +1,11 @@
 import type { ScannedSkill, SkillSummary, StoreStatus } from '../../protocol.ts';
 import type { EnabledFilter } from '../utils/constants.ts';
 import type { Translate } from '../locales.ts';
-/** Scan/import sub-panel state. */
+/** Scan/register sub-panel state. */
 export interface ScanState {
     /** Directory being scanned (editable by the user). */
     dir: string;
-    /** True while scanning or importing. */
+    /** True while scanning or registering. */
     busy: boolean;
     /** Discovered candidates. */
     items: ScannedSkill[];
@@ -32,7 +32,7 @@ export interface UseSkillsResult {
     /** True while any list fetch is in flight, background refetches included. */
     refreshing: boolean;
     error: string;
-    /** Rows after the query/enabled filters. */
+    /** Rows after the query/announce filters. */
     filtered: SkillSummary[];
     /** Filtered rows grouped by level, in display order. */
     groups: Array<{
@@ -42,7 +42,7 @@ export interface UseSkillsResult {
     }>;
     /** Total rows before filtering (drives the empty copy). */
     total: number;
-    /** User-level skills still living at their original location (not managed). */
+    /** User-level native skills still at their original location. */
     userUnmanaged: number;
     reload: () => void;
     query: string;
@@ -53,11 +53,24 @@ export interface UseSkillsResult {
     busyPath: string;
     /** Transient action error. */
     message: string;
-    toggle: (skill: SkillSummary) => void;
-    /** The A/B axis: create or remove the link (adopting first when needed). */
-    toggleLink: (skill: SkillSummary) => void;
-    /** Adopt an in-place skill into the store (import + enable, junction managed). */
-    adoptOne: (skill: SkillSummary) => void;
+    /** The per-skill announcement flag (公告 / 隐藏). */
+    toggleAnnounce: (skill: SkillSummary) => void;
+    /** Create (or confirm) the link for a stored/registered skill. */
+    link: (skill: SkillSummary) => void;
+    /** Remove the link (the canonical copy is never touched). */
+    unlink: (skill: SkillSummary) => void;
+    /** Native → stored: canonical copy into the store, link back in place. */
+    migrate: (skill: SkillSummary) => void;
+    /** Undo a migration: link + ledger + manifest go, the copy returns home. */
+    unmigrate: (skill: SkillSummary) => void;
+    /** Drop a registry entry (and its link, when one exists). */
+    unregister: (skill: SkillSummary) => void;
+    /** Verify one link; the result lands in `message`. */
+    verify: (skill: SkillSummary) => void;
+    /** Delete an untracked link (one the ledger has no record of). */
+    deleteUntracked: (skill: SkillSummary) => void;
+    /** Traceability pass over the registry; the summary lands in `message`. */
+    refreshRegistry: () => void;
     /** Two-step delete: first call arms the confirm, second executes. */
     remove: (skill: SkillSummary) => void;
     /** Path armed for deletion, or null. */
@@ -75,7 +88,7 @@ export interface UseSkillsResult {
     chooseDir: () => void;
     doScan: () => void;
     toggleSelect: (sourcePath: string) => void;
-    doImport: () => void;
+    doRegister: () => void;
 }
 /** Skills tab controller. */
 export declare function useSkills(options: UseSkillsOptions): UseSkillsResult;

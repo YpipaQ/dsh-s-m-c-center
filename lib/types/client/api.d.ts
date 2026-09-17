@@ -6,7 +6,7 @@
  * route can produce — an HTTP status, or a 200 carrying `{ ok: false, error }`
  * — surface the same way, and a failure never arrives as a silent `undefined`.
  */
-import type { CliRegistryEntry, CliStateDetail, CliSubcommands, CliSummary, ImportItem, ImportResult, ManagerSettings, McpServerConfig, McpServerSummary, ScannedSkill, SkillDetail, SkillSummary, StoreOperation, StoreStatus } from '../protocol.ts';
+import type { CliRegistryEntry, CliStateDetail, CliSubcommands, CliSummary, ImportItem, ManagerSettings, McpServerConfig, McpServerSummary, ScannedSkill, SkillDetail, SkillGroup, SkillSummary, StoreOperation, StoreStatus, VerifyResult } from '../protocol.ts';
 /** Raised for any route call that did not come back as `ok`. */
 export declare class SkillsMcpApiError extends Error {
     constructor(message: string);
@@ -15,12 +15,36 @@ export declare class SkillsMcpApiError extends Error {
 export declare class SkillsMcpApi {
     listSkills(cwd: string): Promise<SkillSummary[]>;
     readSkill(path: string): Promise<SkillDetail>;
-    toggleSkill(path: string, enabled: boolean): Promise<void>;
-    /** The A/B axis: create (adopting first if needed) or remove the link. */
-    setSkillLinked(path: string, linked: boolean): Promise<void>;
+    /** Native → stored: canonical copy into the store, link back in place. */
+    migrateSkill(path: string, kind: 'bundle' | 'file', source: SkillSummary['source']): Promise<string>;
+    /** Undo a migration: link + ledger + manifest go, the copy returns home. */
+    unmigrateSkill(slug: string): Promise<void>;
+    /** Create (or confirm) the `~/.dsh/skills/<slug>` link. */
+    linkSkill(slug: string): Promise<void>;
+    /** Remove the link (the canonical copy is never touched). */
+    unlinkSkill(slug: string): Promise<void>;
+    /** The per-skill announcement flag (公告 / 隐藏). */
+    setSkillAnnounce(group: SkillGroup, slug: string, announce: boolean): Promise<void>;
+    /** Verify one link (resolves? target alive? tracked?). */
+    verifyLink(slug: string): Promise<VerifyResult>;
+    /** Delete an untracked link (one the ledger has no record of). */
+    deleteUntrackedLink(path: string): Promise<void>;
     deleteSkill(path: string, kind: 'bundle' | 'file'): Promise<void>;
     scanSkills(dir: string): Promise<ScannedSkill[]>;
-    importSkills(items: ImportItem[]): Promise<ImportResult[]>;
+    /** Register external skills — the canonical copy stays where it is. */
+    registerSkills(items: ImportItem[]): Promise<Array<{
+        name: string;
+        ok: boolean;
+        reason?: string;
+    }>>;
+    /** Drop a registry entry (and its link, when one exists). */
+    unregisterSkill(slug: string): Promise<void>;
+    /** Traceability pass: does every registered path still exist? */
+    refreshRegistry(): Promise<Array<{
+        slug: string;
+        name: string;
+        exists: boolean;
+    }>>;
     storeStatus(): Promise<StoreStatus>;
     /** Undo the one-shot migration: every stored skill returns to its origin. */
     rollbackStore(): Promise<StoreOperation>;

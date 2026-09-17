@@ -2,6 +2,7 @@
  * CLI tab view. Presentation over {@link useCli}; the probe result pane is
  * folded in as a small local sub-component since it is only used here.
  */
+import { useState } from 'react'
 import { Badge, Button, EmptyState, ErrorText, Loading, StateRow, Switch } from './ui/index.tsx'
 import type { CliDetailState, UseCliResult } from '../hooks/useCli.ts'
 import { cliAnnounceLabel } from '../utils/constants.ts'
@@ -98,11 +99,15 @@ interface CliDetailPaneProps {
   t: Translate
 }
 
-/** Expanded probe result for one CLI row. */
+/** Expanded probe result for one CLI row, with the folded /help section. */
 function CliDetailPane({ detail, t }: CliDetailPaneProps) {
+  // The help text ships pre-defined in the probe payload (cli-state / --help);
+  // it stays folded by default so one row cannot eat the whole panel.
+  const [helpOpen, setHelpOpen] = useState(false)
   if (detail.busy) return <div className={css.detail}><div>{t('probing')}</div></div>
   if (detail.error) return <div className={css.detail}><div>{detail.error}</div></div>
   const { state, subcommands } = detail
+  const help = subcommands?.help ?? ''
   return (
     <div className={css.detail}>
       <div>
@@ -124,6 +129,16 @@ function CliDetailPane({ detail, t }: CliDetailPaneProps) {
           ? (
             <div className={css.inline} style={{ flexWrap: 'wrap', gap: 6 }}>
               {subcommands.subcommands.map((c) => <Badge key={c}>{c}</Badge>)}
+            </div>
+          )
+          : null}
+        {help !== ''
+          ? (
+            <div>
+              <Button onClick={() => { setHelpOpen((v) => !v) }}>
+                {helpOpen ? t('collapse') : t('helpToggle')}
+              </Button>
+              {helpOpen ? <pre className={css.pre}>{help}</pre> : null}
             </div>
           )
           : null}

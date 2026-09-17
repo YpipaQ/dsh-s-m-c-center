@@ -164,8 +164,8 @@ describe('migrateStoreRoot', () => {
     expect(resolve(readlinkSync(link))).toBe(resolve(join(storeSkillsDir(), 'alpha')))
     // And the skill is still visible through the link, which is the whole point.
     const found = new SkillsManager().listSkills().find((s) => s.name === 'alpha')
-    expect(found?.enabled).toBe(true)
-    expect(found?.managed).toBe(true)
+    expect(found?.group).toBe('stored')
+    expect(found?.linked).toBe(true)
   })
 
   it('leaves links that point somewhere else alone', () => {
@@ -209,8 +209,8 @@ describe('migrateStoreRoot', () => {
       .toBe(resolve(join(storeSkillsDir(), 'gsap')))
     // The agent still sees it, which is the only thing that actually matters.
     const found = skills.listSkills().find((s) => s.name === 'gsap')
-    expect(found?.enabled).toBe(true)
-    expect(found?.managed).toBe(true)
+    expect(found?.group).toBe('stored')
+    expect(found?.linked).toBe(true)
   })
 
   it('reports a store it could not move instead of throwing', () => {

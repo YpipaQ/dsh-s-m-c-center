@@ -33,9 +33,9 @@ afterEach(() => {
 })
 
 /** A minimal skill row. */
-function skill(name: string, enabled = true, description = ''): SkillSummary {
+function skill(name: string, announce = true, description = ''): SkillSummary {
   return {
-    name, description, whenToUse: '', enabled,
+    name, description, whenToUse: '', group: 'native', announce,
     source: 'project-dsh', level: 'project', kind: 'bundle', path: '/x/' + name,
   }
 }
@@ -134,7 +134,7 @@ describe('renderAnnouncement — inventory', () => {
     expect(text).not.toContain('MCP 服务器：未配置。')
   })
 
-  it('lists enabled skills with their descriptions', () => {
+  it('lists announced skills with their descriptions', () => {
     const text = renderAnnouncement(sources({
       skills: [skill('commit', true, 'Write a commit message')],
     }))
@@ -142,13 +142,13 @@ describe('renderAnnouncement — inventory', () => {
     expect(text).toContain('Write a commit message')
   })
 
-  it('counts disabled skills separately', () => {
+  it('counts hidden skills separately', () => {
     const text = renderAnnouncement(sources({
       skills: [skill('on'), skill('off', false)],
     }))
     expect(text).toContain('共 2 个')
-    expect(text).toContain('可用 1 个')
-    expect(text).toContain('1 个已禁用')
+    expect(text).toContain('公告 1 个')
+    expect(text).toContain('1 个已隐藏')
   })
 
   it('says so when everything is empty', () => {

@@ -1,31 +1,25 @@
 /**
- * Skills tab view, split into two sub-pages — one per axis.
+ * Skills tab view — one list, four groups.
  *
- * Both sub-pages list every skill; they differ only in which axis the row's
- * switch drives:
+ * Every row shows which of the four groups it belongs to (native / stored /
+ * registered / the link state as its own flag), carries the per-skill
+ * announcement switch, and offers exactly the operations its group allows:
  *
- * - 「就地管理」 is the **1/2 axis**: whether the skill is injected into the
- *   agent context, stored as a SKILL.md frontmatter marker (the upstream
- *   approach). Available whenever the skill is reachable — it is unmanaged (its
- *   file already sits in a scanned root) or the A link exists. When the link is
- *   gone (B), the row is locked to 2 (disabled).
- * - 「储存库」 is the **A/B axis**: whether a link to the canonical copy sits in
- *   the skill root. Turning A on for an unmanaged skill adopts it into the
- *   store first; turning it off (B) removes the link and leaves the copy in the
- *   store.
+ * - native:      迁移入库 (canonical copy → store, link back in place) / delete
+ * - stored:      联接 / 撤销迁移 (link + ledger + manifest go, copy returns) / delete
+ * - registered:  联接 / 取消登记 / delete (the external copy stays)
+ * - untracked:   a link on disk with no ledger record — red flag, with
+ *                验证 / 删除联接 instead of the normal actions
  *
- * The axes do not conflict — the link decides reachability, the frontmatter
- * decides injection — they only compose: A ∧ 1 injects, A ∧ 2 does not, B is
- * locked to 2.
- *
- * Pure presentation over {@link useSkills}: it owns no state beyond the active
- * sub-page and never calls the API directly.
+ * Pure presentation over {@link useSkills}: it owns no state beyond the scan
+ * section and never calls the API directly.
  */
 import { useState } from 'react'
 import { Badge, Button, EmptyState, ErrorText, Loading, Switch } from './ui/index.tsx'
 import type { UseSkillsResult } from '../hooks/useSkills.ts'
 import { format, sourceLabel } from '../utils/format.ts'
-import type { Translate } from '../locales.ts'
+import type { SkillGroup } from '../../protocol.ts'
+import type { SkillsMcpKey, Translate } from '../locales.ts'
 import css from '../settings-card.module.css'
 
 export interface SkillsPanelProps {
@@ -33,69 +27,48 @@ export interface SkillsPanelProps {
   t: Translate
 }
 
+/** Locale key per group badge. */
+const GROUP_KEY: Record<SkillGroup, SkillsMcpKey> = {
+  native: 'groupNative',
+  stored: 'groupStored',
+  registered: 'groupRegistered',
+}
+
 /** Skills tab. */
 export function SkillsPanel({ skills, t }: SkillsPanelProps) {
   const { store } = skills
-  const [sub, setSub] = useState<'inplace' | 'store'>('inplace')
 
   return (
     <div className={css.panel}>
-      <div className={css.tabs} role="tablist">
-        {(['inplace', 'store'] as const).map((id) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={sub === id}
-            className={sub === id ? css.tabActive : css.tab}
-            onClick={() => { setSub(id) }}
-          >
-            {t(id === 'inplace' ? 'skillsTabInPlace' : 'skillsTabStore')}
-          </button>
-        ))}
-      </div>
-
-      {sub === 'inplace'
+      {store !== null && store.migrated
         ? (
-          <div className={css.section}>
-            <div className={css.descWrap}>{t('inPlaceNote')}</div>
-            <div className={css.inline}>
-              <div className={css.hGrow}>{t('skillList')}</div>
-              <Button onClick={skills.reload} disabled={skills.refreshing}>{t('refresh')}</Button>
+          <div className={css.storeNote}>
+            <div className={css.noteLines}>
+              <div>
+                {format(t('storeMigrated'), { root: store.root || store.dir })}
+                {' '}
+                {format(t('storeCount'), { count: store.count, linked: store.linked })}
+                {store.untracked > 0 ? ` · ${format(t('storeUntracked'), { n: store.untracked })}` : ''}
+                {store.failures.length > 0 ? ` · ${format(t('storeFailures'), { n: store.failures.length })}` : ''}
+              </div>
             </div>
-            <Toolbar skills={skills} t={t} />
-            <Messages skills={skills} />
-            <SkillList skills={skills} sub="inplace" t={t} />
           </div>
         )
-        : (
-          <div className={css.section}>
-            {store !== null && store.migrated
-              ? (
-                <div className={css.storeNote}>
-                  <div className={css.noteLines}>
-                    <div>{format(t('storeMigrated'), { root: store.root || store.dir })}</div>
-                    <div>
-                      {format(t('storeCount'), { count: store.count, enabled: store.enabled })}
-                      {store.failures.length > 0 ? format(t('storeFailures'), { n: store.failures.length }) : ''}
-                    </div>
-                  </div>
-                </div>
-              )
-              : null}
-            <div className={css.descWrap}>{t('storePageNote')}</div>
-            <ImportSection skills={skills} t={t} />
-            <div className={css.inline}><div className={css.hGrow}>{t('skillList')}</div></div>
-            <Toolbar skills={skills} t={t} />
-            <Messages skills={skills} />
-            <SkillList skills={skills} sub="store" t={t} />
-          </div>
-        )}
+        : null}
+
+      <div className={css.inline}>
+        <div className={css.hGrow}>{t('skillList')}</div>
+        <Button onClick={skills.reload} disabled={skills.refreshing}>{t('refresh')}</Button>
+      </div>
+      <Toolbar skills={skills} t={t} />
+      <Messages skills={skills} />
+      <SkillList skills={skills} t={t} />
+      <RegisterSection skills={skills} t={t} />
     </div>
   )
 }
 
-/** Search box + enabled filter, shared by both sub-pages. */
+/** Search box + announce filter. */
 function Toolbar({ skills, t }: { skills: UseSkillsResult; t: Translate }) {
   return (
     <div className={css.inline}>
@@ -128,18 +101,19 @@ function Messages({ skills }: { skills: UseSkillsResult }) {
   )
 }
 
-/** Scan-a-directory import; lives on the store sub-page (importing is adoption). */
-function ImportSection({ skills, t }: { skills: UseSkillsResult; t: Translate }) {
+/** Pick-a-directory flow for registering external skills (copies stay put). */
+function RegisterSection({ skills, t }: { skills: UseSkillsResult; t: Translate }) {
   const scan = skills.scan
   return (
     <>
       <div className={css.inline}>
-        <div className={css.hGrow}>{t('importSkill')}</div>
+        <div className={css.hGrow}>{t('registerSkill')}</div>
+        <Button onClick={skills.refreshRegistry} disabled={skills.refreshing}>{t('refreshRegistry')}</Button>
       </div>
       <div className={css.inline}>
         <input
           className={css.inputGrow}
-          placeholder={t('phImportDir')}
+          placeholder={t('phRegisterDir')}
           value={scan.dir}
           onChange={(e) => { skills.setScanDir(e.target.value) }}
         />
@@ -156,19 +130,23 @@ function ImportSection({ skills, t }: { skills: UseSkillsResult; t: Translate })
               <label key={it.sourcePath} className={css.row}>
                 <input
                   type="checkbox"
+                  disabled={it.oversize}
                   checked={!!scan.selected[it.sourcePath]}
                   onChange={() => { skills.toggleSelect(it.sourcePath) }}
                 />
                 <div className={css.main}>
                   <div className={css.name}>
-                    <span className={css.nameText}>{it.name}{it.kind === 'bundle' ? t('suffixDir') : t('suffixFile')}</span>
+                    <span className={css.nameText}>
+                      {it.name}{it.kind === 'bundle' ? t('suffixDir') : t('suffixFile')}
+                      {it.oversize ? t('suffixOversize') : ''}
+                    </span>
                   </div>
                   {it.description ? <div className={css.desc}>{it.description}</div> : null}
                 </div>
               </label>
             ))}
-            <Button disabled={scan.busy} onClick={skills.doImport}>
-              {format(t('importSelected'), { n: Object.keys(scan.selected).length })}
+            <Button disabled={scan.busy} onClick={skills.doRegister}>
+              {format(t('registerSelected'), { n: Object.keys(scan.selected).length })}
             </Button>
           </div>
         )
@@ -178,14 +156,8 @@ function ImportSection({ skills, t }: { skills: UseSkillsResult; t: Translate })
   )
 }
 
-interface SkillListProps {
-  skills: UseSkillsResult
-  sub: 'inplace' | 'store'
-  t: Translate
-}
-
 /** Grouped list of every skill, with the shared loading / empty states. */
-function SkillList({ skills, sub, t }: SkillListProps) {
+function SkillList({ skills, t }: { skills: UseSkillsResult; t: Translate }) {
   if (skills.loading) return <Loading t={t} />
   if (skills.groups.length === 0) {
     return <EmptyState title={skills.query !== '' ? t('emptySkillMatch') : t('emptySkills')} />
@@ -196,7 +168,7 @@ function SkillList({ skills, sub, t }: SkillListProps) {
         <div key={group.level}>
           <div className={css.groupH}>{group.label} ({group.items.length})</div>
           {group.items.map((skill) => (
-            <SkillRow key={skill.path} skill={skill} skills={skills} sub={sub} t={t} />
+            <SkillRow key={skill.path} skill={skill} skills={skills} t={t} />
           ))}
         </div>
       ))}
@@ -207,46 +179,82 @@ function SkillList({ skills, sub, t }: SkillListProps) {
 interface SkillRowProps {
   skill: UseSkillsResult['filtered'][number]
   skills: UseSkillsResult
-  sub: 'inplace' | 'store'
   t: Translate
 }
 
-/** One row; the switch drives whichever axis the active sub-page owns. */
-function SkillRow({ skill, skills, sub, t }: SkillRowProps) {
+/**
+ * One row: group badge, source badge, announcement switch, and exactly the
+ * operations the row's group allows.
+ */
+function SkillRow({ skill, skills, t }: SkillRowProps) {
   const isBusy = skills.busyPath === skill.path
   const isOpen = skills.detailPath === skill.path
-  // B (managed, no link): the file is unreachable, so the 1/2 switch is locked
-  // to 2 until the store sub-page restores the link.
-  const lockedOff = sub === 'inplace' && skill.managed && !skill.linked
+  const redFlag = skill.untracked === true
 
   return (
     <div>
-      <div className={css.row}>
+      <div className={css.row} style={redFlag ? { outline: '1px solid var(--dsh-danger, #d1242f)' } : undefined}>
         <div className={css.main} style={{ cursor: 'pointer' }} onClick={() => { skills.view(skill) }}>
           <div className={css.name}>
-            <span className={css.nameText}>{skill.name}{skill.enabled ? '' : t('suffixNotEnabled')}</span>
+            <span className={css.nameText}>
+              {skill.name}
+              {skill.linked ? '' : t('suffixUnlinked')}
+              {redFlag ? t('suffixUntracked') : ''}
+            </span>
           </div>
           {skill.description ? <div className={css.desc}>{skill.description}</div> : null}
         </div>
+        <Badge>{t(GROUP_KEY[skill.group])}</Badge>
         <Badge>{sourceLabel(skill.source)}</Badge>
-        {sub === 'inplace'
+        <Switch
+          checked={skill.announce}
+          disabled={isBusy}
+          onChange={() => { skills.toggleAnnounce(skill) }}
+          label={skill.announce ? t('announceOn') : t('announceOff')}
+        />
+        {redFlag
           ? (
-            <Switch
-              checked={!lockedOff && skill.enabled}
-              disabled={isBusy || lockedOff}
-              onChange={() => { skills.toggle(skill) }}
-              label={lockedOff ? t('switchLocked') : (skill.enabled ? t('switchEnable') : t('switchDisable'))}
-            />
+            <>
+              <Button disabled={isBusy} onClick={() => { skills.verify(skill) }}>{t('btnVerify')}</Button>
+              <Button variant="danger" disabled={isBusy} onClick={() => { skills.deleteUntracked(skill) }}>
+                {t('btnDeleteLink')}
+              </Button>
+            </>
           )
           : (
-            // Unmanaged skills sit outside this axis entirely: the switch is
-            // inert rather than silently adopting a skill into the store.
-            <Switch
-              checked={skill.managed && skill.linked}
-              disabled={isBusy || !skill.managed}
-              onChange={() => { skills.toggleLink(skill) }}
-              label={!skill.managed ? t('linkNone') : (skill.linked ? t('linkOn') : t('linkOff'))}
-            />
+            <>
+              {skill.group === 'native' && skill.level === 'user'
+                ? <Button disabled={isBusy} onClick={() => { skills.migrate(skill) }}>{t('btnMigrate')}</Button>
+                : null}
+              {skill.group === 'stored'
+                ? (
+                  <Button disabled={isBusy} onClick={() => { skills.unmigrate(skill) }}>
+                    {t('btnUnmigrate')}
+                  </Button>
+                )
+                : null}
+              {skill.group === 'registered'
+                ? (
+                  <Button disabled={isBusy} onClick={() => { skills.unregister(skill) }}>
+                    {t('btnUnregister')}
+                  </Button>
+                )
+                : null}
+              {skill.group !== 'native'
+                ? (
+                  <Button disabled={isBusy} onClick={() => { skills.unlink(skill) }}>
+                    {t('btnUnlink')}
+                  </Button>
+                )
+                : null}
+              {skill.group === 'stored' && !skill.linked
+                ? (
+                  <Button disabled={isBusy} onClick={() => { skills.link(skill) }}>
+                    {t('btnLink')}
+                  </Button>
+                )
+                : null}
+            </>
           )}
         <Button onClick={() => { skills.view(skill) }}>{isOpen ? t('collapse') : t('details')}</Button>
         <Button variant="danger" disabled={isBusy} onClick={() => { skills.remove(skill) }}>

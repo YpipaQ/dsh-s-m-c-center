@@ -10,8 +10,9 @@
 import { SMC_API } from '../protocol.ts'
 import type {
   CliRegistryEntry, CliStateDetail, CliSubcommands, CliSummary,
-  ImportItem, ImportResult, ManagerSettings, McpServerConfig, McpServerSummary,
-  ScannedSkill, SkillDetail, SkillSummary, StoreOperation, StoreStatus,
+  ImportItem, ManagerSettings, McpServerConfig, McpServerSummary,
+  ScannedSkill, SkillDetail, SkillGroup, SkillSummary, StoreOperation,
+  StoreStatus, VerifyResult,
 } from '../protocol.ts'
 
 /** Raised for any route call that did not come back as `ok`. */
@@ -76,13 +77,41 @@ export class SkillsMcpApi {
     return body.skill
   }
 
-  async toggleSkill(path: string, enabled: boolean): Promise<void> {
-    await call('POST', SMC_API.skillToggle, { path, enabled })
+  /** Native → stored: canonical copy into the store, link back in place. */
+  async migrateSkill(path: string, kind: 'bundle' | 'file', source: SkillSummary['source']): Promise<string> {
+    const body = await call<{ slug: string }>('POST', SMC_API.skillMigrate, { path, kind, source })
+    return body.slug
   }
 
-  /** The A/B axis: create (adopting first if needed) or remove the link. */
-  async setSkillLinked(path: string, linked: boolean): Promise<void> {
-    await call('POST', SMC_API.skillLinked, { path, linked })
+  /** Undo a migration: link + ledger + manifest go, the copy returns home. */
+  async unmigrateSkill(slug: string): Promise<void> {
+    await call('POST', SMC_API.skillUnmigrate, { slug })
+  }
+
+  /** Create (or confirm) the `~/.dsh/skills/<slug>` link. */
+  async linkSkill(slug: string): Promise<void> {
+    await call('POST', SMC_API.skillLink, { slug })
+  }
+
+  /** Remove the link (the canonical copy is never touched). */
+  async unlinkSkill(slug: string): Promise<void> {
+    await call('POST', SMC_API.skillUnlink, { slug })
+  }
+
+  /** The per-skill announcement flag (公告 / 隐藏). */
+  async setSkillAnnounce(group: SkillGroup, slug: string, announce: boolean): Promise<void> {
+    await call('POST', SMC_API.skillAnnounce, { group, slug, announce })
+  }
+
+  /** Verify one link (resolves? target alive? tracked?). */
+  async verifyLink(slug: string): Promise<VerifyResult> {
+    const body = await call<{ result: VerifyResult }>('POST', SMC_API.skillVerify, { slug })
+    return body.result
+  }
+
+  /** Delete an untracked link (one the ledger has no record of). */
+  async deleteUntrackedLink(path: string): Promise<void> {
+    await call('POST', SMC_API.skillDeleteLink, { path })
   }
 
   async deleteSkill(path: string, kind: 'bundle' | 'file'): Promise<void> {
@@ -94,8 +123,24 @@ export class SkillsMcpApi {
     return body.items
   }
 
-  async importSkills(items: ImportItem[]): Promise<ImportResult[]> {
-    const body = await call<{ results: ImportResult[] }>('POST', SMC_API.skillImport, { items })
+  /** Register external skills — the canonical copy stays where it is. */
+  async registerSkills(items: ImportItem[]): Promise<Array<{ name: string; ok: boolean; reason?: string }>> {
+    const body = await call<{ results: Array<{ name: string; ok: boolean; reason?: string }> }>(
+      'POST', SMC_API.skillRegister, { items },
+    )
+    return body.results
+  }
+
+  /** Drop a registry entry (and its link, when one exists). */
+  async unregisterSkill(slug: string): Promise<void> {
+    await call('POST', SMC_API.skillUnregister, { slug })
+  }
+
+  /** Traceability pass: does every registered path still exist? */
+  async refreshRegistry(): Promise<Array<{ slug: string; name: string; exists: boolean }>> {
+    const body = await call<{ results: Array<{ slug: string; name: string; exists: boolean }> }>(
+      'POST', SMC_API.skillRefresh, {},
+    )
     return body.results
   }
 

@@ -1,18 +1,27 @@
 /**
- * Skills filesystem engine — scans the four manageable skill roots, parses
- * SKILL.md frontmatter, and performs enable/disable, delete, scan-for-import,
- * and import. Runs in the Host process with direct node:fs access (a real npm
- * package no longer needs the shell+node hack the dynamic plugin used).
+ * Skills filesystem engine — the real-level manager behind the four groups:
  *
- * Skills adopted into the store live in `~/.dsh/S-M-C/skills/<slug>/` as the
- * single canonical copy; enabling one writes a directory link back into its
- * source root (`~/.dsh/skills/<slug>`), disabling removes that link. dsh's own
- * scanner follows links (`skill-filesystem` `nodeEntryKind` stats a symlink
- * entry), so a linked skill is fully visible to the agent while an unlinked one
- * is invisible — and the SKILL.md itself is never rewritten.
+ * 1. **native** — skills sitting as real files/directories in a scanned root
+ *    (`~/.dsh/skills`, `~/.agents/skills`, or the project roots). Migrating one
+ *    moves the canonical copy into the store and replaces the original with a
+ *    link.
+ * 2. **stored** — canonical copies under `~/.dsh/S-M-C/skills/<slug>/` (with
+ *    `index.json` as the manifest).
+ * 3. **registered** — external skills whose canonical copy stays wherever the
+ *    user pointed at; only a record in `skills-registry.json` marks them.
+ * 4. **links** — the junctions themselves, always under `~/.dsh/skills`, every
+ *    one of them written down in `skills-links.json` when created so it can be
+ *    audited and precisely undone. A link found on disk without a ledger
+ *    record is reported as untracked (red flag) instead of silently adopted.
+ *
+ * Every registration runs the same safety flow: walk the candidate directory
+ * level by level until a SKILL.md shows up, require a parseable frontmatter
+ * (name + description), and only then write the record. SKILL.md files are
+ * never rewritten — visibility is decided by link presence, and the per-skill
+ * announcement flag lives in the JSON ledgers, not in the file.
  * @module
  */
-import type { ImportItem, ImportResult, ScannedSkill, SkillDetail, SkillSource, SkillSummary, StoreIndex, StoreOperation, StoreStatus } from './protocol.ts';
+import type { ScannedSkill, SkillDetail, SkillGroup, SkillSource, SkillSummary, SkillLinks, SkillsRegistry, StoreIndex, StoreOperation, StoreStatus, VerifyResult } from './protocol.ts';
 /** User-level skill roots (project roots are derived from the workspace cwd). */
 export interface SkillRoots {
     home: string;
@@ -25,14 +34,17 @@ export interface SkillRoots {
 }
 /**
  * Directory name of the legacy store, kept only so {@link migrateStoreRoot}
- * can recognise an old layout and move it. New code uses `storeSkillsDir()`
- * from ./store.ts — the skills live under the unified S-M-C root now.
+ * can recognise an old layout and move it.
  */
 export declare const STORE_DIR_NAME = "skills-store";
 /** Resolve (and materialize) the user-level skill roots plus the store. */
 export declare function getRoots(): SkillRoots;
 /** Walk up from cwd to the nearest .git directory (the project root). */
 export declare function findProjectRoot(cwd?: string): string;
+/** Cap for one imported skill's on-disk size. */
+export declare const MAX_SKILL_BYTES: number;
+/** How deep {@link SkillsManager.scanSkills} descends below the picked root. */
+export declare const SCAN_DEPTH = 2;
 export declare class SkillsManager {
     /** The skills directory (created on demand inside the unified store root). */
     storeDir(): string;
@@ -49,121 +61,159 @@ export declare class SkillsManager {
      * corrupt file) so adopted skills are not silently orphaned.
      */
     recoverIndex(): StoreIndex;
-    /** Which root currently holds a link for `slug`, if any. */
-    private linkedSource;
     /** Replace (or insert) one manifest entry. */
     private upsertEntry;
     /** Drop one manifest entry. */
     private dropEntry;
+    /** Manifest entry for one slug, when present. */
+    private entryOf;
+    /** Read the external-skills registry, tolerating a missing or corrupt file. */
+    readRegistry(): SkillsRegistry;
+    /** Write the registry atomically. */
+    private writeRegistry;
+    /** Replace (or insert) one registry entry. */
+    private upsertRegistryEntry;
+    /** Drop one registry entry by slug. */
+    private dropRegistryEntry;
+    /** Registry entry for one slug, when present. */
+    private registryEntryOf;
+    /** Read the link ledger, tolerating a missing or corrupt file. */
+    readLinks(): SkillLinks;
+    /** Write the link ledger atomically. */
+    private writeLinks;
+    /** Ledger record for one link path, when present. */
+    private linkRecordOf;
+    /** Append one ledger record. */
+    private trackLink;
+    /** Remove the ledger record for one link path. */
+    private untrackLink;
     /**
-     * Materialise the link for one stored skill. No-op when it already exists;
-     * refuses to overwrite a real directory.
+     * Create the link `~/.dsh/skills/<slug>` → `target` and write the ledger
+     * record. Refuses to overwrite a real directory; a tracked link is a no-op.
      */
-    private linkInto;
+    private createLink;
     /**
-     * Remove the link for one stored skill. Only ever removes a link — a real
-     * directory is left alone so a stray path can never delete the store copy.
+     * Remove the link `~/.dsh/skills/<slug>` and its ledger record. Only ever
+     * removes a link — a real directory is left alone so a stray path can never
+     * delete real skills.
      */
-    private unlinkFrom;
+    private removeLink;
+    /** Which root currently holds a tracked/untracked link for `slug`, if any. */
+    private linkedPath;
     /**
-     * Repoint every link that targets `from` at `to`.
+     * Repoint every ledger-tracked link that targets `from` at `to`.
      *
      * A junction stores an absolute target string, so moving the store silently
-     * breaks every link into it: the bundles are intact, but `~/.dsh/skills/x`
-     * still names the old path and the agent stops seeing the skill entirely.
-     * This is the repair step the store-root migration runs right after moving.
-     * @param from - the old store directory (may no longer exist).
-     * @param to - the new store directory.
-     * @returns how many links were rebuilt.
+     * breaks every link into it. This is the repair step the store-root
+     * migration runs right after moving.
      */
     relinkSkills(from: string, to: string): number;
     /**
-     * Move one skill into the store as a bundle and (when enabled) link it back.
-     *
-     * The stored copy is normalised: any `disable-model-invocation` /
-     * `user-invocable` flags are stripped, because from here on visibility is
-     * decided by link presence alone — leaving the flags in place would keep a
-     * re-enabled skill hidden from the model.
+     * Move one native skill into the store, link it back from
+     * `~/.dsh/skills/<slug>`, record the link, and drop its registry entry
+     * (the skill is a stored one now). The SKILL.md is copied verbatim — no
+     * frontmatter rewriting, ever.
+     * @returns the store slug.
      */
-    private adopt;
+    migrateToStore(sourcePath: string, kind: 'bundle' | 'file', source: SkillSource): string;
     /**
-     * Resolve a skill path back to its store identity, or undefined when the
-     * skill is not managed (still in place, toggled by frontmatter).
+     * Undo a migration: remove the link, move the canonical copy back to its
+     * origin, and drop the manifest entry. The registry entry is restored so
+     * the announcement flag survives the round trip.
      */
-    private resolveManaged;
-    /** Manifest entry for one slug, when present. */
-    private entryOf;
-    /** Scan one skill root directory into SkillSummary records. */
-    scanRoot(dir: string, source: SkillSource): SkillSummary[];
+    unmigrate(slug: string): string;
+    /** Resolve a link path back to the skill it serves, or undefined. */
+    private resolveByLink;
+    /** Create (or confirm) the link for a stored or registered skill. */
+    linkSkill(slug: string): void;
+    /** Remove the link for a skill (the canonical copy is never touched). */
+    unlinkSkill(slug: string): void;
+    /**
+     * Verify a link: does it still resolve, and does the target still hold a
+     * parseable SKILL.md? Used by the UI for red-flagged (untracked) links.
+     */
+    verifyLink(slugOrPath: string): VerifyResult;
+    /** Delete an untracked link (the ledger has no record of it). */
+    deleteUntrackedLink(linkPath: string): void;
+    /**
+     * Register external skills: the canonical copy stays where it is, only a
+     * record goes into `skills-registry.json`. This is the flow for "skills in
+     * arbitrary directories" per the four-group model.
+     */
+    registerExternal(items: Array<{
+        sourcePath: string;
+        kind: 'bundle' | 'file';
+    }>): Array<{
+        name: string;
+        ok: boolean;
+        reason?: string;
+    }>;
+    /** Drop a registry entry (and its link, when one exists). */
+    unregisterExternal(slug: string): void;
+    /**
+     * Walk the registry and refresh `lastSeen`: the cheap traceability pass that
+     * only checks whether the canonical path still exists — no content parsing.
+     */
+    refreshRegistry(): Array<{
+        slug: string;
+        name: string;
+        exists: boolean;
+    }>;
+    /** The announcement flag for one skill, from whichever ledger holds it. */
+    setAnnounce(group: SkillGroup, slug: string, announce: boolean): void;
+    /** Parse one SKILL.md (bundle) safely; undefined when it is not a skill. */
+    private parseBundleDir;
+    /** Parse one flat `.md` file safely; undefined when it is not a skill. */
+    private parseFlatFile;
+    /**
+     * Walk one skill root and produce rows for everything found there. Real
+     * directories/files become native rows (auto-registered); links become
+     * linked rows whose group follows the link target (stored / registered),
+     * or untracked red-flag rows when the ledger has no record of them.
+     */
+    private scanRootInto;
+    /** Registry entry whose canonical path matches `resolved`. */
+    private registryEntryOfByPath;
     /** The roots to walk for a listing, in display order: project, then user. */
     private scanTargets;
     /**
-     * List skills across project and/or user roots, de-duplicated by path, plus
-     * every stored skill that is currently unlinked (so it can be re-enabled).
+     * List every skill across the four groups, de-duplicated by path: native
+     * roots first, then stored-but-unlinked rows, then registered-but-unlinked
+     * rows. Announce flags come from the ledgers; link presence comes from the
+     * filesystem cross-checked against the link ledger.
      */
     listSkills(cwd?: string): SkillSummary[];
     /** Read one skill document (body included). */
     readSkill(path: string): SkillDetail | null;
     /**
-     * Enable/disable a skill. Managed skills are linked/unlinked (their SKILL.md
-     * is never touched); everything else still falls back to rewriting the
-     * frontmatter invocation flags.
+     * Delete a skill wherever it lives: native → the real file goes; stored →
+     * link, ledger record, manifest entry and store copy all go; registered →
+     * link and registry record go, the external canonical copy stays.
      */
-    /**
-     * The 1/2 axis: whether the skill is injected into the agent context.
-     *
-     * Always a frontmatter rewrite — including for store-managed skills, whose
-     * canonical copy is reachable through the link, so dsh still reads its
-     * frontmatter there. The A/B link axis is a separate control
-     * ({@link setSkillLinked}) and is never touched here.
-     */
-    setSkillEnabled(path: string, enabled: boolean): void;
-    /**
-     * The A/B axis: whether a link to the canonical copy sits in the skill root.
-     *
-     * For a skill that is not adopted yet, turning A on means adopting it into
-     * the store first (that is how an outside skill gains a link at all).
-     * Removing the link (B) leaves the canonical copy in the store — the skill
-     * simply stops being reachable, and its 1/2 switch locks to 2.
-     */
-    setSkillLinked(path: string, linked: boolean): void;
-    /** Delete a skill: for managed ones, drop the link and the store copy. */
     deleteSkill(path: string, kind: 'bundle' | 'file'): string;
     /**
-     * One-shot migration: move every user-level skill into the store and link
-     * back the ones that were enabled. Project-level skills stay in place —
-     * moving them into `$DSH_HOME` would detach them from the repository that
-     * owns them.
-     *
-     * Idempotent: a second call is a no-op. Individual failures are collected
-     * rather than thrown, and the offending skill is simply left where it was.
+     * One-shot migration: move every user-level native skill into the store and
+     * link it back from `~/.dsh/skills`. Project-level skills stay in place.
+     * Idempotent; individual failures are collected, not thrown.
      */
     migrate(): StoreOperation;
     /**
-     * Undo {@link migrate}: restore every stored skill to its original path and
-     * drop the store manifest. The invocation flags are re-applied so a skill
-     * that was disabled before the migration comes back disabled.
+     * Undo {@link migrate}: restore every stored skill to its original path
+     * (removing links along the way) and drop the manifest.
      */
     rollbackMigration(): StoreOperation;
     /**
-     * Undo a rollback: run the one-shot migration again.
-     *
-     * This is the uninstall page's "undo" for the skills half of 归还 — a skill
-     * given back to its original location can be re-adopted into the store at
-     * any time. A rollback that fully succeeded deleted the manifest, so
-     * {@link migrate} would re-run on its own; when failures kept the manifest
-     * alive, the marker has to be cleared first or migrate() would no-op.
+     * Undo a rollback: run the one-shot migration again (the uninstall page's
+     * "undo" for the skills half of 归还).
      */
     reMigrate(): StoreOperation;
     /** Store state for the UI banner. */
     storeStatus(): StoreStatus;
-    /** Scan an arbitrary directory for importable skills. */
+    /**
+     * Scan an arbitrary directory for importable skills: the root plus two
+     * levels of sub-directories, skipping anything bigger than 10 GB. Every
+     * hit is a *registration* candidate — the canonical copy stays in place.
+     */
     scanSkills(dir: string): ScannedSkill[];
-    /** Import selected skills into the store as enabled bundles. */
-    importSkills(items: ImportItem[]): ImportResult[];
 }
-/**
- * Move a path, falling back to copy+delete when the source and destination sit
- * on different devices (rename cannot cross them).
- */
 //# sourceMappingURL=skills.d.ts.map
