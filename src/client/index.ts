@@ -16,6 +16,7 @@
  */
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
+import { mountSidebarEntry } from './sidebar.ts'
 // Type-only: pulls the settings shell's SlotMap merge (the 'settings.section' entry).
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 // Type-only: pulls the SlotRegistry service merge (ctx.slots).
@@ -52,6 +53,10 @@ export const inject = ['slots', 'locale', 'remote', 'remote.directoryPicker']
  */
 export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'dsh-s-m-c-center: dictionaries')
+
+  // Sidebar entry + floating panel (imperative DOM, self-healing; a failure
+  // here must never take the settings card down with it).
+  mountSidebarEntry(ctx)
 
   ctx.slots.inject('settings.section', () => ctx.slots.register({
     name: 'settings.section',

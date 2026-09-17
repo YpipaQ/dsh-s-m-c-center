@@ -141,16 +141,24 @@ export function apply(ctx: Context, config?: Config): void {
   // system-prompt section) without a dsh restart. Routes are deliberately NOT
   // re-registered here: this runs inside a live request handler, and disposing
   // the in-flight route would truncate the response.
+  // Live agents, when the host provides the registry (optional inject: a
+  // deployment without it still mounts — panel flips just persist without the
+  // live-apply path). Resolved lazily so the routes see it whenever it lands.
+  let liveAgents: { get(id: string): { id: string; ctx: unknown; session?: { header?: { cwd?: string } } } | undefined } | undefined
+  ctx.inject(['agents'], (agentsCtx) => {
+    liveAgents = (agentsCtx as unknown as {
+      agents?: { get(id: string): { id: string; ctx: unknown; session?: { header?: { cwd?: string } } } | undefined }
+    }).agents
+  })
+
   const { routes } = makeRoutes({
     skills,
     mcp,
     cli,
-    // Live agents, when the host provides the registry: a panel flip applies
-    // immediately to a running conversation through it. Typed loosely on
-    // purpose — the agent registry ships with dsh, not with this package.
-    agents: (ctx as unknown as {
-      agents?: { get(id: string): { id: string; ctx: unknown; session?: { header?: { cwd?: string } } } | undefined }
-    }).agents,
+    // Read lazily: the agents registry arrives via the optional inject above.
+    get agents() {
+      return liveAgents
+    },
     applyToAgent: (agent) => { applyToAgent(skills, agent as Parameters<typeof applyToAgent>[1]) },
     readOwnSettings: () => readSettings(),
     writeOwnSettings: (next) => {
