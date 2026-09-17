@@ -2,11 +2,18 @@
  * The conversation context engine — the per-conversation selection layer.
  *
  * One job: keep `<workspace>/.dsh/S-M-C/contexts/<sessionId>.json` in step with
- * the skills each conversation has chosen, and mirror that choice into the
- * official skill registry as agent-scoped runtime registrations
- * (`agent.ctx.skills.register()` / its disposer). Everything downstream —
- * catalog messages, the `skill` tool, `/name` gestures — stays official; the
- * engine only decides *which* skills a given conversation can see.
+ * the skills each conversation has chosen. *Applying* that choice to a live
+ * agent is a separate concern with its own module (`./apply.ts`), because it
+ * needs cordis fiber lifetimes; this file stays pure filesystem + arithmetic.
+ *
+ * The write is deliberately split from the decision so a caller can apply a
+ * change to a live conversation **first** and only persist once that worked:
+ *
+ *   planSelection()   read + decide   — writes nothing
+ *   commitSelection() persist         — writes the decided document
+ *
+ * A caller that persists first cannot undo it when the apply fails, which left
+ * the UI showing "enabled" for something the agent could not see.
  *
  * Guarantees:
  * - A conversation with no selection file inherits the workspace default
@@ -22,8 +29,6 @@
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import type { Context } from '@deepseek-ai/cordis'
-import type { SkillRegistration } from '@deepseek-ai/dsh-skill'
 import { findProjectRoot, getRoots } from '../skills/index.ts'
 
 /** Directory (inside the workspace) that holds per-conversation selections. */
@@ -37,6 +42,16 @@ export const CONTEXTS_DIR_NAME = 'contexts'
  */
 export const DEFAULT_CONTEXT_ID = '_default'
 
+/**
+ * Ids that name the default rather than a conversation.
+ *
+ * `default` is not produced by this code — the route accepts any `sessionId`
+ * string, so it comes from a caller that sent that value. It is reserved here
+ * because a file named after it looks exactly like a conversation and has
+ * already been read as one.
+ */
+const RESERVED_CONTEXT_IDS = new Set<string>([DEFAULT_CONTEXT_ID, 'default'])
+
 /** Per-conversation selection document. */
 export interface ContextSelection {
   sessionId: string
@@ -45,13 +60,18 @@ export interface ContextSelection {
   updatedAt: string
 }
 
-export interface ContextEngineDeps {
-  /**
-   * Resolve the skills a slug names, so the engine can register the chosen
-   * skills with the official registry: full body included.
-   * @returns the registration input, or undefined when the skill is gone.
-   */
-  resolve: (slug: string) => SkillRegistration | undefined
+/** One row of the panel's conversation index. */
+export interface SelectionRow {
+  sessionId: string
+  count: number
+  updatedAt: string
+}
+
+/** A file in the contexts directory that is not a conversation selection. */
+export interface IgnoredSelection {
+  name: string
+  /** Why it was skipped. Today a single reason exists; more are expected. */
+  reason: 'reserved'
 }
 
 /**
@@ -101,57 +121,92 @@ export function selectionPath(workspaceRoot: string, sessionId: string): string 
 }
 
 /**
- * Apply one conversation's selection to its agent: register the chosen skills
- * into the agent's private layer, dispose everything this engine registered
- * before. Returns the composite disposer for the new set.
+ * The selection that would result from setting one slug on or off, **without
+ * writing anything**.
+ *
+ * A conversation without its own file plans from the inherited default, so its
+ * first commit pins the inherited picks plus the change — that is what makes
+ * "the default is just a starting point" true.
+ *
+ * @param selected - the desired state. Omit it to flip whatever is there.
  */
-export function applySelection(
-  agentCtx: Context,
+export function planSelection(
   workspaceRoot: string,
   sessionId: string,
-  deps: ContextEngineDeps,
-): () => void {
-  const selection = readSelection(workspaceRoot, sessionId)
-  const disposers: Array<() => void> = []
-  for (const slug of selection.selected) {
-    const registration = deps.resolve(slug)
-    if (registration === undefined) continue // canonical copy vanished; refresh will flag it
-    // Registered through the agent's own context → lands in the agent's
-    // private layer (see tests/context-engine.test.ts for the pinned claim).
-    disposers.push(agentCtx.skills.register(registration))
-  }
-  return () => { for (const dispose of disposers) { try { dispose() } catch { /* already gone */ } } }
+  slug: string,
+  selected?: boolean,
+): ContextSelection {
+  const current = readSelection(workspaceRoot, sessionId)
+  const picked = current.selected.includes(slug)
+  const want = selected ?? !picked
+  const next = want === picked
+    ? current.selected
+    : want ? [...current.selected, slug] : current.selected.filter((s) => s !== slug)
+  return { sessionId, selected: next, updatedAt: current.updatedAt }
+}
+
+/** Persist a planned selection. The only writer in this module. */
+export function commitSelection(workspaceRoot: string, selection: ContextSelection): void {
+  writeSelection(workspaceRoot, selection)
 }
 
 /**
- * List every conversation selection under one workspace (panel index).
- * The workspace default (`_default`) is always present as the first row — the
- * dropdown's "skills new conversations start with" entry — followed by the
- * conversations that hold a file, newest change first.
+ * Plan and persist in one step (the convenience form).
+ * Prefer {@link planSelection} + {@link commitSelection} where the caller has a
+ * live agent to apply to first.
  */
-export function listSelections(workspaceRoot: string): Array<{ sessionId: string; count: number; updatedAt: string }> {
+export function toggleSelection(workspaceRoot: string, sessionId: string, slug: string): ContextSelection {
+  const next = planSelection(workspaceRoot, sessionId, slug)
+  commitSelection(workspaceRoot, next)
+  return next
+}
+
+/**
+ * Read one workspace's selection index: the default row, every conversation
+ * that holds a file, and the files that were skipped.
+ *
+ * Reserved names are reported rather than silently dropped: a stray
+ * `default.json` looks like a conversation, and the last time one appeared it
+ * was taken for a schema migration. Naming it in `ignored` is what stops that.
+ */
+export function readContextIndex(workspaceRoot: string): {
+  selections: SelectionRow[]
+  ignored: IgnoredSelection[]
+} {
   const dir = join(workspaceRoot, '.dsh', 'S-M-C', CONTEXTS_DIR_NAME)
-  const out: Array<{ sessionId: string; count: number; updatedAt: string }> = []
   const defaultSelection = readSelectionFile(workspaceRoot, DEFAULT_CONTEXT_ID)
-  out.push({
-    sessionId: DEFAULT_CONTEXT_ID,
-    count: defaultSelection?.selected.length ?? 0,
-    updatedAt: defaultSelection?.updatedAt ?? '',
-  })
-  try {
-    for (const name of readdirSync(dir)) {
-      if (!name.endsWith('.json')) continue
-      const sessionId = name.slice(0, -'.json'.length)
-      if (sessionId === DEFAULT_CONTEXT_ID) continue // already pinned first
-      const selection = readSelectionFile(workspaceRoot, sessionId)
-      if (selection === undefined) continue
-      out.push({ sessionId, count: selection.selected.length, updatedAt: selection.updatedAt })
+  const rows: SelectionRow[] = []
+  const ignored: IgnoredSelection[] = []
+  let names: string[] = []
+  try { names = readdirSync(dir) } catch { /* unreadable dir → default only */ }
+  for (const name of names.sort()) {
+    if (!name.endsWith('.json')) continue
+    const sessionId = name.slice(0, -'.json'.length)
+    if (RESERVED_CONTEXT_IDS.has(sessionId)) {
+      // The default is already the first row; any other reserved id is noise.
+      if (sessionId !== DEFAULT_CONTEXT_ID) ignored.push({ name: sessionId, reason: 'reserved' })
+      continue
     }
-  } catch { /* unreadable dir → default only */ }
-  return [
-    out[0],
-    ...out.slice(1).sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1)),
-  ]
+    const selection = readSelectionFile(workspaceRoot, sessionId)
+    if (selection === undefined) continue
+    rows.push({ sessionId, count: selection.selected.length, updatedAt: selection.updatedAt })
+  }
+  return {
+    selections: [
+      {
+        sessionId: DEFAULT_CONTEXT_ID,
+        count: defaultSelection?.selected.length ?? 0,
+        updatedAt: defaultSelection?.updatedAt ?? '',
+      },
+      ...rows.sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1)),
+    ],
+    ignored,
+  }
+}
+
+/** The conversation rows alone — the index's original shape. */
+export function listSelections(workspaceRoot: string): SelectionRow[] {
+  return readContextIndex(workspaceRoot).selections
 }
 
 /** Workspace root for a cwd: the nearest .git ancestor (dsh's own rule). */
@@ -162,17 +217,6 @@ export function workspaceOf(cwd?: string): string {
 /** Read-only snapshot combining the selection with resolvable rows (panel). */
 export function selectionDetail(workspaceRoot: string, sessionId: string): ContextSelection {
   return readSelection(workspaceRoot, sessionId)
-}
-
-/** Flip one slug in one conversation's selection and persist it. */
-export function toggleSelection(workspaceRoot: string, sessionId: string, slug: string): ContextSelection {
-  const current = readSelection(workspaceRoot, sessionId)
-  const selected = current.selected.includes(slug)
-    ? current.selected.filter((s) => s !== slug)
-    : [...current.selected, slug]
-  const next: ContextSelection = { sessionId, selected, updatedAt: '' }
-  writeSelection(workspaceRoot, next)
-  return next
 }
 
 /** Default workspace fallback used by routes without an explicit cwd. */

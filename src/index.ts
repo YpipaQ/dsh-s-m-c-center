@@ -24,7 +24,7 @@ import type {} from '@deepseek-ai/dsh-system-prompt'
 import type {} from '@deepseek-ai/dsh-tools'
 import type { AgentLike } from './features/context/index.ts'
 import { CliManager } from './features/cli/index.ts'
-import { applyToAgent, buildSkillSelectTool } from './features/context/index.ts'
+import { SkillBindings, applyToAgent, buildSkillSelectTool } from './features/context/index.ts'
 import { McpManager } from './features/mcp/index.ts'
 import { SkillsManager } from './features/skills/index.ts'
 import { migrateStoreRoot } from './features/skills/store-migration.ts'
@@ -39,6 +39,17 @@ import type { Config as ConfigShape } from './setup.ts'
 
 export { name, inject, Config, SMC_NAMESPACE, SMC_GUIDANCE } from './setup.ts'
 export type { Config as ConfigFields } from './setup.ts'
+
+/**
+ * The slice of dsh's agent registry this plugin uses.
+ *
+ * Typed locally rather than imported: `agents` is an optional service, and the
+ * structural subset is all the lifecycle wiring below needs.
+ */
+interface LiveAgents {
+  get(id: string): AgentLike | undefined
+  list(): AgentLike[]
+}
 
 /**
  * Wire this plugin into a host context: adopt any legacy on-disk layout, build
@@ -62,6 +73,9 @@ export function apply(ctx: Context, config?: ConfigShape): void {
   const skills = new SkillsManager()
   const cli = new CliManager(skills)
   const mcp = new McpManager(ctx)
+  // Which skills each conversation currently sees. Held here, not at module
+  // scope: a plugin reload must not inherit another mount's registrations.
+  const bindings = new SkillBindings()
 
   // One-shot adoption: the canonical copy of every user-level skill moves into
   // the store, and each root gets a link back. Best effort by design — a
@@ -88,12 +102,56 @@ export function apply(ctx: Context, config?: ConfigShape): void {
   let disposeRoutes: (() => void) | undefined
   let applyAnnouncement: () => void = () => {}
 
+  /**
+   * Bring one conversation in line with its selection file.
+   *
+   * Wrapped so nothing can escape: `agent/created` is a serial event awaited
+   * before the session's first prompt is assembled, and a listener that throws
+   * **vetoes the session** — a broken skill selection must never stop a user
+   * from opening a conversation.
+   *
+   * Resolves with `undefined` so it can be returned straight from that
+   * listener: the serial dispatch awaits it, which is exactly what puts the
+   * selection into the conversation's **first** catalog.
+   */
+  const ensureSelection = async (agent: AgentLike): Promise<undefined> => {
+    try {
+      const outcome = await applyToAgent(skills, bindings, agent)
+      if (!outcome.applied) {
+        console.warn('[dsh-s-m-c-center] 会话技能未生效：' + (outcome.error ?? '原因未知'))
+      }
+    } catch (error) {
+      console.warn('[dsh-s-m-c-center] 会话技能应用失败：', error)
+    }
+    return undefined
+  }
+
   // Live agents, when the host provides the registry (optional inject: a
   // deployment without it still mounts — panel flips just persist without the
   // live-apply path). Resolved lazily so the routes see it whenever it lands.
   let liveAgents: { get(id: string): AgentLike | undefined } | undefined
   ctx.inject(['agents'], (agentsCtx) => {
-    liveAgents = (agentsCtx as unknown as { agents?: { get(id: string): AgentLike | undefined } }).agents
+    const registry = (agentsCtx as unknown as { agents?: LiveAgents }).agents
+    if (registry === undefined) return
+    liveAgents = registry
+    // Conversations already running when this plugin mounts (a settings reload
+    // re-runs `apply`) still need their selection…
+    for (const agent of registry.list()) void ensureSelection(agent)
+    // …and every later one. This is the only path that makes the default
+    // selection real for a *new* conversation: without it the promise
+    // "a fresh conversation starts with the default picks" is empty, because
+    // the panel and the tool both require a conversation that is already live.
+    agentsCtx.on('agent/created', (payload: unknown) => {
+      const agent = (payload as { agent?: AgentLike } | null)?.agent
+      if (agent === undefined) return undefined
+      // Return the promise: the serial dispatch awaits it, so the selection is
+      // installed before the conversation's first prompt is assembled.
+      return ensureSelection(agent)
+    })
+    agentsCtx.on('agent/disposed', (payload: unknown) => {
+      const agent = (payload as { agent?: AgentLike } | null)?.agent
+      if (agent !== undefined) void bindings.release(agent)
+    })
   })
 
   const { routes } = makeRoutes({
@@ -104,8 +162,7 @@ export function apply(ctx: Context, config?: ConfigShape): void {
     get agents() {
       return liveAgents
     },
-    applyToAgent: (agent) => { applyToAgent(skills, agent) },
-    readOwnSettings: () => readSettings(),
+    applyToAgent: (agent) => applyToAgent(skills, bindings, agent),    readOwnSettings: () => readSettings(),
     writeOwnSettings: (next) => {
       writeSettings(next)
       // Adopt the persisted value as the new source, then refresh the section.
@@ -119,7 +176,7 @@ export function apply(ctx: Context, config?: ConfigShape): void {
   // The agent-facing selection tool: the model's sanctioned way to flip a
   // skill for its own conversation (writes the per-conversation JSON and
   // re-applies through its own context; the catalog republishes on its own).
-  ctx.tools.register(buildSkillSelectTool(skills))
+  ctx.tools.register(buildSkillSelectTool(skills, bindings))
 
   // Register (or drop) the system-prompt announcement to match the source.
   // Split out from `sync` so a settings write can refresh just this surface
@@ -190,6 +247,11 @@ export function apply(ctx: Context, config?: ConfigShape): void {
 
   // Connections must not outlive the plugin.
   ctx.effect(() => () => { void mcp.dispose() }, 'dsh-s-m-c-center: mcp')
+
+  // Registrations live on the injection fibers `SkillBindings` holds, so they
+  // must be dropped on unload — otherwise the next mount would find the names
+  // already taken and its own registrations silently ignored.
+  ctx.effect(() => () => { void bindings.releaseAll() }, 'dsh-s-m-c-center: skill bindings')
 
   sync()
 }

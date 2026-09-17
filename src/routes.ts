@@ -20,7 +20,7 @@ import type { McpManager } from './features/mcp/index.ts'
 import { cliRoutes } from './features/cli/index.ts'
 import type { CliManager } from './features/cli/index.ts'
 import { contextRoutes } from './features/context/index.ts'
-import type { AgentLike } from './features/context/index.ts'
+import type { AgentLike, ApplyOutcome } from './features/context/index.ts'
 import { settingsRoutes } from './features/settings/routes.ts'
 
 export interface RoutesDeps {
@@ -32,8 +32,11 @@ export interface RoutesDeps {
    * panel applies immediately to a running conversation through it.
    */
   agents?: { get(id: string): AgentLike | undefined }
-  /** Applied after a panel toggle for a live conversation (context engine). */
-  applyToAgent?: (agent: AgentLike) => void
+  /**
+   * Apply one live conversation's selection. Resolves with what really
+   * happened — the context route persists only when `applied` is true.
+   */
+  applyToAgent?: (agent: AgentLike) => Promise<ApplyOutcome>
   /** Read the plugin's own persisted settings (~/.dsh/settings.yaml block). */
   readOwnSettings: () => ManagerSettings
   /** Persist new settings, then re-apply surfaces; returns what landed. */

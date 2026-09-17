@@ -5,11 +5,12 @@
  * default; the index always pins the default row first.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
-  DEFAULT_CONTEXT_ID, listSelections, readSelection, toggleSelection, writeSelection,
+  DEFAULT_CONTEXT_ID, listSelections, planSelection, readContextIndex, readSelection,
+  toggleSelection, writeSelection,
 } from '../src/features/context/index.ts'
 
 let workspace: string
@@ -70,5 +71,42 @@ describe('workspace default selection (_default)', () => {
     const rows = listSelections(workspace)
     expect(rows.map((r) => r.sessionId)).toEqual([DEFAULT_CONTEXT_ID, 'new', 'old'])
     expect(rows[0].count).toBe(1)
+  })
+})
+
+describe('planSelection — decide without writing', () => {
+  it('honours an explicit selected flag instead of flipping blind', () => {
+    writeSelection(workspace, { sessionId: 'session-1', selected: ['gsap'], updatedAt: '' })
+
+    // Already selected, asked for true: unchanged. A blind toggle would have
+    // *disabled* it while the caller reported "已启用".
+    expect(planSelection(workspace, 'session-1', 'gsap', true).selected).toEqual(['gsap'])
+    expect(planSelection(workspace, 'session-1', 'gsap', false).selected).toEqual([])
+    expect(planSelection(workspace, 'session-1', 'other', true).selected).toEqual(['gsap', 'other'])
+    // Omitting the flag keeps the old flip behaviour.
+    expect(planSelection(workspace, 'session-1', 'gsap').selected).toEqual([])
+  })
+
+  it('writes nothing — only commitSelection persists', () => {
+    planSelection(workspace, 'session-1', 'gsap', true)
+    expect(existsSync(join(workspace, '.dsh', 'S-M-C', 'contexts', 'session-1.json'))).toBe(false)
+  })
+
+  it('seeds a fileless conversation from the default', () => {
+    writeSelection(workspace, { sessionId: DEFAULT_CONTEXT_ID, selected: ['gsap'], updatedAt: '' })
+    expect(planSelection(workspace, 'session-1', 'audit-xl', true).selected).toEqual(['gsap', 'audit-xl'])
+  })
+})
+
+describe('readContextIndex — reserved names are reported, not listed', () => {
+  it('skips a stray default.json and says why', () => {
+    writeSelection(workspace, { sessionId: DEFAULT_CONTEXT_ID, selected: ['gsap'], updatedAt: '' })
+    writeSelection(workspace, { sessionId: 'default', selected: [], updatedAt: '' })
+    writeSelection(workspace, { sessionId: 'session-1', selected: ['a'], updatedAt: '' })
+
+    const index = readContextIndex(workspace)
+
+    expect(index.selections.map((r) => r.sessionId)).toEqual([DEFAULT_CONTEXT_ID, 'session-1'])
+    expect(index.ignored).toEqual([{ name: 'default', reason: 'reserved' }])
   })
 })

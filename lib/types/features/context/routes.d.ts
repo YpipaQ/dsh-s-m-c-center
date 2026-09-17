@@ -3,16 +3,18 @@
  *
  * The workspace is resolved in a deliberate order: the live agent's own cwd
  * first (so a panel call from a running conversation lands in *that*
- * conversation's workspace even without an explicit cwd), then the request's
- * `cwd`, then the project root above it.
+ * conversation's workspace), then the request's `cwd`. When neither is
+ * available the request is **refused** — the old fallback walked up from the
+ * host process's own directory, which silently filed another workspace's
+ * conversations under whatever directory dsh happened to be started in.
  *
- * A toggle also re-applies to the live agent when one is registered. That is
- * why the failure of the apply is reported alongside a 200: the selection did
- * persist, and the user needs to know the running conversation did not pick it
- * up.
+ * A toggle applies to the live agent **before** it persists. The order is the
+ * point: persisting first means a failed apply leaves a file (and a panel)
+ * claiming a skill the agent cannot see. Only a successful apply is written.
  * @module
  */
 import type { WebRoute } from '@deepseek-ai/dsh-host-webserver';
+import type { ApplyOutcome } from './apply.ts';
 import type { AgentLike } from './tools.ts';
 /** What the context routes need from the host. */
 export interface ContextRouteDeps {
@@ -23,8 +25,11 @@ export interface ContextRouteDeps {
     agents?: {
         get(id: string): AgentLike | undefined;
     };
-    /** Applied after a panel toggle for a live conversation. */
-    applyToAgent?: (agent: AgentLike) => void;
+    /**
+     * Apply one live conversation's selection through `./apply.ts`. Resolves
+     * with what really happened; the route persists only when `applied` is true.
+     */
+    applyToAgent?: (agent: AgentLike) => Promise<ApplyOutcome>;
 }
 /** Build the contexts route table. */
 export declare function contextRoutes(deps: ContextRouteDeps): WebRoute[];

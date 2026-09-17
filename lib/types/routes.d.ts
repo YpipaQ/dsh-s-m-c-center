@@ -15,7 +15,7 @@ import type { ManagerSettings } from './shared/protocol/index.ts';
 import type { SkillsManager } from './features/skills/index.ts';
 import type { McpManager } from './features/mcp/index.ts';
 import type { CliManager } from './features/cli/index.ts';
-import type { AgentLike } from './features/context/index.ts';
+import type { AgentLike, ApplyOutcome } from './features/context/index.ts';
 export interface RoutesDeps {
     skills: SkillsManager;
     mcp: McpManager;
@@ -27,8 +27,11 @@ export interface RoutesDeps {
     agents?: {
         get(id: string): AgentLike | undefined;
     };
-    /** Applied after a panel toggle for a live conversation (context engine). */
-    applyToAgent?: (agent: AgentLike) => void;
+    /**
+     * Apply one live conversation's selection. Resolves with what really
+     * happened — the context route persists only when `applied` is true.
+     */
+    applyToAgent?: (agent: AgentLike) => Promise<ApplyOutcome>;
     /** Read the plugin's own persisted settings (~/.dsh/settings.yaml block). */
     readOwnSettings: () => ManagerSettings;
     /** Persist new settings, then re-apply surfaces; returns what landed. */
