@@ -13,6 +13,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { SkillsManager } from '../src/features/skills/index.ts'
 import { storeSkillsDir } from '../src/shared/paths.ts'
+import { parseSkillFile, parseFrontmatter } from '../src/shared/frontmatter.ts'
 
 let home: string
 let agents: string
@@ -168,5 +169,141 @@ describe('DESCRIPTION.md-only skills', () => {
     expect(detail?.name).toBe('reader')
     expect(detail?.description).toBe('读我')
     expect(detail?.content).toContain('内容。')
+  })
+})
+
+/**
+ * Frontmatter is real YAML, not one scalar per line.
+ *
+ * `description: >` and `description: |` are legal block scalars and they are
+ * what the model sees in the skill catalog — and the engine's registration
+ * *overrides* dsh's native entry, so a wrong value here is not a display nit:
+ * it is what the agent reads instead of the author's description.
+ */
+describe('block scalars', () => {
+  it('folds `>` into one line and keeps `|` as written', () => {
+    const folded = [
+      '---',
+      'name: gsap',
+      'description: >',
+      '  完整的 GSAP 动画技能包。',
+      '  覆盖核心 Tween API。',
+      '---',
+      '',
+      '# body',
+    ].join('\n')
+    const literal = [
+      '---',
+      'name: note',
+      'description: |',
+      '  第一行',
+      '  第二行',
+      '---',
+      '',
+      '# body',
+    ].join('\n')
+
+    expect(parseSkillFile(folded)?.description).toBe('完整的 GSAP 动画技能包。 覆盖核心 Tween API。')
+    expect(parseSkillFile(literal)?.description).toBe('第一行\n第二行')
+  })
+
+  it('reads the chomping variants and stops at the first dedented line', () => {
+    const doc = [
+      '---',
+      'name: x',
+      'description: |-',
+      '  kept verbatim',
+      'name2: after',
+      '---',
+      '',
+      '# body',
+    ].join('\n')
+    const parsed = parseSkillFile(doc)
+    expect(parsed?.description).toBe('kept verbatim')
+    // The next key at column zero is not part of the block.
+    expect(parseFrontmatter(doc)?.data.name2).toBe('after')
+  })
+
+  it('an empty block reads as no description, so the document does not pass as a skill', () => {
+    const doc = ['---', 'name: x', 'description: >', '---', '', '# body'].join('\n')
+    expect(parseSkillFile(doc)).toBeNull()
+  })
+})
+
+/**
+ * The author's call policy. Both keys default to *allowed*, so only an
+ * explicit `disable-model-invocation: true` / `user-invocable: false` takes
+ * something away — and the engine must carry it through, or every registered
+ * skill silently becomes model-invocable (undoing the author's intent).
+ */
+describe('invocation policy', () => {
+  it('defaults to allowed when the keys are absent', () => {
+    const doc = ['---', 'name: plain', 'description: d', '---', '', 'body'].join('\n')
+    expect(parseSkillFile(doc)?.invocation).toEqual({ modelInvocable: true, userInvocable: true })
+  })
+
+  it('honours disable-model-invocation and user-invocable', () => {
+    const doc = [
+      '---',
+      'name: guarded',
+      'description: d',
+      'disable-model-invocation: true',
+      'user-invocable: false',
+      '---',
+      '',
+      'body',
+    ].join('\n')
+    expect(parseSkillFile(doc)?.invocation).toEqual({ modelInvocable: false, userInvocable: false })
+  })
+
+  it('an absent user-invocable is not a denial', () => {
+    const doc = [
+      '---',
+      'name: guarded',
+      'description: d',
+      'disable-model-invocation: true',
+      '---',
+      '',
+      'body',
+    ].join('\n')
+    expect(parseSkillFile(doc)?.invocation).toEqual({ modelInvocable: false, userInvocable: true })
+  })
+})
+
+describe('registration payload', () => {
+  it('carries the bundle directory and the author\'s policy into the registration', () => {
+    const skills = new SkillsManager()
+    const dir = join(userSkills(), 'guarded')
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(join(dir, 'SKILL.md'), [
+      '---',
+      'name: guarded',
+      'description: guarded skill',
+      'disable-model-invocation: true',
+      '---',
+      '',
+      'body',
+    ].join('\n'), 'utf8')
+    skills.migrateToStore(dir, 'bundle', 'user-dsh')
+
+    const registration = skills.resolveRegistration('guarded')
+    // Without the base directory the model is told resources are "managed by
+    // provider" and gets no path, so `references/` becomes unreachable.
+    expect(registration?.resourceBase).toEqual({ kind: 'directory', path: join(store(), 'guarded') })
+    expect(registration?.invocation).toEqual({ modelInvocable: false, userInvocable: true })
+  })
+
+  it('points a flat skill at the directory holding it, not at the file', () => {
+    const skills = new SkillsManager()
+    const outside = join(home, 'incoming')
+    mkdirSync(outside, { recursive: true })
+    const file = join(outside, 'flat-skill.md')
+    writeFileSync(file, ['---', 'name: flat-skill', 'description: d', '---', '', 'body'].join('\n'), 'utf8')
+    // A flat file that stays where it is (registered, never migrated): the base
+    // has to be its directory, because that is where its sibling files live.
+    skills.registerExternal([{ sourcePath: file, kind: 'file' }])
+
+    const registration = skills.resolveRegistration('flat-skill')
+    expect(registration?.resourceBase).toEqual({ kind: 'directory', path: outside })
   })
 })

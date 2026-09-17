@@ -13,6 +13,11 @@
  * line of the body. Nothing here ever rewrites a skill document.
  * @module
  */
+/** Whether the model may call a skill, and the user may invoke it by name. */
+export interface SkillInvocation {
+    modelInvocable: boolean;
+    userInvocable: boolean;
+}
 /** A skill document that parsed into the fields the UI and agent need. */
 export interface ParsedSkill {
     name: string;
@@ -20,6 +25,8 @@ export interface ParsedSkill {
     whenToUse: string;
     /** Markdown body with the frontmatter block stripped. */
     content: string;
+    /** The author's call policy; both default to allowed when unstated. */
+    invocation: SkillInvocation;
 }
 /** A parsed bundle plus the document that admitted it. */
 export interface ParsedBundle {
@@ -45,6 +52,12 @@ export declare function unquote(value: string): string;
 export declare function parseFrontmatter(raw: string): Frontmatter | null;
 /** A frontmatter field read as text; anything non-string reads as ''. */
 export declare function textField(data: Record<string, unknown>, key: string): string;
+/**
+ * A frontmatter field read as a boolean.
+ * @returns undefined when the key is absent or not a boolean, so "unset" and
+ *   "false" stay different — the two invocation keys have opposite defaults.
+ */
+export declare function booleanField(data: Record<string, unknown>, key: string): boolean | undefined;
 /**
  * Parse one skill document (strict: the SKILL.md rule).
  * @returns null when it has no frontmatter, or is missing its name/description

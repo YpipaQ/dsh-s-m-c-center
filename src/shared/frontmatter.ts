@@ -17,6 +17,12 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
 
+/** Whether the model may call a skill, and the user may invoke it by name. */
+export interface SkillInvocation {
+  modelInvocable: boolean
+  userInvocable: boolean
+}
+
 /** A skill document that parsed into the fields the UI and agent need. */
 export interface ParsedSkill {
   name: string
@@ -24,6 +30,8 @@ export interface ParsedSkill {
   whenToUse: string
   /** Markdown body with the frontmatter block stripped. */
   content: string
+  /** The author's call policy; both default to allowed when unstated. */
+  invocation: SkillInvocation
 }
 
 /** A parsed bundle plus the document that admitted it. */
@@ -62,6 +70,70 @@ export function unquote(value: string): string {
 }
 
 /**
+ * A YAML block scalar header: the indicator plus its chomping modifier.
+ * `>` folds (newlines become spaces), `|` keeps them; `-` strips the trailing
+ * newline and `+` keeps every one of them.
+ */
+interface BlockStyle {
+  kind: 'fold' | 'literal'
+  chomp: 'strip' | 'clip' | 'keep'
+}
+
+/** Recognise a block scalar header, or undefined for an ordinary scalar. */
+function blockStyle(value: string): BlockStyle | undefined {
+  const match = /^([>|])([+-]?)$/.exec(value)
+  if (match === null) return undefined
+  return {
+    kind: match[1] === '>' ? 'fold' : 'literal',
+    chomp: match[2] === '-' ? 'strip' : match[2] === '+' ? 'keep' : 'clip',
+  }
+}
+
+/**
+ * Read a block scalar's body: the following lines that are indented deeper
+ * than their key, stopping at the first line that is not.
+ *
+ * Without this the value is whatever sits between the colon and the end of the
+ * line — which for `description: >` is the single character `>`. That is not a
+ * parsing nit: the description is the one line the model sees in the skill
+ * catalog, and the plugin's own registration *overrides* dsh's, so a wrong
+ * value here is what the agent ends up reading.
+ * @returns the value and the index of the first line after the block.
+ */
+function readBlock(lines: string[], from: number, until: number, style: BlockStyle): [string, number] {
+  const body: string[] = []
+  let index = from
+  for (; index < until; index++) {
+    const line = lines[index]
+    if (line.trim() === '') {
+      // A blank line inside a block keeps the paragraph break; two in a row end
+      // it, and so does a dedented line.
+      if (body.length > 0 && lines[index + 1] !== undefined && /^\s/.test(lines[index + 1])) body.push('')
+      else break
+      continue
+    }
+    if (!/^\s/.test(line)) break
+    body.push(line)
+  }
+  if (body.length === 0) return ['', from]
+  // Strip the block's own indentation: the shallowest content line defines it.
+  const base = Math.min(...body.filter((l) => l.trim() !== '').map((l) => l.length - l.trimStart().length))
+  const dedented = body.map((l) => (l.trim() === '' ? '' : l.slice(base)))
+  // Literal keeps every line break; folding turns them into spaces, except at
+  // a blank line, which is a paragraph break and stays one.
+  let value = ''
+  if (style.kind === 'literal') value = dedented.join('\n')
+  else {
+    for (let i = 0; i < dedented.length; i++) {
+      if (i === 0) { value = dedented[i]; continue }
+      const gap = dedented[i - 1] === '' || dedented[i] === '' ? '\n' : ' '
+      value += gap + dedented[i]
+    }
+  }
+  return [style.chomp === 'keep' ? value : value.trim(), index]
+}
+
+/**
  * Read the leading `---` block of a skill document.
  * @returns the parsed keys plus the remaining body, or null when the document
  *   has no block (a plain markdown file is not a skill).
@@ -72,11 +144,22 @@ export function parseFrontmatter(raw: string): Frontmatter | null {
   const closing = lines.findIndex((line, index) => index > 0 && line.trim() === FENCE)
   if (closing < 0) return null
   const data: Record<string, unknown> = {}
-  for (const line of lines.slice(1, closing)) {
+  let index = 1
+  while (index < closing) {
+    const line = lines[index]
     const separator = line.indexOf(':')
-    if (separator < 0) continue // not a key: value line
+    if (separator < 0) { index += 1; continue } // not a key: value line
     const key = line.slice(0, separator).trim()
-    data[key] = scalarValue(unquote(line.slice(separator + 1).trim()))
+    const rawValue = line.slice(separator + 1).trim()
+    const block = blockStyle(rawValue)
+    if (block === undefined) {
+      data[key] = scalarValue(unquote(rawValue))
+      index += 1
+      continue
+    }
+    const [value, next] = readBlock(lines, index + 1, closing, block)
+    data[key] = value
+    index = next <= index ? index + 1 : next
   }
   return { data, body: lines.slice(closing + 1).join('\n') }
 }
@@ -85,6 +168,16 @@ export function parseFrontmatter(raw: string): Frontmatter | null {
 export function textField(data: Record<string, unknown>, key: string): string {
   const value = data[key]
   return typeof value === 'string' ? value : ''
+}
+
+/**
+ * A frontmatter field read as a boolean.
+ * @returns undefined when the key is absent or not a boolean, so "unset" and
+ *   "false" stay different — the two invocation keys have opposite defaults.
+ */
+export function booleanField(data: Record<string, unknown>, key: string): boolean | undefined {
+  const value = data[key]
+  return typeof value === 'boolean' ? value : undefined
 }
 
 /**
@@ -103,6 +196,22 @@ export function parseSkillFile(raw: string): ParsedSkill | null {
     description,
     whenToUse: textField(front.data, 'whenToUse'),
     content: front.body.trim(),
+    invocation: invocationOf(front.data),
+  }
+}
+
+/**
+ * The author's invocation policy, mapped the way dsh's own filesystem provider
+ * does it (`skill-filesystem/src/index.ts:1007-1008`).
+ *
+ * Both keys default to *allowed*, so an absent key must not read as a denial —
+ * only an explicit `true` on `disable-model-invocation` and an explicit `false`
+ * on `user-invocable` are the author taking something away.
+ */
+function invocationOf(data: Record<string, unknown>): SkillInvocation {
+  return {
+    modelInvocable: booleanField(data, 'disable-model-invocation') !== true,
+    userInvocable: booleanField(data, 'user-invocable') !== false,
   }
 }
 
@@ -156,6 +265,9 @@ export function parseDescriptionFile(raw: string, fallbackName: string): ParsedS
     description: (front === null ? '' : textField(front.data, 'description')) || bodySummary(body),
     whenToUse: front === null ? '' : textField(front.data, 'whenToUse'),
     content: body,
+    invocation: front === null
+      ? { modelInvocable: true, userInvocable: true }
+      : invocationOf(front.data),
   }
 }
 

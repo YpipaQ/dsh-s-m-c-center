@@ -38,24 +38,6 @@ export interface AgentLike {
 export declare function workspaceOfAgent(agent: AgentLike): string;
 /** The slugs in `selection` whose canonical copy cannot be resolved. */
 export declare function missingSlugs(skills: SkillsManager, selection: ContextSelection): string[];
-/**
- * Bring one conversation's agent in line with a selection.
- *
- * The lifecycle hook (a new or resumed conversation), the panel and the tool
- * all call this; it is idempotent, so calling it again with the same selection
- * costs nothing and never disturbs a working binding.
- *
- * `selection` exists because the caller has usually *just computed* the new
- * selection and the file still holds the old one. Re-reading the file here made
- * the panel apply one flip behind — it installed the previous set, answered
- * `applied: true` (the names had not changed, so the idempotent short-circuit
- * fired) and only then wrote the new file. The lifecycle hook passes nothing
- * and keeps reading the file, which is what "apply what this conversation
- * asked for" means at creation time.
- *
- * Never throws: the callers are on the session-creation path, where an
- * exception would veto the conversation itself.
- */
 export declare function applyToAgent(skills: SkillsManager, bindings: SkillBindings, agent: AgentLike, selection?: ContextSelection): Promise<ApplyOutcome>;
 /**
  * Drop the slugs nothing could resolve, so a phantom name never reaches the

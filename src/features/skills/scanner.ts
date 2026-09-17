@@ -266,6 +266,19 @@ export function resolveRegistration(slug: string): SkillRegistration | undefined
       description: parsed.description || parsed.name,
       content: parsed.content,
       source: 'runtime',
+      // Where the skill's own files live. Without it dsh tells the model that
+      // resources are "managed by provider" and gives it no path, so a skill
+      // whose real content sits in `references/` loses that half of itself the
+      // moment it is enabled — the plugin would make the skill worse by
+      // registering it.
+      resourceBase: {
+        kind: 'directory',
+        path: candidate.bundle ? candidate.path : dirname(candidate.path),
+      },
+      // Carry the author's call policy through. Omitting it made every
+      // engine-registered skill model-invocable, quietly undoing the author's
+      // `disable-model-invocation`.
+      invocation: parsed.invocation,
     }
   }
   return undefined
