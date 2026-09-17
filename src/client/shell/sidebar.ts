@@ -4,28 +4,46 @@
  * The settings card cannot host this block well (it has no notion of "the
  * conversation you are looking at"), so the entry lives in the web shell's
  * sidebar right under the New Session button, and the panel is a small
- * fixed-position window docked beside it. Rendering is imperative DOM on
- * purpose: the panel outlives the settings card's React tree and must survive
- * shell re-renders with the same self-healing pattern the family uses.
+ * fixed-position window. Rendering is imperative DOM on purpose: the panel
+ * outlives the settings card's React tree and must survive shell re-renders
+ * with the same self-healing pattern the family uses.
+ *
+ * The panel is a *window*, not a docked popover: it is dragged by its header
+ * and resized from its corner, and both stick (localStorage). A position is
+ * only chosen for it the first time — after that the user's word is final.
  *
  * The panel always shows *the conversation you are in*: the session id comes
  * from the dsh client's persisted selection (`localStorage['dsh.sessions.current']`,
  * written by the session controller on every switch) and the title from
  * `document.title` (the layout layer projects the current session title there,
- * suffixed with ` — <product>`). Toggling writes the same per-conversation JSON
- * the settings page and the `skill_select` tool write, so all three always agree.
+ * suffixed with ` — <product>`). Both are read when the panel opens, which is
+ * why 刷新 reloads the page rather than re-fetching: renaming a conversation
+ * updates `document.title`, and only a fresh document picks that up. The open
+ * state lives in sessionStorage so the panel comes back after that reload —
+ * but not in a new tab, where nothing asked for it.
+ *
+ * Toggling writes the same per-conversation JSON the settings page and the
+ * `skill_select` tool write, so all three always agree.
  * @module
  */
 
 import { SMC_API } from '../../shared/protocol/index.ts'
 
 const ENTRY_ID = 'data-dsh-s-m-c-entry'
+const PANEL_ID = 'smc-fp'
 const STYLE_ID = 'dsh-s-m-c-sidebar-style'
 const PANEL_Z = 9999
 /** localStorage key the dsh session controller persists its selection under. */
 const SESSION_STORAGE_KEY = 'dsh.sessions.current'
 /** Separator dsh's DocumentTitle layer puts between session and product title. */
 const TITLE_SEPARATOR = ' — '
+/** Remembered window geometry (localStorage: a real preference, kept for good). */
+const PANEL_BOX_KEY = 'dsh-s-m-c-center.panel.box'
+/** Whether the window is open (sessionStorage: survives our reload, not a new tab). */
+const PANEL_OPEN_KEY = 'dsh-s-m-c-center.panel.open'
+/** Smallest size the window may be dragged down to. */
+const MIN_W = 260
+const MIN_H = 150
 
 /** One fetch round trip with the same error shape as the settings client. */
 async function api<T>(method: 'GET' | 'POST', path: string, payload?: unknown): Promise<T> {
@@ -40,6 +58,38 @@ async function api<T>(method: 'GET' | 'POST', path: string, payload?: unknown): 
   return body as T
 }
 
+/** Remembered geometry, or null when the window has never been moved. */
+function readBox(): { left: number; top: number; width: number; height: number } | null {
+  try {
+    const raw = localStorage.getItem(PANEL_BOX_KEY)
+    if (raw === null) return null
+    const box = JSON.parse(raw) as Record<string, unknown>
+    const num = (v: unknown): number | null => (typeof v === 'number' && isFinite(v) ? v : null)
+    const left = num(box.left); const top = num(box.top)
+    const width = num(box.width); const height = num(box.height)
+    if (left === null || top === null || width === null || height === null) return null
+    return { left, top, width, height }
+  } catch { return null }
+}
+
+/** Persist the window's geometry (best effort — storage can be unavailable). */
+function writeBox(box: { left: number; top: number; width: number; height: number }): void {
+  try { localStorage.setItem(PANEL_BOX_KEY, JSON.stringify(box)) } catch { /* storage full/blocked */ }
+}
+
+/** Whether the window should come back on its own after our reload. */
+function readOpenFlag(): boolean {
+  try { return sessionStorage.getItem(PANEL_OPEN_KEY) === '1' } catch { return false }
+}
+
+/** Record the window's open state for the next reload, or forget it. */
+function writeOpenFlag(open: boolean): void {
+  try {
+    if (open) sessionStorage.setItem(PANEL_OPEN_KEY, '1')
+    else sessionStorage.removeItem(PANEL_OPEN_KEY)
+  } catch { /* storage unavailable */ }
+}
+
 /** Inject the one-time stylesheet (theme variables + light fallbacks). */
 function ensureStyle(): void {
   if (document.getElementById(STYLE_ID) !== null) return
@@ -48,11 +98,13 @@ function ensureStyle(): void {
   style.textContent = `
 [data-dsh-frame][data-sidebar-collapsed] [${ENTRY_ID}]{justify-content:center!important;width:100%!important;padding:0!important}
 [data-dsh-frame][data-sidebar-collapsed] [${ENTRY_ID}]>span:not(:first-child){display:none!important}
-.smc-fp{position:fixed;left:280px;top:80px;width:min(420px,92vw);max-height:min(560px,72vh);z-index:${PANEL_Z};
+.smc-fp{position:fixed;left:280px;top:80px;width:min(420px,92vw);height:min(560px,72vh);min-width:${MIN_W}px;min-height:${MIN_H}px;z-index:${PANEL_Z};
   display:flex;flex-direction:column;background:var(--dsw-alias-bg-base,#fdfdfd);color:var(--dsw-alias-label-primary,#1f2328);
   border:1px solid var(--dsw-alias-border-l1,#e2e5ea);border-radius:12px;box-shadow:0 12px 40px rgba(8,10,16,.18);
-  font-size:13px;overflow:hidden}
-.smc-fp-head{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--dsw-alias-border-l2,#eceef1)}
+  font-size:13px;overflow:hidden;resize:both}
+.smc-fp-head{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--dsw-alias-border-l2,#eceef1);
+  cursor:grab;user-select:none;touch-action:none}
+.smc-fp-head.smc-dragging{cursor:grabbing}
 .smc-fp-head b{flex:1;font-size:13px}
 .smc-fp-sub{padding:8px 12px 0;color:var(--dsw-alias-label-tertiary,#8a8f98);font-size:12px}
 .smc-fp-sub .t{color:inherit;font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -150,35 +202,46 @@ async function toggleSkill(sessionId: string, slug: string, cwd: string): Promis
 }
 
 /**
- * Open (or refresh) the floating panel docked beside the sidebar entry.
- * Data is fetched fresh on every open; toggles update the row in place and
- * the head's refresh button re-reads everything.
+ * Open the floating panel.
+ *
+ * Data is fetched fresh on every open and toggles update the row in place. The
+ * head's 刷新 button reloads the whole page instead: the panel's idea of *which
+ * conversation this is* (id + title) is read from the document at open time,
+ * and renaming a conversation only changes `document.title` — so a re-fetch
+ * would refresh the skill list while leaving the stale title in place.
  */
 function openPanel(entry: HTMLElement): void {
   ensureStyle()
-  const existing = document.getElementById('smc-fp')
-  if (existing !== null) existing.remove()
+  document.getElementById(PANEL_ID)?.remove()
 
   const conversation = currentConversation()
   const sessionId = conversation.id
   const cwd = ''
+  const saved = readBox()
 
   const panel = document.createElement('div')
-  panel.id = 'smc-fp'
+  panel.id = PANEL_ID
   panel.className = 'smc-fp'
+  if (saved !== null) {
+    panel.style.width = `${saved.width}px`
+    panel.style.height = `${saved.height}px`
+  }
   const head = document.createElement('div')
   head.className = 'smc-fp-head'
   const title = document.createElement('b')
   title.textContent = '会话技能'
   const refresh = document.createElement('button')
   refresh.type = 'button'
-  refresh.textContent = '↻ 刷新'
+  refresh.textContent = '↻ 刷新页面'
+  refresh.title = '重新加载整个页面，会话标题随之更新'
   refresh.style.cssText = 'border:none;background:transparent;color:inherit;cursor:pointer;font-size:12px;opacity:.75'
   const close = document.createElement('button')
   close.type = 'button'
   close.textContent = '✕'
   close.style.cssText = 'border:none;background:transparent;color:inherit;cursor:pointer;font-size:14px'
-  close.addEventListener('click', () => { panel.remove() })
+  /** Set once the geometry watcher exists; closing must not leave it running. */
+  let stopWatching = (): void => {}
+  close.addEventListener('click', () => { writeOpenFlag(false); stopWatching(); panel.remove() })
   head.append(title, refresh, close)
 
   const sub = document.createElement('div')
@@ -195,21 +258,81 @@ function openPanel(entry: HTMLElement): void {
   bodyEl.textContent = '加载中…'
   panel.append(head, sub, bodyEl)
   document.body.appendChild(panel)
+  writeOpenFlag(true)
 
-  // Dock beside the entry (viewport-clamped): the block the user clicked is
-  // the anchor, so the panel never covers the conversation it describes.
+  /** Where the window currently sits, in viewport coordinates. */
+  const boxOf = (): { left: number; top: number; width: number; height: number } => {
+    const r = panel.getBoundingClientRect()
+    return { left: r.left, top: r.top, width: r.width, height: r.height }
+  }
+
+  // The window is the user's to place: remember only what they moved or
+  // resized. Relayout (a collapsing sidebar, a re-dock) must not be mistaken
+  // for a user action, or the window would freeze wherever it happened to be.
+  let pending = 0
+  let settled: { width: number; height: number } | null = null
+  const persist = (): void => { writeBox(boxOf()) }
+  const schedulePersist = (): void => {
+    if (pending !== 0) return
+    pending = window.setTimeout(() => { pending = 0; persist() }, 150)
+  }
+  const resizeObserver = new ResizeObserver(() => {
+    const r = panel.getBoundingClientRect()
+    if (settled === null) { settled = { width: r.width, height: r.height }; return }
+    if (Math.abs(r.width - settled.width) < 1 && Math.abs(r.height - settled.height) < 1) return
+    settled = { width: r.width, height: r.height }
+    schedulePersist()
+  })
+
+  // Drag by the header, but never so far that the window becomes unreachable:
+  // the header must keep at least a sliver inside the viewport.
+  head.addEventListener('mousedown', (event) => {
+    if ((event.target as HTMLElement).closest('button') !== null) return
+    event.preventDefault()
+    const start = boxOf()
+    const fromX = event.clientX
+    const fromY = event.clientY
+    head.classList.add('smc-dragging')
+    const move = (e: MouseEvent): void => {
+      const left = Math.min(Math.max(start.left + e.clientX - fromX, -start.width + 120), window.innerWidth - 40)
+      const top = Math.min(Math.max(start.top + e.clientY - fromY, 0), window.innerHeight - 24)
+      panel.style.left = `${Math.round(left)}px`
+      panel.style.top = `${Math.round(top)}px`
+    }
+    const up = (): void => {
+      window.removeEventListener('mousemove', move)
+      window.removeEventListener('mouseup', up)
+      head.classList.remove('smc-dragging')
+      // The user's word is final from here on.
+      persist()
+    }
+    window.addEventListener('mousemove', move)
+    window.addEventListener('mouseup', up)
+  })
+
+  // Sit where the user left it; first time round, dock beside the entry
+  // (viewport-clamped) so the window never covers the conversation it describes.
   const entryRect = entry.getBoundingClientRect()
   panel.style.visibility = 'hidden'
   requestAnimationFrame(() => {
     const panelRect = panel.getBoundingClientRect()
-    let left = entryRect.right + 12
-    if (left + panelRect.width > window.innerWidth - 8) {
-      left = Math.max(8, entryRect.left - panelRect.width - 12)
+    let left: number
+    let top: number
+    if (saved !== null) {
+      left = Math.min(Math.max(saved.left, -panelRect.width + 120), Math.max(0, window.innerWidth - 40))
+      top = Math.min(Math.max(saved.top, 0), Math.max(0, window.innerHeight - 24))
+    } else {
+      left = entryRect.right + 12
+      if (left + panelRect.width > window.innerWidth - 8) {
+        left = Math.max(8, entryRect.left - panelRect.width - 12)
+      }
+      top = Math.min(Math.max(entryRect.top - 4, 8), Math.max(8, window.innerHeight - panelRect.height - 8))
     }
-    const top = Math.min(Math.max(entryRect.top - 4, 8), Math.max(8, window.innerHeight - panelRect.height - 8))
     panel.style.left = `${Math.round(left)}px`
     panel.style.top = `${Math.round(top)}px`
     panel.style.visibility = ''
+    resizeObserver.observe(panel)
+    stopWatching = () => { resizeObserver.disconnect() }
   })
 
   const note = (text: string, isError = false): void => {
@@ -284,7 +407,7 @@ function openPanel(entry: HTMLElement): void {
       }
     })()
   }
-  refresh.addEventListener('click', load)
+  refresh.addEventListener('click', () => { window.location.reload() })
   load()
 }
 
@@ -299,17 +422,34 @@ export function mountSidebarEntry(ctx: {
     })
     document.body.appendChild(entry)
 
+    // A reload triggered from the panel brings it back: the open state lives in
+    // sessionStorage, so the window reappears where the user left it.
+    const openOnBoot = readOpenFlag()
+    let bootOpened = false
+    const openIfPending = (): void => {
+      if (!openOnBoot || bootOpened) return
+      bootOpened = true
+      openPanel(entry)
+    }
+
     const rootObserver = new MutationObserver(() => {
       if (document.body.contains(entry) && placeEntry(entry)) return
       placeEntry(entry)
     })
     const waitObserver = new MutationObserver(() => {
-      if (placeEntry(entry)) {
-        rootObserver.observe(document.body, { childList: true, subtree: true })
-        waitObserver.disconnect()
-      }
+      if (!placeEntry(entry)) return
+      rootObserver.observe(document.body, { childList: true, subtree: true })
+      waitObserver.disconnect()
+      openIfPending()
     })
-    waitObserver.observe(document.body, { childList: true, subtree: true })
+    // The shell may already be up — our own reload lands on a rendered page —
+    // in which case no mutation arrives for us to react to.
+    if (placeEntry(entry) && document.querySelector('[data-pane="sidebar"], [class*="sidebarCol"]') !== null) {
+      rootObserver.observe(document.body, { childList: true, subtree: true })
+      openIfPending()
+    } else {
+      waitObserver.observe(document.body, { childList: true, subtree: true })
+    }
 
     return () => {
       waitObserver.disconnect()
