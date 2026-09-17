@@ -9,19 +9,10 @@ export interface UseContextsOptions {
     t: Translate;
 }
 export interface UseContextsResult {
-    /** Conversations holding a selection, newest first (default excluded). */
-    sessions: Array<{
-        sessionId: string;
-        count: number;
-        updatedAt: string;
-    }>;
-    /** The session id the default selection lives under (dropdown's first row). */
-    defaultId: string;
-    /** The conversation whose checkboxes are shown, or null. */
-    activeId: string | null;
-    setActiveId: (id: string) => void;
-    /** slug → selected for the active conversation. */
+    /** slug → ticked, for the workspace default. */
     checked: Record<string, boolean>;
+    /** How many the default has ticked (the section counter). */
+    defaultCount: number;
     /** Rows the checkboxes map over (stored / registered rows carry a slug). */
     candidates: SkillSummary[];
     /** Row busy flag (slug currently being toggled). */
@@ -30,7 +21,7 @@ export interface UseContextsResult {
     reload: () => void;
     toggle: (slug: string) => void;
 }
-export declare function useContexts(options: UseContextsOptions): UseContextsResult;
-/** Session id the workspace default selection is stored under (host mirror). */
+/** Session id the workspace default selection lives under (host mirror). */
 export declare const DEFAULT_CONTEXT_ID = "_default";
+export declare function useContexts(options: UseContextsOptions): UseContextsResult;
 //# sourceMappingURL=useContexts.d.ts.map

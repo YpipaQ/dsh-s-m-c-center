@@ -17,8 +17,6 @@ export declare class SkillsMcpApi {
     readSkill(path: string): Promise<SkillDetail>;
     /** Native → stored: canonical copy into the store, link back in place. */
     migrateSkill(path: string, kind: 'bundle' | 'file', source: SkillSummary['source']): Promise<string>;
-    /** Undo a migration: link + ledger + manifest go, the copy returns home. */
-    unmigrateSkill(slug: string): Promise<void>;
     /** Create (or confirm) the `~/.dsh/skills/<slug>` link. */
     linkSkill(slug: string): Promise<void>;
     /** Remove the link (the canonical copy is never touched). */
@@ -45,16 +43,6 @@ export declare class SkillsMcpApi {
         name: string;
         exists: boolean;
     }>>;
-    /** Conversations that hold a selection under one workspace (default first). */
-    listContexts(cwd: string): Promise<{
-        workspace: string;
-        defaultId: string;
-        selections: Array<{
-            sessionId: string;
-            count: number;
-            updatedAt: string;
-        }>;
-    }>;
     /** One conversation's selection. */
     getContext(sessionId: string, cwd: string): Promise<{
         workspace: string;

@@ -61,8 +61,6 @@ export interface UseSkillsResult {
     unlink: (skill: SkillSummary) => void;
     /** Native → stored: canonical copy into the store, link back in place. */
     migrate: (skill: SkillSummary) => void;
-    /** Undo a migration: link + ledger + manifest go, the copy returns home. */
-    unmigrate: (skill: SkillSummary) => void;
     /** Drop a registry entry (and its link, when one exists). */
     unregister: (skill: SkillSummary) => void;
     /** Verify one link; the result lands in `message`. */

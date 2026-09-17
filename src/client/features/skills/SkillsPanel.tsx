@@ -6,10 +6,13 @@
  * announcement switch, and offers exactly the operations its group allows:
  *
  * - native:      迁移入库 (canonical copy → store, link back in place) / delete
- * - stored:      联接 / 撤销迁移 (link + ledger + manifest go, copy returns) / delete
+ * - stored:      联接 / 删除 (the copy stays in the store)
  * - registered:  联接 / 取消登记 / delete (the external copy stays)
  * - untracked:   a link on disk with no ledger record — red flag, with
  *                验证 / 删除联接 instead of the normal actions
+ *
+ * Migration is deliberately one-way here. Undoing it is an uninstall-time
+ * concern, so the bulk 撤销迁移 lives on the Guide tab's uninstall prep.
  *
  * Pure presentation over {@link useSkills}: it owns no state beyond the scan
  * section and never calls the API directly.
@@ -88,23 +91,22 @@ function Messages({ skills }: { skills: UseSkillsResult }) {
 }
 
 /**
- * Phase two: per-conversation skill selection, folded behind a toggle —
+ * Phase two: the workspace default skill selection, folded behind a toggle —
  * day-to-day the page is about the stored list, so the block stays collapsed.
  *
- * The first dropdown entry is the workspace's default selection (`_default`):
- * every conversation without a selection file of its own inherits it, and the
- * agent can flip its own skills through the `skill_select` tool at any time.
+ * Only the default (`_default`) is offered: it is the selection every
+ * conversation without a file of its own inherits, so it is the one a human
+ * needs to set. A conversation's own selection is the agent's business — it
+ * writes one through the `skill_select` tool at any time.
  */
 function ContextSection({ contexts, t }: { contexts: UseContextsResult; t: Translate }) {
   const [open, setOpen] = useState(false)
-  const { sessions } = contexts
-  const totalPicks = sessions.reduce((sum, s) => sum + s.count, 0)
   return (
     <div className={css.collapsible}>
       <button type="button" className={css.collapsibleHead} onClick={() => { setOpen((v) => !v) }}>
         <span className={css.collapsibleChev}>{open ? '▾' : '▸'}</span>
         <span className={css.collapsibleLabel}>{t('contextTitle')}</span>
-        <span className={css.collapsibleAction}>{format(t('contextCount'), { n: totalPicks })}</span>
+        <span className={css.collapsibleAction}>{format(t('contextCount'), { n: contexts.defaultCount })}</span>
         <span className={css.collapsibleAction}>{open ? t('collapse') : t('expand')}</span>
       </button>
       {open
@@ -114,43 +116,28 @@ function ContextSection({ contexts, t }: { contexts: UseContextsResult; t: Trans
               <div className={css.descWrap}>{t('contextNote')}</div>
             </div>
             <div className={css.inline}>
-              <select
-                className={css.filterSelect}
-                value={contexts.activeId ?? ''}
-                onChange={(e) => { contexts.setActiveId(e.target.value) }}
-              >
-                <option value={contexts.defaultId}>{t('contextDefaultItem')}</option>
-                {sessions.filter((s) => s.sessionId !== contexts.defaultId).map((s) => (
-                  <option key={s.sessionId} value={s.sessionId}>
-                    {format(t('contextSessionItem'), { id: s.sessionId.slice(0, 8), n: s.count })}
-                  </option>
-                ))}
-              </select>
+              <span className={css.note}>{t('contextDefaultItem')}</span>
               <Button onClick={contexts.reload}>{t('refresh')}</Button>
             </div>
             {contexts.message ? <ErrorText>{contexts.message}</ErrorText> : null}
-            {contexts.activeId !== null
-              ? (
-                <div className={css.scanList}>
-                  {contexts.candidates.length === 0
-                    ? <div className={css.note}>{t('contextNoCandidates')}</div>
-                    : contexts.candidates.map((skill) => (
-                      <div key={skill.slug ?? skill.path} className={css.row}>
-                        <input
-                          type="checkbox"
-                          disabled={contexts.busySlug === (skill.slug ?? '')}
-                          checked={!!contexts.checked[skill.slug ?? '']}
-                          onChange={() => { contexts.toggle(skill.slug ?? '') }}
-                        />
-                        <div className={css.main}>
-                          <div className={css.name}><span className={css.nameText}>{skill.name}</span></div>
-                        </div>
-                        <Badge>{t(skill.group === 'stored' ? 'groupStored' : skill.group === 'registered' ? 'groupRegistered' : 'groupNative')}</Badge>
-                      </div>
-                    ))}
-                </div>
-              )
-              : null}
+            <div className={css.scanList}>
+              {contexts.candidates.length === 0
+                ? <div className={css.note}>{t('contextNoCandidates')}</div>
+                : contexts.candidates.map((skill) => (
+                  <div key={skill.slug ?? skill.path} className={css.row}>
+                    <input
+                      type="checkbox"
+                      disabled={contexts.busySlug === (skill.slug ?? '')}
+                      checked={!!contexts.checked[skill.slug ?? '']}
+                      onChange={() => { contexts.toggle(skill.slug ?? '') }}
+                    />
+                    <div className={css.main}>
+                      <div className={css.name}><span className={css.nameText}>{skill.name}</span></div>
+                    </div>
+                    <Badge>{t(skill.group === 'stored' ? 'groupStored' : skill.group === 'registered' ? 'groupRegistered' : 'groupNative')}</Badge>
+                  </div>
+                ))}
+            </div>
           </div>
         )
         : null}
@@ -281,13 +268,6 @@ function SkillRow({ skill, skills, t }: SkillRowProps) {
             <>
               {skill.group === 'native' && skill.level === 'user'
                 ? <Button disabled={isBusy} onClick={() => { skills.migrate(skill) }}>{t('btnMigrate')}</Button>
-                : null}
-              {skill.group === 'stored'
-                ? (
-                  <Button disabled={isBusy} onClick={() => { skills.unmigrate(skill) }}>
-                    {t('btnUnmigrate')}
-                  </Button>
-                )
                 : null}
               {skill.group === 'registered'
                 ? (

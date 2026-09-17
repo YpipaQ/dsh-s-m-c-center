@@ -83,11 +83,6 @@ export class SkillsMcpApi {
     return body.slug
   }
 
-  /** Undo a migration: link + ledger + manifest go, the copy returns home. */
-  async unmigrateSkill(slug: string): Promise<void> {
-    await call('POST', SMC_API.skillUnmigrate, { slug })
-  }
-
   /** Create (or confirm) the `~/.dsh/skills/<slug>` link. */
   async linkSkill(slug: string): Promise<void> {
     await call('POST', SMC_API.skillLink, { slug })
@@ -145,11 +140,11 @@ export class SkillsMcpApi {
   }
 
   // ── conversation contexts ────────────────────────────────────────────────
-
-  /** Conversations that hold a selection under one workspace (default first). */
-  async listContexts(cwd: string): Promise<{ workspace: string; defaultId: string; selections: Array<{ sessionId: string; count: number; updatedAt: string }> }> {
-    return await call('GET', withCwd(SMC_API.contexts, cwd))
-  }
+  //
+  // Only the workspace default (`_default`) is wired up: the panel exposes it
+  // alone, and a conversation's own selection is the agent's business. The
+  // Host still serves `GET SMC_API.contexts` (every selection under a
+  // workspace) for anything that wants the whole picture.
 
   /** One conversation's selection. */
   async getContext(sessionId: string, cwd: string): Promise<{ workspace: string; selection: { sessionId: string; selected: string[]; updatedAt: string } }> {

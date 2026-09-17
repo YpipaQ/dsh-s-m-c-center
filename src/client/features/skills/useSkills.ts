@@ -75,8 +75,6 @@ export interface UseSkillsResult {
   unlink: (skill: SkillSummary) => void
   /** Native → stored: canonical copy into the store, link back in place. */
   migrate: (skill: SkillSummary) => void
-  /** Undo a migration: link + ledger + manifest go, the copy returns home. */
-  unmigrate: (skill: SkillSummary) => void
   /** Drop a registry entry (and its link, when one exists). */
   unregister: (skill: SkillSummary) => void
   /** Verify one link; the result lands in `message`. */
@@ -111,8 +109,8 @@ export interface UseSkillsResult {
 /** Group captions as locale keys; the panel resolves them with `t`. */
 const GROUP_ORDER: Array<{ level: string; group?: SkillGroup; label: SkillsMcpKey }> = [
   // The user-level groups split by on-disk identity because their UIs differ:
-  // native rows offer 迁移入库, stored rows offer 撤销迁移/联接, registered
-  // rows offer 取消登记.
+  // native rows offer 迁移入库, stored rows offer 联接, registered rows offer
+  // 取消登记.
   { level: 'user', group: 'native', label: 'levelUser' },
   { level: 'user', group: 'stored', label: 'levelStore' },
   { level: 'user', group: 'registered', label: 'groupRegistered' },
@@ -186,10 +184,6 @@ export function useSkills(options: UseSkillsOptions): UseSkillsResult {
       ? skill.path.replace(/[\\/]+SKILL\.md$/i, '')
       : skill.path
     act(skill, () => api.migrateSkill(sourcePath, skill.kind, skill.source))
-  }, [act])
-
-  const unmigrate = useCallback((skill: SkillSummary) => {
-    act(skill, () => api.unmigrateSkill(skill.slug ?? ''))
   }, [act])
 
   const unregister = useCallback((skill: SkillSummary) => {
@@ -331,7 +325,7 @@ export function useSkills(options: UseSkillsOptions): UseSkillsResult {
     query, setQuery,
     enabledFilter, setEnabledFilter,
     busyPath, message,
-    toggleAnnounce, link, unlink, migrate, unmigrate, unregister,
+    toggleAnnounce, link, unlink, migrate, unregister,
     verify, deleteUntracked, refreshRegistry,
     remove, confirmPath,
     detailPath, detail, view,

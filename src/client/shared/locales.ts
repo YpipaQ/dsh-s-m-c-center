@@ -131,7 +131,6 @@ export type SkillsMcpKey =
   | 'btnLink'
   | 'btnUnlink'
   | 'btnMigrate'
-  | 'btnUnmigrate'
   | 'btnUnregister'
   | 'btnVerify'
   | 'btnDeleteLink'
@@ -200,7 +199,6 @@ export type SkillsMcpKey =
   | 'contextNote'
   | 'contextDefaultItem'
   | 'contextCount'
-  | 'contextSessionItem'
   | 'contextNoCandidates'
   | 'msgContextApplied'
   | 'msgContextLive'
@@ -352,7 +350,6 @@ export const zh: Record<SkillsMcpKey, string> = {
   btnLink: '联接',
   btnUnlink: '断开联接',
   btnMigrate: '迁移入库',
-  btnUnmigrate: '撤销迁移',
   btnUnregister: '取消登记',
   btnVerify: '验证',
   btnDeleteLink: '删除联接',
@@ -418,10 +415,9 @@ export const zh: Record<SkillsMcpKey, string> = {
   msgRefreshMissing: '溯源刷新：{n} 条记录的目录已不存在 → ',
 
   contextTitle: '会话技能（上下文级）',
-  contextNote: '「默认配置」是新会话的起始技能：在这里勾选的技能会自动注入每个尚未单独配置的对话；对话里的 agent 也可以自己开关（写入该会话自己的配置）。下方列表只显示已有选择记录的会话。',
+  contextNote: '「默认配置」是新会话的起始技能：在这里勾选的技能会自动注入每个尚未单独配置的对话；对话里的 agent 也可以自己开关（写入该会话自己的配置）。',
   contextDefaultItem: '默认配置（新会话的技能）',
   contextCount: '已选 {n} 项',
-  contextSessionItem: '会话 {id}…（{n} 个已选）',
   contextNoCandidates: '没有可勾选的技能（先在下方登记或迁移入库）',
   msgContextApplied: '已保存，本会话共选 {n} 个技能（{state}）',
   msgContextLive: '已即时生效',
@@ -570,7 +566,6 @@ export const en: Record<SkillsMcpKey, string> = {
   btnLink: 'Link',
   btnUnlink: 'Unlink',
   btnMigrate: 'Move to store',
-  btnUnmigrate: 'Undo migration',
   btnUnregister: 'Unregister',
   btnVerify: 'Verify',
   btnDeleteLink: 'Delete link',
@@ -636,10 +631,9 @@ export const en: Record<SkillsMcpKey, string> = {
   msgRefreshMissing: 'Traceability refresh: {n} record(s) missing → ',
 
   contextTitle: 'Conversation skills (context level)',
-  contextNote: 'The default row sets the skills every conversation without its own selection starts with; the agent can also flip its own skills in-conversation (written to that conversation\'s config). The list below shows conversations that already hold a selection.',
+  contextNote: 'The default selection sets the skills every conversation without one of its own starts with; the agent can also flip its own skills in-conversation (written to that conversation\'s config).',
   contextDefaultItem: 'Default selection (new conversations)',
   contextCount: '{n} selected',
-  contextSessionItem: 'Session {id}… ({n} selected)',
   contextNoCandidates: 'Nothing to tick (register or migrate skills first)',
   msgContextApplied: 'Saved; {n} skill(s) selected for this conversation ({state})',
   msgContextLive: 'applied live',
