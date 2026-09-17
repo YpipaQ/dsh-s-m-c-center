@@ -318,6 +318,11 @@ export declare const SMC_API: {
     readonly skillVerify: "/api/dsh-s-m-c-center/skills/verify";
     /** Delete an untracked link (one the ledger has no record of). */
     readonly skillDeleteLink: "/api/dsh-s-m-c-center/skills/delete-link";
+    /** Per-conversation selection index for one workspace. */
+    readonly contexts: "/api/dsh-s-m-c-center/contexts";
+    /** One conversation's selection (get / toggle). */
+    readonly contextsGet: "/api/dsh-s-m-c-center/contexts/get";
+    readonly contextsToggle: "/api/dsh-s-m-c-center/contexts/toggle";
     readonly skillStore: "/api/dsh-s-m-c-center/skills/store";
     readonly skillRollback: "/api/dsh-s-m-c-center/skills/rollback";
     /** Re-run the one-shot migration after a rollback (the uninstall page's undo). */

@@ -30,6 +30,7 @@ import {
 import type { Dirent } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, dirname, extname, join, resolve, sep } from 'node:path'
+import type { SkillRegistration } from '@deepseek-ai/dsh-skill'
 import type {
   LinkRecord, RegistryEntry, ScannedSkill, SkillDetail, SkillGroup,
   SkillSource, SkillSummary, SkillLinks, SkillsRegistry, StoreEntry,
@@ -979,6 +980,35 @@ export class SkillsManager {
     const parsed = parseSkillFile(raw)
     if (parsed === null) return null
     return { ...parsed, path }
+  }
+
+  /**
+   * Resolve a slug to a runtime `SkillRegistration` for the context engine:
+   * looks in the store first, then the external registry, and reads the
+   * SKILL.md body verbatim (no frontmatter rewriting, ever).
+   * @returns undefined when the slug is unknown or its copy is gone.
+   */
+  resolveRegistration(slug: string): SkillRegistration | undefined {
+    const stored = this.entryOf(slug)
+    const candidates: string[] = []
+    if (stored !== undefined) candidates.push(join(this.storeDir(), slug, 'SKILL.md'))
+    const registered = this.registryEntryOf(slug)
+    if (registered !== undefined) {
+      candidates.push(registered.kind === 'bundle' ? join(registered.path, 'SKILL.md') : registered.path)
+    }
+    for (const mdPath of candidates) {
+      if (!existsSync(mdPath)) continue
+      let parsed: ParsedSkill | null = null
+      try { parsed = parseSkillFile(readFileSync(mdPath, 'utf8')) } catch { continue }
+      if (parsed === null) continue
+      return {
+        name: parsed.name,
+        description: parsed.description || parsed.name,
+        content: parsed.content,
+        source: 'runtime',
+      }
+    }
+    return undefined
   }
 
   // ── deletion ─────────────────────────────────────────────────────────────

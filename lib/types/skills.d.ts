@@ -21,6 +21,7 @@
  * announcement flag lives in the JSON ledgers, not in the file.
  * @module
  */
+import type { SkillRegistration } from '@deepseek-ai/dsh-skill';
 import type { ScannedSkill, SkillDetail, SkillGroup, SkillSource, SkillSummary, SkillLinks, SkillsRegistry, StoreIndex, StoreOperation, StoreStatus, VerifyResult } from './protocol.ts';
 /** User-level skill roots (project roots are derived from the workspace cwd). */
 export interface SkillRoots {
@@ -185,6 +186,13 @@ export declare class SkillsManager {
     listSkills(cwd?: string): SkillSummary[];
     /** Read one skill document (body included). */
     readSkill(path: string): SkillDetail | null;
+    /**
+     * Resolve a slug to a runtime `SkillRegistration` for the context engine:
+     * looks in the store first, then the external registry, and reads the
+     * SKILL.md body verbatim (no frontmatter rewriting, ever).
+     * @returns undefined when the slug is unknown or its copy is gone.
+     */
+    resolveRegistration(slug: string): SkillRegistration | undefined;
     /**
      * Delete a skill wherever it lives: native → the real file goes; stored →
      * link, ledger record, manifest entry and store copy all go; registered →

@@ -15,6 +15,7 @@ import { McpManager, readMcpArchive, readMcpConfig, validateMcpServer } from './
 import { SkillsManager } from './skills.ts'
 import { SMC_API } from './protocol.ts'
 import type { CliRegistryEntry, ManagerSettings, McpServerConfig } from './protocol.ts'
+import { listSelections, readSelection, toggleSelection, workspaceOf } from './context-engine.ts'
 
 /** Requests may not exceed this much JSON (definitions and import lists are small). */
 const MAX_BODY_BYTES = 1024 * 1024
@@ -101,6 +102,13 @@ export interface RoutesDeps {
   skills: SkillsManager
   mcp: McpManager
   cli: CliManager
+  /**
+   * Live agent registry, when the host provides one: flipping a switch in the
+   * panel applies immediately to a running conversation through it.
+   */
+  agents?: { get(id: string): { id: string; ctx: unknown; session?: { header?: { cwd?: string } } } | undefined }
+  /** Applied after a panel toggle for a live conversation (context engine). */
+  applyToAgent?: (agent: { id: string; ctx: unknown; session?: { header?: { cwd?: string } } }) => void
   /** Read the plugin's own persisted settings (~/.dsh/settings.yaml block). */
   readOwnSettings: () => ManagerSettings
   /** Persist new settings, then re-apply surfaces; returns what landed. */
@@ -317,6 +325,37 @@ export function makeRoutes(deps: RoutesDeps): { routes: WebRoute[] } {
       // a rollback gave them to their original locations.
       handle('POST', SMC_API.skillRemigrate, async (_req, res, _body, _url) => {
         writeJson(res, 200, ok({ result: skills.reMigrate() }))
+      }),
+
+      // ── conversation contexts (phase two: per-conversation selection) ────
+      handle('GET', SMC_API.contexts, async (_req, res, _body, url) => {
+        const workspace = workspaceOf(queryParam(url, 'cwd'))
+        writeJson(res, 200, ok({ workspace, selections: listSelections(workspace) }))
+      }),
+
+      handle('POST', SMC_API.contextsGet, async (_req, res, body, _url) => {
+        const sessionId = bodyText(body, 'sessionId')
+        if (!sessionId) { writeJson(res, 400, { ok: false, error: 'sessionId required' }); return }
+        const workspace = workspaceOf(bodyText(body, 'cwd') || undefined)
+        writeJson(res, 200, ok({ workspace, selection: readSelection(workspace, sessionId) }))
+      }),
+
+      // A panel flip: persist the toggle; a running conversation picks the
+      // change up immediately through its agent context.
+      handle('POST', SMC_API.contextsToggle, async (_req, res, body, _url) => {
+        const sessionId = bodyText(body, 'sessionId')
+        const slug = bodyText(body, 'slug')
+        if (!sessionId || !slug) { writeJson(res, 400, { ok: false, error: 'sessionId and slug required' }); return }
+        const workspace = workspaceOf(bodyText(body, 'cwd') || undefined)
+        const selection = toggleSelection(workspace, sessionId, slug)
+        const agent = deps.agents?.get(sessionId)
+        if (agent !== undefined && deps.applyToAgent !== undefined) {
+          try { deps.applyToAgent(agent) } catch (e) {
+            writeJson(res, 200, ok({ selection, applied: false, error: failure(e) }))
+            return
+          }
+        }
+        writeJson(res, 200, ok({ selection, applied: agent !== undefined }))
       }),
 
       // ── mcp ──────────────────────────────────────────────────────────────

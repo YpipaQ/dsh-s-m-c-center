@@ -16,6 +16,31 @@ export interface RoutesDeps {
     skills: SkillsManager;
     mcp: McpManager;
     cli: CliManager;
+    /**
+     * Live agent registry, when the host provides one: flipping a switch in the
+     * panel applies immediately to a running conversation through it.
+     */
+    agents?: {
+        get(id: string): {
+            id: string;
+            ctx: unknown;
+            session?: {
+                header?: {
+                    cwd?: string;
+                };
+            };
+        } | undefined;
+    };
+    /** Applied after a panel toggle for a live conversation (context engine). */
+    applyToAgent?: (agent: {
+        id: string;
+        ctx: unknown;
+        session?: {
+            header?: {
+                cwd?: string;
+            };
+        };
+    }) => void;
     /** Read the plugin's own persisted settings (~/.dsh/settings.yaml block). */
     readOwnSettings: () => ManagerSettings;
     /** Persist new settings, then re-apply surfaces; returns what landed. */

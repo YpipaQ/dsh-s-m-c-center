@@ -22,6 +22,7 @@ import { migrateStoreRoot } from './migrate.ts'
 import { McpManager } from './mcp.ts'
 import { makeRoutes } from './routes.ts'
 import { SkillsManager } from './skills.ts'
+import { applyToAgent, buildSkillSelectTool } from './context-tools.ts'
 import { migrateSettingsNamespace, readSettings, writeSettings } from './settings.ts'
 
 /** Cordis plugin id. Renaming it breaks existing profiles — treat as fixed. */
@@ -144,6 +145,13 @@ export function apply(ctx: Context, config?: Config): void {
     skills,
     mcp,
     cli,
+    // Live agents, when the host provides the registry: a panel flip applies
+    // immediately to a running conversation through it. Typed loosely on
+    // purpose — the agent registry ships with dsh, not with this package.
+    agents: (ctx as unknown as {
+      agents?: { get(id: string): { id: string; ctx: unknown; session?: { header?: { cwd?: string } } } | undefined }
+    }).agents,
+    applyToAgent: (agent) => { applyToAgent(skills, agent as Parameters<typeof applyToAgent>[1]) },
     readOwnSettings: () => readSettings(),
     writeOwnSettings: (next) => {
       writeSettings(next)
@@ -154,6 +162,11 @@ export function apply(ctx: Context, config?: Config): void {
       return readSettings()
     },
   })
+
+  // The agent-facing selection tool: the model's sanctioned way to flip a
+  // skill for its own conversation (writes the per-conversation JSON and
+  // re-applies through its own context; the catalog republishes on its own).
+  ctx.tools.register(buildSkillSelectTool(skills))
 
   // Register (or drop) the system-prompt announcement to match the source.
   // Split out from `sync` so a settings write can refresh just this surface

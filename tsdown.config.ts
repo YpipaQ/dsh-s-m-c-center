@@ -28,6 +28,7 @@ const CSS_VIRTUAL_SUFFIX = '.mjs'
 const NODE_EXTERNALS = [
   '@deepseek-ai/dsh-settings',
   '@deepseek-ai/dsh-mcp-client',
+  '@deepseek-ai/dsh-tools',
   'schemastery',
 ]
 const CLIENT_EXTERNALS = ['react', 'react-dom']
