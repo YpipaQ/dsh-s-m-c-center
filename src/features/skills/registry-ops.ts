@@ -1,6 +1,6 @@
 /**
- * Registry operations: importing external skills, dropping them, the
- * traceability pass, and the per-skill announcement flag.
+ * Registry operations: importing external skills, dropping them, and the
+ * traceability pass.
  *
  * The registry is the ledger for skills that stay where they are, so these are
  * the flows that do *not* move anything — importing records a path, and the
@@ -11,10 +11,9 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { basename, dirname, extname, resolve } from 'node:path'
 import { parseBundleDocs, parseSkillFile, slugify, uniqueSlug } from '../../shared/frontmatter.ts'
-import type { SkillGroup } from '../../shared/protocol/index.ts'
 import { removeLink } from './linking.ts'
-import { readStoreIndex, upsertEntry } from './store-index.ts'
-import { dropRegistryEntry, readRegistry, registryEntryOf, upsertRegistryEntry, writeRegistry } from './registry.ts'
+import { readStoreIndex } from './store-index.ts'
+import { dropRegistryEntry, readRegistry, upsertRegistryEntry, writeRegistry } from './registry.ts'
 
 /**
  * Register external skills: the canonical copy stays where it is, only a
@@ -46,7 +45,6 @@ export function registerExternal(
         path: it.sourcePath,
         kind: it.kind,
         origin: 'external',
-        announce: true,
         registeredAt: new Date().toISOString(),
       })
       results.push({ name: parsed.name, ok: true })
@@ -77,19 +75,6 @@ export function refreshRegistry(): Array<{ slug: string; name: string; exists: b
   }
   writeRegistry(reg)
   return out
-}
-
-/** The announcement flag for one skill, from whichever ledger holds it. */
-export function setAnnounce(group: SkillGroup, slug: string, announce: boolean): void {
-  if (group === 'stored') {
-    const entry = readStoreIndex().entries.find((e) => e.slug === slug)
-    if (entry === undefined) throw new Error('储存库中没有这个技能：' + slug)
-    upsertEntry({ ...entry, announce })
-    return
-  }
-  const entry = registryEntryOf(slug)
-  if (entry === undefined) throw new Error('登记表中没有这个技能：' + slug)
-  upsertRegistryEntry({ ...entry, announce })
 }
 
 /**

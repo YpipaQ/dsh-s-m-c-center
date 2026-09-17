@@ -26,7 +26,7 @@ export declare function migrateToStore(sourcePath: string, kind: 'bundle' | 'fil
 /**
  * Undo a migration: remove the link, move the canonical copy back to its
  * origin, and drop the manifest entry. The registry entry is restored so the
- * announcement flag survives the round trip.
+ * skill keeps its identity after the round trip.
  * @returns the path the skill was restored to.
  */
 export declare function unmigrate(slug: string): string;

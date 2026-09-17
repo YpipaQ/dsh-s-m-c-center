@@ -1,11 +1,10 @@
 /**
  * The store manifest (`S-M-C/skills/index.json`) — group 2's ledger.
  *
- * One row per adopted skill: its slug, the name it had when adopted, where it
- * came from (so an unmigrate can put it back), and its announcement flag. Link
- * state is deliberately *not* here — that belongs to the link ledger, and
- * keeping them apart is what lets a link be rebuilt without touching the
- * manifest.
+ * One row per adopted skill: its slug, the name it had when adopted, and where
+ * it came from (so an unmigrate can put it back). Link state is deliberately
+ * *not* here — that belongs to the link ledger, and keeping them apart is what
+ * lets a link be rebuilt without touching the manifest.
  *
  * Reads are defensive: a missing file rebuilds the manifest from whatever
  * bundles exist on disk, and a corrupt file is preserved as

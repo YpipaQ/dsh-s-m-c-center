@@ -6,7 +6,7 @@
  * route can produce — an HTTP status, or a 200 carrying `{ ok: false, error }`
  * — surface the same way, and a failure never arrives as a silent `undefined`.
  */
-import type { CliRegistryEntry, CliStateDetail, CliSubcommands, CliSummary, ImportItem, ManagerSettings, McpServerConfig, McpServerSummary, ScannedSkill, SkillDetail, SkillGroup, SkillSummary, StoreOperation, StoreStatus, VerifyResult } from '../../shared/protocol/index.ts';
+import type { CliRegistryEntry, CliStateDetail, CliSubcommands, CliSummary, ImportItem, ManagerSettings, McpServerConfig, McpServerSummary, ScannedSkill, SkillDetail, SkillSummary, StoreOperation, StoreStatus, VerifyResult } from '../../shared/protocol/index.ts';
 /** Raised for any route call that did not come back as `ok`. */
 export declare class SkillsMcpApiError extends Error {
     constructor(message: string);
@@ -21,8 +21,6 @@ export declare class SkillsMcpApi {
     linkSkill(slug: string): Promise<void>;
     /** Remove the link (the canonical copy is never touched). */
     unlinkSkill(slug: string): Promise<void>;
-    /** The per-skill announcement flag (公告 / 隐藏). */
-    setSkillAnnounce(group: SkillGroup, slug: string, announce: boolean): Promise<void>;
     /** Verify one link (resolves? target alive? tracked?). */
     verifyLink(slug: string): Promise<VerifyResult>;
     /** Delete an untracked link (one the ledger has no record of). */

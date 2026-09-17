@@ -82,9 +82,6 @@ function scanRootInto(dir: string, source: SkillSource, seen: Set<string>, items
         description: parsed?.description ?? '',
         whenToUse: parsed?.whenToUse ?? '',
         group: stored ? 'stored' : 'registered',
-        announce: stored
-          ? (entryOf(slug)?.announce ?? true)
-          : (registryEntryOf(slug)?.announce ?? registryEntryOfByPath(resolved)?.announce ?? true),
         linked: true,
         untracked: tracked === undefined,
         source,
@@ -105,7 +102,7 @@ function scanRootInto(dir: string, source: SkillSource, seen: Set<string>, items
     if (seen.has(full)) continue
     seen.add(full)
     const slug = slugify(parsed.name)
-    // Auto-register so the announcement flag has a home ("find one → record it").
+    // Auto-register so the row has a stable identity ("find one → record it").
     const known = registryEntryOf(slug)
     if (known === undefined || known.origin !== 'native') {
       upsertRegistryEntry({
@@ -115,7 +112,6 @@ function scanRootInto(dir: string, source: SkillSource, seen: Set<string>, items
         path: full,
         kind: kind === 'directory' ? 'bundle' : 'file',
         origin: 'native',
-        announce: known?.announce ?? true,
         registeredAt: known?.registeredAt ?? new Date().toISOString(),
       })
     }
@@ -124,7 +120,6 @@ function scanRootInto(dir: string, source: SkillSource, seen: Set<string>, items
       description: parsed.description,
       whenToUse: parsed.whenToUse,
       group: 'native',
-      announce: known?.announce ?? true,
       linked: false,
       source,
       level: levelOf(source),
@@ -138,8 +133,8 @@ function scanRootInto(dir: string, source: SkillSource, seen: Set<string>, items
 /**
  * List every skill across the four groups, de-duplicated by path: native
  * roots first, then stored-but-unlinked rows, then registered-but-unlinked
- * rows. Announce flags come from the ledgers; link presence comes from the
- * filesystem cross-checked against the link ledger.
+ * rows. Link presence comes from the filesystem cross-checked against the
+ * link ledger.
  */
 export function listSkills(cwd?: string): SkillSummary[] {
   const seen = new Set<string>()
@@ -164,7 +159,6 @@ export function listSkills(cwd?: string): SkillSummary[] {
       description: found.parsed.description,
       whenToUse: found.parsed.whenToUse,
       group: 'stored',
-      announce: entry.announce,
       linked: false,
       source: 'user-dsh',
       level: 'user',
@@ -186,7 +180,6 @@ export function listSkills(cwd?: string): SkillSummary[] {
       slug,
       name: found.parsed.name,
       origin: '',
-      announce: false,
       adoptedAt: new Date().toISOString(),
     })
     if (seen.has(found.doc)) continue
@@ -196,7 +189,6 @@ export function listSkills(cwd?: string): SkillSummary[] {
       description: found.parsed.description,
       whenToUse: found.parsed.whenToUse,
       group: 'stored',
-      announce: false,
       linked: false,
       source: 'user-dsh',
       level: 'user',
@@ -220,7 +212,6 @@ export function listSkills(cwd?: string): SkillSummary[] {
       description: entry.description,
       whenToUse: '',
       group: 'registered',
-      announce: entry.announce,
       linked: false,
       source: 'user-dsh',
       level: 'user',

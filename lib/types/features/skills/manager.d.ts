@@ -12,7 +12,7 @@
  * Rows carry both because either may be the only one known.
  * @module
  */
-import type { ScannedSkill, SkillDetail, SkillGroup, SkillSource, SkillSummary, SkillLinks, SkillsRegistry, StoreIndex, StoreOperation, StoreStatus, VerifyResult } from '../../shared/protocol/index.ts';
+import type { ScannedSkill, SkillDetail, SkillSource, SkillSummary, SkillLinks, SkillsRegistry, StoreIndex, StoreOperation, StoreStatus, VerifyResult } from '../../shared/protocol/index.ts';
 import type { SkillRegistration } from '@deepseek-ai/dsh-skill';
 /**
  * The skills engine, as the rest of the plugin sees it.
@@ -65,8 +65,6 @@ export declare class SkillsManager {
         name: string;
         exists: boolean;
     }[];
-    /** The announcement flag for one skill (公告 / 隐藏). */
-    setAnnounce(group: SkillGroup, slug: string, announce: boolean): void;
     /** List every skill across the four groups. */
     listSkills(cwd?: string): SkillSummary[];
     /** Read one skill document (body included). */

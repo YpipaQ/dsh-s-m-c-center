@@ -43,9 +43,6 @@ export const TAB_LABELS: Record<TabId, SkillsMcpKey> = {
   guide: 'tabGuide',
 }
 
-/** Skill enablement filter options for the list toolbar. */
-export type EnabledFilter = 'all' | 'enabled' | 'disabled'
-
 /** MCP server runtime status → locale key. */
 export const MCP_STATUS_LABEL: Record<string, SkillsMcpKey> = {
   connecting: 'stConnecting',

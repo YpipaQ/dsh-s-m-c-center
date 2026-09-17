@@ -126,18 +126,13 @@ export type SkillsMcpKey =
   | 'mcpTabCreate'
   | 'activate'
   | 'archive'
-  | 'announceOn'
-  | 'announceOff'
   | 'btnLink'
   | 'btnUnlink'
   | 'btnMigrate'
   | 'btnUnregister'
   | 'btnVerify'
   | 'btnDeleteLink'
-  // filters + grouping
-  | 'filterAll'
-  | 'filterEnabled'
-  | 'filterDisabled'
+  // grouping
   | 'levelProject'
   | 'levelUser'
   | 'levelStore'
@@ -345,8 +340,6 @@ export const zh: Record<SkillsMcpKey, string> = {
   mcpTabCreate: '新建',
   activate: '激活',
   archive: '归档',
-  announceOn: '公告中',
-  announceOff: '已隐藏',
   btnLink: '联接',
   btnUnlink: '断开联接',
   btnMigrate: '迁移入库',
@@ -354,9 +347,6 @@ export const zh: Record<SkillsMcpKey, string> = {
   btnVerify: '验证',
   btnDeleteLink: '删除联接',
 
-  filterAll: '全部',
-  filterEnabled: '公告中',
-  filterDisabled: '已隐藏',
   levelProject: '项目级',
   levelUser: '用户级',
   levelStore: '储存库级',
@@ -561,8 +551,6 @@ export const en: Record<SkillsMcpKey, string> = {
   mcpTabCreate: 'Create',
   activate: 'Enable',
   archive: 'Archive',
-  announceOn: 'Announced',
-  announceOff: 'Hidden',
   btnLink: 'Link',
   btnUnlink: 'Unlink',
   btnMigrate: 'Move to store',
@@ -570,9 +558,6 @@ export const en: Record<SkillsMcpKey, string> = {
   btnVerify: 'Verify',
   btnDeleteLink: 'Delete link',
 
-  filterAll: 'All',
-  filterEnabled: 'Announced',
-  filterDisabled: 'Hidden',
   levelProject: 'Project',
   levelUser: 'User',
   levelStore: 'Store',

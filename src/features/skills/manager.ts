@@ -30,7 +30,7 @@ import {
 } from './linking.ts'
 import { migrateToStore, unmigrate } from './adopt.ts'
 import {
-  refreshRegistry, registerExternal, setAnnounce, unregisterExternal,
+  refreshRegistry, registerExternal, unregisterExternal,
 } from './registry-ops.ts'
 import { migrate, reMigrate, rollbackMigration, storeStatus } from './migration.ts'
 import { deleteSkill } from './delete.ts'
@@ -132,11 +132,6 @@ export class SkillsManager {
   /** Traceability pass: does every registered canonical path still exist? */
   refreshRegistry() {
     return refreshRegistry()
-  }
-
-  /** The announcement flag for one skill (公告 / 隐藏). */
-  setAnnounce(group: SkillGroup, slug: string, announce: boolean): void {
-    setAnnounce(group, slug, announce)
   }
 
   // ── scanning / listing ───────────────────────────────────────────────────

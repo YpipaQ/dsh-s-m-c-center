@@ -22,7 +22,7 @@ import { storeSkillsDir } from '../../shared/paths.ts'
 import { childNames } from './roots.ts'
 import { createLink, removeLink } from './linking.ts'
 import { dropEntry, entryOf, upsertEntry } from './store-index.ts'
-import { dropRegistryEntry, readRegistry, upsertRegistryEntry } from './registry.ts'
+import { dropRegistryEntry, upsertRegistryEntry } from './registry.ts'
 
 /**
  * Move one native skill into the store, link it back from
@@ -54,9 +54,6 @@ export function migrateToStore(sourcePath: string, kind: 'bundle' | 'file', sour
   }
 
   const nameSlug = slugify(parsed.name)
-  const registry = readRegistry().entries
-  const previous = registry.find((e) => e.slug === slug) ?? registry.find((e) => e.slug === nameSlug)
-  const announce = previous?.announce ?? true
   dropRegistryEntry(slug)
   dropRegistryEntry(nameSlug)
 
@@ -65,7 +62,6 @@ export function migrateToStore(sourcePath: string, kind: 'bundle' | 'file', sour
     slug,
     name: parsed.name,
     origin: sourcePath,
-    announce,
     adoptedAt: new Date().toISOString(),
   })
   return slug
@@ -74,7 +70,7 @@ export function migrateToStore(sourcePath: string, kind: 'bundle' | 'file', sour
 /**
  * Undo a migration: remove the link, move the canonical copy back to its
  * origin, and drop the manifest entry. The registry entry is restored so the
- * announcement flag survives the round trip.
+ * skill keeps its identity after the round trip.
  * @returns the path the skill was restored to.
  */
 export function unmigrate(slug: string): string {
@@ -101,7 +97,6 @@ export function unmigrate(slug: string): string {
     path: entry.origin,
     kind: asFile ? 'file' : 'bundle',
     origin: 'native',
-    announce: entry.announce,
     registeredAt: new Date().toISOString(),
   })
   return entry.origin

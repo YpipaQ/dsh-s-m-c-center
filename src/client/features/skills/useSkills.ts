@@ -10,7 +10,6 @@ import type { ScannedSkill, SkillGroup, SkillSummary, StoreStatus } from '../../
 import { api } from '../../shared/useApi.ts'
 import { useAsyncList } from '../../shared/useAsyncList.ts'
 import { errorText, format, normalizeQuery } from '../../shared/format.ts'
-import type { EnabledFilter } from '../../shared/constants.ts'
 import type { SkillsMcpKey, Translate } from '../../shared/locales.ts'
 
 /** Scan/register sub-panel state. */
@@ -46,7 +45,7 @@ export interface UseSkillsResult {
   /** True while any list fetch is in flight, background refetches included. */
   refreshing: boolean
   error: string
-  /** Rows after the query/announce filters. */
+  /** Rows after the name filter. */
   filtered: SkillSummary[]
   /** Filtered rows grouped by level, in display order. */
   groups: Array<{ level: string; label: string; items: SkillSummary[] }>
@@ -59,16 +58,12 @@ export interface UseSkillsResult {
   // toolbar filters
   query: string
   setQuery: (v: string) => void
-  enabledFilter: EnabledFilter
-  setEnabledFilter: (v: EnabledFilter) => void
 
   // row actions
   /** Path currently being mutated (spinner + disable). */
   busyPath: string
   /** Transient action error. */
   message: string
-  /** The per-skill announcement flag (公告 / 隐藏). */
-  toggleAnnounce: (skill: SkillSummary) => void
   /** Create (or confirm) the link for a stored/registered skill. */
   link: (skill: SkillSummary) => void
   /** Remove the link (the canonical copy is never touched). */
@@ -127,7 +122,6 @@ export function useSkills(options: UseSkillsOptions): UseSkillsResult {
   )
 
   const [query, setQuery] = useState('')
-  const [enabledFilter, setEnabledFilter] = useState<EnabledFilter>('all')
   const [busyPath, setBusyPath] = useState('')
   const [message, setMessage] = useState('')
   const [confirmPath, setConfirmPath] = useState<string | null>(null)
@@ -164,10 +158,6 @@ export function useSkills(options: UseSkillsOptions): UseSkillsResult {
       reloadAll()
     }).catch((e) => { setBusyPath(''); setMessage(errorText(e)) })
   }, [reloadAll])
-
-  const toggleAnnounce = useCallback((skill: SkillSummary) => {
-    act(skill, () => api.setSkillAnnounce(skill.group, skill.slug ?? '', !skill.announce))
-  }, [act])
 
   const link = useCallback((skill: SkillSummary) => {
     act(skill, () => api.linkSkill(skill.slug ?? ''))
@@ -288,13 +278,8 @@ export function useSkills(options: UseSkillsOptions): UseSkillsResult {
 
   const filtered = useMemo(() => {
     const q = normalizeQuery(query)
-    return list.items.filter((it) => {
-      if (q !== '' && !it.name.toLowerCase().includes(q)) return false
-      if (enabledFilter === 'enabled' && !it.announce) return false
-      if (enabledFilter === 'disabled' && it.announce) return false
-      return true
-    })
-  }, [list.items, query, enabledFilter])
+    return list.items.filter((it) => q === '' || it.name.toLowerCase().includes(q))
+  }, [list.items, query])
 
   const groups = useMemo(() => {
     return GROUP_ORDER
@@ -323,9 +308,8 @@ export function useSkills(options: UseSkillsOptions): UseSkillsResult {
     userUnmanaged,
     reload: reloadAll,
     query, setQuery,
-    enabledFilter, setEnabledFilter,
     busyPath, message,
-    toggleAnnounce, link, unlink, migrate, unregister,
+    link, unlink, migrate, unregister,
     verify, deleteUntracked, refreshRegistry,
     remove, confirmPath,
     detailPath, detail, view,

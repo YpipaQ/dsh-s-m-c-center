@@ -30,7 +30,7 @@ const INTRO = '本机装有 dsh-s-m-c-center 插件（技能/MCP/CLI 管理器�
 const RULES = [
   '协作规则：',
   '1. 新建用户级技能 → 写到 ~/.dsh/S-M-C/skills/<名>/（含 SKILL.md，frontmatter 需 name+description）。禁写 ~/.dsh/skills、~/.agents/skills 等库外目录。写入后未联接，用户在管理页联接并公告后可用。项目专用技能放当前项目的 .dsh/skills/。',
-  '2. 技能加载：仅用 `skill` 工具加载上方公告中的技能；未列出/已隐藏不可用。',
+  '2. 技能加载：用 `skill` 工具加载技能；上方列出本机全部技能（超过 40 个时只列前 40 个，其余同样可用）。',
   '3. MCP：仅调已连接服务器的 mcp__<server>__<tool>；未连接/归档不可用，需用户激活。',
   '4. CLI：未注册为工具，经终端按名调用；「未找到」先装；未列出（隐藏）勿理会。',
   '5. 技能删除＝物理删除不可恢复，须先获用户确认。',
@@ -46,29 +46,30 @@ function truncatedNote(shown: number, total: number): string {
   return `（仅列出前 ${shown} 个，共 ${total} 个）`
 }
 
-/** Pick the announce-flagged subset, preserving input order. */
-function announcedOnly<T extends { announce: boolean }>(items: T[]): T[] {
-  return items.filter((it) => it.announce)
-}
-
 /** Pick the enabled subset (MCP servers and CLI entries keep that flag). */
 function enabledOnly<T extends { enabled: boolean }>(items: T[]): T[] {
   return items.filter((it) => it.enabled)
 }
 
-/** Render the skills block (names + one-line purpose when present). */
+/**
+ * Render the skills block (names + one-line purpose when present).
+ *
+ * Every skill is listed. There is deliberately no per-skill on/off flag here:
+ * a skill under a `.dsh/skills` root is announced by dsh itself
+ * (`<available_skills>` + the `skill` tool) whether or not this block mentions
+ * it, and a store copy becomes loadable through the context engine's selection,
+ * not through this text — so a switch here would control nothing but the width
+ * of this paragraph.
+ */
 function renderSkills(skills: SkillSummary[]): string {
   if (skills.length === 0) return '技能：无。'
-  const on = announcedOnly(skills)
-  const lines = [`技能：共 ${skills.length} 个，其中公告 ${on.length} 个。`]
-  const detail = on.slice(0, MAX_NAMES).map((s) => {
+  const lines = [`技能：共 ${skills.length} 个。`]
+  const detail = skills.slice(0, MAX_NAMES).map((s) => {
     const desc = s.description.trim()
     return desc === '' ? `- ${s.name}` : `- ${s.name}：${desc}`
   })
-  if (detail.length > 0) lines.push('可用技能：', ...detail)
-  if (on.length > detail.length) lines.push(truncatedNote(detail.length, on.length))
-  const off = skills.length - on.length
-  if (off > 0) lines.push(`另有 ${off} 个已隐藏（未列入公告，无需理会）。`)
+  lines.push('可用技能：', ...detail)
+  if (skills.length > detail.length) lines.push(truncatedNote(detail.length, skills.length))
   return lines.join('\n')
 }
 

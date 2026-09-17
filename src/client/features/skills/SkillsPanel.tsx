@@ -2,8 +2,8 @@
  * Skills tab view — one list, four groups.
  *
  * Every row shows which of the four groups it belongs to (native / stored /
- * registered / the link state as its own flag), carries the per-skill
- * announcement switch, and offers exactly the operations its group allows:
+ * registered / the link state as its own flag) and offers exactly the
+ * operations its group allows:
  *
  * - native:      迁移入库 (canonical copy → store, link back in place) / delete
  * - stored:      联接 / 删除 (the copy stays in the store)
@@ -18,7 +18,7 @@
  * section and never calls the API directly.
  */
 import { useState } from 'react'
-import { Badge, Button, EmptyState, ErrorText, Loading, Switch } from '../../shared/ui.tsx'
+import { Badge, Button, EmptyState, ErrorText, Loading } from '../../shared/ui.tsx'
 import type { UseSkillsResult } from './useSkills.ts'
 import type { UseContextsResult } from './useContexts.ts'
 import { format, sourceLabel } from '../../shared/format.ts'
@@ -57,7 +57,7 @@ export function SkillsPanel({ skills, contexts, t }: SkillsPanelProps) {
   )
 }
 
-/** Search box + announce filter. */
+/** Search box. */
 function Toolbar({ skills, t }: { skills: UseSkillsResult; t: Translate }) {
   return (
     <div className={css.inline}>
@@ -67,15 +67,6 @@ function Toolbar({ skills, t }: { skills: UseSkillsResult; t: Translate }) {
         value={skills.query}
         onChange={(e) => { skills.setQuery(e.target.value) }}
       />
-      <select
-        className={css.filterSelect}
-        value={skills.enabledFilter}
-        onChange={(e) => { skills.setEnabledFilter(e.target.value as typeof skills.enabledFilter) }}
-      >
-        <option value="all">{t('filterAll')}</option>
-        <option value="enabled">{t('filterEnabled')}</option>
-        <option value="disabled">{t('filterDisabled')}</option>
-      </select>
     </div>
   )
 }
@@ -227,8 +218,8 @@ interface SkillRowProps {
 }
 
 /**
- * One row: group badge, source badge, announcement switch, and exactly the
- * operations the row's group allows.
+ * One row: group badge, source badge, and exactly the operations the row's
+ * group allows.
  */
 function SkillRow({ skill, skills, t }: SkillRowProps) {
   const isBusy = skills.busyPath === skill.path
@@ -249,12 +240,6 @@ function SkillRow({ skill, skills, t }: SkillRowProps) {
         </div>
         <Badge>{t(GROUP_KEY[skill.group])}</Badge>
         <Badge>{sourceLabel(skill.source)}</Badge>
-        <Switch
-          checked={skill.announce}
-          disabled={isBusy}
-          onChange={() => { skills.toggleAnnounce(skill) }}
-          label={skill.announce ? t('announceOn') : t('announceOff')}
-        />
         {redFlag
           ? (
             <>

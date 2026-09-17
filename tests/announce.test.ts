@@ -33,9 +33,9 @@ afterEach(() => {
 })
 
 /** A minimal skill row. */
-function skill(name: string, announce = true, description = ''): SkillSummary {
+function skill(name: string, description = ''): SkillSummary {
   return {
-    name, description, whenToUse: '', group: 'native', announce,
+    name, description, whenToUse: '', group: 'native',
     source: 'project-dsh', level: 'project', kind: 'bundle', path: '/x/' + name,
   }
 }
@@ -134,21 +134,25 @@ describe('renderAnnouncement — inventory', () => {
     expect(text).not.toContain('MCP 服务器：未配置。')
   })
 
-  it('lists announced skills with their descriptions', () => {
+  it('lists every skill with its description', () => {
     const text = renderAnnouncement(sources({
-      skills: [skill('commit', true, 'Write a commit message')],
+      skills: [skill('commit', 'Write a commit message')],
     }))
     expect(text).toContain('commit')
     expect(text).toContain('Write a commit message')
   })
 
-  it('counts hidden skills separately', () => {
+  // There is no per-skill on/off flag: a skill under a .dsh/skills root is
+  // announced by dsh itself, and a store copy becomes loadable through the
+  // context selection — so the block lists everything and gates nothing.
+  it('lists all skills rather than counting some as hidden', () => {
     const text = renderAnnouncement(sources({
-      skills: [skill('on'), skill('off', false)],
+      skills: [skill('one'), skill('two')],
     }))
     expect(text).toContain('共 2 个')
-    expect(text).toContain('公告 1 个')
-    expect(text).toContain('1 个已隐藏')
+    expect(text).toContain('- one')
+    expect(text).toContain('- two')
+    expect(text).not.toContain('已隐藏')
   })
 
   it('says so when everything is empty', () => {

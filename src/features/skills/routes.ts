@@ -11,21 +11,13 @@
 import type { WebRoute } from '@deepseek-ai/dsh-host-webserver'
 import { SMC_API } from '../../shared/protocol/index.ts'
 import {
-  badRequest, bodyFlag, bodyText, handle, notFound, ok, queryParam, writeJson,
+  badRequest, bodyText, handle, notFound, ok, queryParam, writeJson,
 } from '../../shared/http.ts'
-import type { SkillGroup, SkillSource } from '../../shared/protocol/index.ts'
+import type { SkillSource } from '../../shared/protocol/index.ts'
 import type { SkillsManager } from './manager.ts'
-
-/** The three group names a client may send for a per-skill flag. */
-const GROUPS = ['native', 'stored', 'registered'] as const
 
 /** The four roots a client may send when adopting a skill. */
 const SOURCES = ['project-dsh', 'project-agents', 'user-dsh', 'user-agents'] as const
-
-/** Narrow an untrusted body field to a known group name. */
-function asGroup(value: string): SkillGroup {
-  return (GROUPS as readonly string[]).includes(value) ? value as SkillGroup : 'native'
-}
 
 /** Narrow an untrusted body field to a known root name. */
 function asSource(value: string): SkillSource {
@@ -86,15 +78,6 @@ export function skillsRoutes(skills: SkillsManager): WebRoute[] {
       if (!slug) { badRequest(res, 'slug required'); return }
       skills.unlinkSkill(slug)
       writeJson(res, 200, ok({ slug, linked: false }))
-    }),
-
-    // The per-skill announcement flag (公告 / 隐藏).
-    handle('POST', SMC_API.skillAnnounce, async (_req, res, body) => {
-      const slug = bodyText(body, 'slug')
-      if (!slug) { badRequest(res, 'slug required'); return }
-      const announce = bodyFlag(body, 'announce')
-      skills.setAnnounce(asGroup(bodyText(body, 'group')), slug, announce)
-      writeJson(res, 200, ok({ slug, announce }))
     }),
 
     handle('POST', SMC_API.skillVerify, async (_req, res, body) => {

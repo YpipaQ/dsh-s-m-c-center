@@ -30,8 +30,6 @@ export interface SkillSummary {
   whenToUse: string
   /** Which of the four groups this row belongs to. */
   group: SkillGroup
-  /** Whether the skill appears in the agent announcement. */
-  announce: boolean
   /** Whether a link to the canonical copy exists under `~/.dsh/skills`. */
   linked: boolean
   /** True for a link on disk that the link ledger has no record of (red flag). */
@@ -79,8 +77,8 @@ export interface ImportItem {
 /**
  * One skill held in the store: the canonical copy lives under
  * `~/.dsh/S-M-C/skills/<slug>/`. `origin` records where it came from so a
- * migration can be undone. Link state lives in the link ledger, visibility
- * in the announcement flag — never in the SKILL.md itself.
+ * migration can be undone. Link state lives in the link ledger — never in the
+ * SKILL.md itself.
  */
 export interface StoreEntry {
   /** Store directory name (unique within the store). */
@@ -92,8 +90,6 @@ export interface StoreEntry {
    * skills dropped straight into the store by an agent (no origin to restore).
    */
   origin: string
-  /** Whether the skill appears in the agent announcement. */
-  announce: boolean
   adoptedAt: string
 }
 
@@ -148,8 +144,6 @@ export interface RegistryEntry {
   kind: 'bundle' | 'file'
   /** `native` for skills found in a scanned root, `external` for imports. */
   origin: 'native' | 'external'
-  /** Whether the skill appears in the agent announcement. */
-  announce: boolean
   registeredAt: string
   /** Last successful existence check (the refresh button's traceability). */
   lastSeen?: string

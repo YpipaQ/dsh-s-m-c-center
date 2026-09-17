@@ -27,8 +27,6 @@ export declare const TABS: readonly ["skills", "mcp", "cli", "guide"];
 export type TabId = (typeof TABS)[number];
 /** Tab captions as locale keys (bilingual through the plugin's dictionary). */
 export declare const TAB_LABELS: Record<TabId, SkillsMcpKey>;
-/** Skill enablement filter options for the list toolbar. */
-export type EnabledFilter = 'all' | 'enabled' | 'disabled';
 /** MCP server runtime status → locale key. */
 export declare const MCP_STATUS_LABEL: Record<string, SkillsMcpKey>;
 /**

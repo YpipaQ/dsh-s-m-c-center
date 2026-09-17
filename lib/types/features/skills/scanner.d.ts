@@ -14,8 +14,8 @@ import type { ScannedSkill, SkillDetail, SkillSummary } from '../../shared/proto
 /**
  * List every skill across the four groups, de-duplicated by path: native
  * roots first, then stored-but-unlinked rows, then registered-but-unlinked
- * rows. Announce flags come from the ledgers; link presence comes from the
- * filesystem cross-checked against the link ledger.
+ * rows. Link presence comes from the filesystem cross-checked against the
+ * link ledger.
  */
 export declare function listSkills(cwd?: string): SkillSummary[];
 /**

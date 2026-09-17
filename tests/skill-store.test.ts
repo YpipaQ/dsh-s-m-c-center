@@ -241,17 +241,6 @@ describe('the four groups (operations)', () => {
     expect(skills.readLinks().links.some((l) => l.slug === 'alpha')).toBe(false)
   })
 
-  it('setAnnounce flips the flag in whichever ledger holds the skill', () => {
-    const skills = new SkillsManager()
-    bundle(userSkills(), 'alpha', 'alpha')
-    skills.migrate()
-    expect(skills.listSkills().find((s) => s.slug === 'alpha')?.announce).toBe(true)
-
-    skills.setAnnounce('stored', 'alpha', false)
-    expect(skills.readStoreIndex().entries.find((e) => e.slug === 'alpha')?.announce).toBe(false)
-    expect(skills.listSkills().find((s) => s.slug === 'alpha')?.announce).toBe(false)
-  })
-
   it('registered external skills keep their copy in place and link on demand', () => {
     const skills = new SkillsManager()
     const outside = bundle(join(home, 'incoming'), 'gamma', 'gamma')
@@ -389,7 +378,6 @@ describe('agent-dropped bundles', () => {
     const found = skills.listSkills().find((s) => s.slug === 'agent-made')
     expect(found).toBeDefined()
     expect(found?.group).toBe('stored')
-    expect(found?.announce).toBe(false)
     expect(found?.level).toBe('user')
     expect(found?.path).toBe(join(store(), 'agent-made', 'SKILL.md'))
     // Adopted into the manifest on sight.

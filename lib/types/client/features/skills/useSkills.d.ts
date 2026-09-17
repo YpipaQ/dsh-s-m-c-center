@@ -1,5 +1,4 @@
 import type { ScannedSkill, SkillSummary, StoreStatus } from '../../../shared/protocol/index.ts';
-import type { EnabledFilter } from '../../shared/constants.ts';
 import type { Translate } from '../../shared/locales.ts';
 /** Scan/register sub-panel state. */
 export interface ScanState {
@@ -32,7 +31,7 @@ export interface UseSkillsResult {
     /** True while any list fetch is in flight, background refetches included. */
     refreshing: boolean;
     error: string;
-    /** Rows after the query/announce filters. */
+    /** Rows after the name filter. */
     filtered: SkillSummary[];
     /** Filtered rows grouped by level, in display order. */
     groups: Array<{
@@ -47,14 +46,10 @@ export interface UseSkillsResult {
     reload: () => void;
     query: string;
     setQuery: (v: string) => void;
-    enabledFilter: EnabledFilter;
-    setEnabledFilter: (v: EnabledFilter) => void;
     /** Path currently being mutated (spinner + disable). */
     busyPath: string;
     /** Transient action error. */
     message: string;
-    /** The per-skill announcement flag (公告 / 隐藏). */
-    toggleAnnounce: (skill: SkillSummary) => void;
     /** Create (or confirm) the link for a stored/registered skill. */
     link: (skill: SkillSummary) => void;
     /** Remove the link (the canonical copy is never touched). */

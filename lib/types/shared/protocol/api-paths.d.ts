@@ -34,8 +34,6 @@ export declare const SMC_API: {
     readonly skillLink: "/api/dsh-s-m-c-center/skills/link";
     /** Remove the link for one skill (the canonical copy is never touched). */
     readonly skillUnlink: "/api/dsh-s-m-c-center/skills/unlink";
-    /** The per-skill announcement flag (公告 / 隐藏). */
-    readonly skillAnnounce: "/api/dsh-s-m-c-center/skills/announce";
     /** Verify one link (resolves? target alive? tracked?). */
     readonly skillVerify: "/api/dsh-s-m-c-center/skills/verify";
     /** Delete an untracked link (one the ledger has no record of). */

@@ -1,13 +1,12 @@
 /**
- * Registry operations: importing external skills, dropping them, the
- * traceability pass, and the per-skill announcement flag.
+ * Registry operations: importing external skills, dropping them, and the
+ * traceability pass.
  *
  * The registry is the ledger for skills that stay where they are, so these are
  * the flows that do *not* move anything — importing records a path, and the
  * refresh pass only checks whether that path is still there.
  * @module
  */
-import type { SkillGroup } from '../../shared/protocol/index.ts';
 /**
  * Register external skills: the canonical copy stays where it is, only a
  * record goes into `skills-registry.json`. This is the flow for "skills in
@@ -35,8 +34,6 @@ export declare function refreshRegistry(): Array<{
     name: string;
     exists: boolean;
 }>;
-/** The announcement flag for one skill, from whichever ledger holds it. */
-export declare function setAnnounce(group: SkillGroup, slug: string, announce: boolean): void;
 /**
  * The registry entry a given skill path belongs to, for the delete flow.
  *

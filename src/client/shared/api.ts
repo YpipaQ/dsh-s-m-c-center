@@ -11,7 +11,7 @@ import { SMC_API } from '../../shared/protocol/index.ts'
 import type {
   CliRegistryEntry, CliStateDetail, CliSubcommands, CliSummary,
   ImportItem, ManagerSettings, McpServerConfig, McpServerSummary,
-  ScannedSkill, SkillDetail, SkillGroup, SkillSummary, StoreOperation,
+  ScannedSkill, SkillDetail, SkillSummary, StoreOperation,
   StoreStatus, VerifyResult,
 } from '../../shared/protocol/index.ts'
 
@@ -91,11 +91,6 @@ export class SkillsMcpApi {
   /** Remove the link (the canonical copy is never touched). */
   async unlinkSkill(slug: string): Promise<void> {
     await call('POST', SMC_API.skillUnlink, { slug })
-  }
-
-  /** The per-skill announcement flag (公告 / 隐藏). */
-  async setSkillAnnounce(group: SkillGroup, slug: string, announce: boolean): Promise<void> {
-    await call('POST', SMC_API.skillAnnounce, { group, slug, announce })
   }
 
   /** Verify one link (resolves? target alive? tracked?). */
