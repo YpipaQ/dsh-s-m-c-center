@@ -15,10 +15,14 @@
  *    record is reported as untracked (red flag) instead of silently adopted.
  *
  * Every registration runs the same safety flow: walk the candidate directory
- * level by level until a SKILL.md shows up, require a parseable frontmatter
- * (name + description), and only then write the record. SKILL.md files are
- * never rewritten — visibility is decided by link presence, and the per-skill
- * announcement flag lives in the JSON ledgers, not in the file.
+ * level by level until an admission document shows up, and only then write
+ * the record. A directory is admitted when it holds SKILL.md or
+ * DESCRIPTION.md — either one is enough. SKILL.md keeps the strict
+ * frontmatter requirement (name + description); a DESCRIPTION.md-only skill
+ * takes its name from the directory and its description from the document
+ * body. Skill documents are never rewritten — visibility is decided by link
+ * presence, and the per-skill announcement flag lives in the JSON ledgers,
+ * not in the file.
  * @module
  */
 import type { SkillRegistration } from '@deepseek-ai/dsh-skill';
@@ -130,8 +134,9 @@ export declare class SkillsManager {
     /** Remove the link for a skill (the canonical copy is never touched). */
     unlinkSkill(slug: string): void;
     /**
-     * Verify a link: does it still resolve, and does the target still hold a
-     * parseable SKILL.md? Used by the UI for red-flagged (untracked) links.
+     * Verify a link: does it still resolve, and does the target still hold an
+     * admission document (SKILL.md or DESCRIPTION.md)? Used by the UI for
+     * red-flagged (untracked) links.
      */
     verifyLink(slugOrPath: string): VerifyResult;
     /** Delete an untracked link (the ledger has no record of it). */
@@ -162,7 +167,7 @@ export declare class SkillsManager {
     }>;
     /** The announcement flag for one skill, from whichever ledger holds it. */
     setAnnounce(group: SkillGroup, slug: string, announce: boolean): void;
-    /** Parse one SKILL.md (bundle) safely; undefined when it is not a skill. */
+    /** Parse one bundle safely (SKILL.md or DESCRIPTION.md); undefined when it is not a skill. */
     private parseBundleDir;
     /** Parse one flat `.md` file safely; undefined when it is not a skill. */
     private parseFlatFile;
@@ -184,12 +189,17 @@ export declare class SkillsManager {
      * filesystem cross-checked against the link ledger.
      */
     listSkills(cwd?: string): SkillSummary[];
-    /** Read one skill document (body included). */
+    /**
+     * Read one skill document (body included). Strict frontmatter first; a
+     * DESCRIPTION.md-style document falls back to the lenient parse (name from
+     * its directory, description from its body).
+     */
     readSkill(path: string): SkillDetail | null;
     /**
      * Resolve a slug to a runtime `SkillRegistration` for the context engine:
      * looks in the store first, then the external registry, and reads the
-     * SKILL.md body verbatim (no frontmatter rewriting, ever).
+     * admission document (SKILL.md or DESCRIPTION.md) body verbatim (no
+     * frontmatter rewriting, ever).
      * @returns undefined when the slug is unknown or its copy is gone.
      */
     resolveRegistration(slug: string): SkillRegistration | undefined;

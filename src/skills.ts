@@ -15,10 +15,14 @@
  *    record is reported as untracked (red flag) instead of silently adopted.
  *
  * Every registration runs the same safety flow: walk the candidate directory
- * level by level until a SKILL.md shows up, require a parseable frontmatter
- * (name + description), and only then write the record. SKILL.md files are
- * never rewritten — visibility is decided by link presence, and the per-skill
- * announcement flag lives in the JSON ledgers, not in the file.
+ * level by level until an admission document shows up, and only then write
+ * the record. A directory is admitted when it holds SKILL.md or
+ * DESCRIPTION.md — either one is enough. SKILL.md keeps the strict
+ * frontmatter requirement (name + description); a DESCRIPTION.md-only skill
+ * takes its name from the directory and its description from the document
+ * body. Skill documents are never rewritten — visibility is decided by link
+ * presence, and the per-skill announcement flag lives in the JSON ledgers,
+ * not in the file.
  * @module
  */
 
@@ -218,6 +222,73 @@ function parseSkillFile(raw: string): ParsedSkill | null {
   }
 }
 
+/** The two documents that admit a directory as a skill, in priority order. */
+const ADMISSION_DOCS = ['SKILL.md', 'DESCRIPTION.md'] as const
+
+/**
+ * The first admission document present in `dir`, or undefined.
+ * SKILL.md wins when both exist; DESCRIPTION.md alone is enough.
+ */
+function admissionDoc(dir: string): string | undefined {
+  for (const doc of ADMISSION_DOCS) {
+    const p = join(dir, doc)
+    if (existsSync(p)) return p
+  }
+  return undefined
+}
+
+/** First non-empty line of a markdown body, truncated for a description cell. */
+function bodySummary(body: string): string {
+  const line = body.split(/\r?\n/).find((l) => l.trim() !== '') ?? ''
+  const trimmed = line.replace(/^#+\s*/, '').trim()
+  return trimmed.length > 160 ? trimmed.slice(0, 157) + '…' : trimmed
+}
+
+/**
+ * Lenient parse for DESCRIPTION.md-style documents: frontmatter keys win when
+ * present, the directory (or file) name stands in for a missing name, and a
+ * missing description falls back to the first line of the body. Never returns
+ * null — the existence of the document is the admission rule.
+ */
+function parseDescriptionFile(raw: string, fallbackName: string): ParsedSkill {
+  const front = parseFrontmatter(raw)
+  const body = front === null ? raw.trim() : front.body.trim()
+  return {
+    name: (front === null ? '' : textField(front.data, 'name')) || fallbackName,
+    description: (front === null ? '' : textField(front.data, 'description')) || bodySummary(body),
+    whenToUse: front === null ? '' : textField(front.data, 'whenToUse'),
+    content: body,
+  }
+}
+
+/** Strict parse of one flat skill document; null when it is not a skill. */
+function parseFlatDoc(path: string): ParsedSkill | null {
+  try { return parseSkillFile(readFileSync(path, 'utf8')) } catch { return null }
+}
+
+interface ParsedBundle { parsed: ParsedSkill; doc: string }
+
+/**
+ * Parse the bundle at `dir`: SKILL.md first (strict frontmatter), falling
+ * back to DESCRIPTION.md (lenient) when SKILL.md is missing or unparsable.
+ * @returns the parsed skill plus the document that admitted it, or undefined
+ *   when the directory holds neither document in a usable form.
+ */
+function parseBundleDocs(dir: string): ParsedBundle | undefined {
+  const skillPath = join(dir, 'SKILL.md')
+  if (existsSync(skillPath)) {
+    try {
+      const parsed = parseSkillFile(readFileSync(skillPath, 'utf8'))
+      if (parsed !== null) return { parsed, doc: skillPath }
+    } catch { /* fall through to DESCRIPTION.md */ }
+  }
+  const descPath = join(dir, 'DESCRIPTION.md')
+  if (!existsSync(descPath)) return undefined
+  try {
+    return { parsed: parseDescriptionFile(readFileSync(descPath, 'utf8'), basename(dir)), doc: descPath }
+  } catch { return undefined }
+}
+
 /** Filesystem-safe store directory name for a skill. */
 function slugify(input: string): string {
   const s = input.trim().toLowerCase()
@@ -314,11 +385,8 @@ export class SkillsManager {
     try { names = readdirSync(dir) } catch { return { version: 1, entries } }
     for (const slug of names) {
       if (slug.startsWith('.')) continue
-      const mdPath = join(dir, slug, 'SKILL.md')
-      if (!existsSync(mdPath)) continue
-      let parsed: ParsedSkill | null = null
-      try { parsed = parseSkillFile(readFileSync(mdPath, 'utf8')) } catch { continue }
-      if (parsed === null) continue
+      const parsed = parseBundleDocs(join(dir, slug))?.parsed
+      if (parsed === undefined) continue
       entries.push({
         slug,
         name: parsed.name,
@@ -544,9 +612,10 @@ export class SkillsManager {
   migrateToStore(sourcePath: string, kind: 'bundle' | 'file', source: SkillSource): string {
     const store = this.storeDir()
     mkdirSync(store, { recursive: true })
-    const mdPath = kind === 'bundle' ? join(sourcePath, 'SKILL.md') : sourcePath
-    const parsed = parseSkillFile(readFileSync(mdPath, 'utf8'))
-    if (parsed === null) throw new Error('不是有效的技能文件：' + mdPath)
+    const parsed = kind === 'bundle'
+      ? parseBundleDocs(sourcePath)?.parsed ?? null
+      : parseSkillFile(readFileSync(sourcePath, 'utf8'))
+    if (parsed === null) throw new Error('不是有效的技能文件：' + sourcePath)
     const taken = new Set<string>(readdirSync(store).filter((n) => !n.startsWith('.')))
     const slug = uniqueSlug(taken, slugify(parsed.name || basename(sourcePath, extname(sourcePath))))
     const dest = join(store, slug)
@@ -639,8 +708,9 @@ export class SkillsManager {
   }
 
   /**
-   * Verify a link: does it still resolve, and does the target still hold a
-   * parseable SKILL.md? Used by the UI for red-flagged (untracked) links.
+   * Verify a link: does it still resolve, and does the target still hold an
+   * admission document (SKILL.md or DESCRIPTION.md)? Used by the UI for
+   * red-flagged (untracked) links.
    */
   verifyLink(slugOrPath: string): VerifyResult {
     const link = existsSync(slugOrPath) && isLink(slugOrPath)
@@ -651,8 +721,8 @@ export class SkillsManager {
     if (target === undefined) return { ok: false, reason: '联接目标不可读：' + link }
     const resolved = resolve(dirname(link), target)
     if (!existsSync(resolved)) return { ok: false, reason: '联接目标已不存在：' + resolved }
-    const mdPath = statSync(resolved).isDirectory() ? join(resolved, 'SKILL.md') : resolved
-    if (!existsSync(mdPath)) return { ok: false, reason: '联接目标里没有 SKILL.md：' + resolved }
+    const mdPath = statSync(resolved).isDirectory() ? admissionDoc(resolved) : resolved
+    if (mdPath === undefined) return { ok: false, reason: '联接目标里没有 SKILL.md 或 DESCRIPTION.md：' + resolved }
     const tracked = this.linkRecordOf(link) !== undefined
     const stored = inside(this.storeDir(), resolved)
     return { ok: true, tracked, stored, target: resolved, mdPath }
@@ -679,9 +749,10 @@ export class SkillsManager {
     const results: Array<{ name: string; ok: boolean; reason?: string }> = []
     for (const it of items) {
       try {
-        const mdPath = it.kind === 'bundle' ? join(it.sourcePath, 'SKILL.md') : it.sourcePath
-        const parsed = parseSkillFile(readFileSync(mdPath, 'utf8'))
-        if (parsed === null) throw new Error('不是有效的技能文件：' + mdPath)
+        const parsed = it.kind === 'bundle'
+          ? parseBundleDocs(it.sourcePath)?.parsed ?? null
+          : parseSkillFile(readFileSync(it.sourcePath, 'utf8'))
+        if (parsed === null) throw new Error('不是有效的技能文件：' + it.sourcePath)
         const taken = new Set<string>([
           ...this.readRegistry().entries.map((e) => e.slug),
           ...this.readStoreIndex().entries.map((e) => e.slug),
@@ -742,16 +813,14 @@ export class SkillsManager {
 
   // ── scanning / listing ───────────────────────────────────────────────────
 
-  /** Parse one SKILL.md (bundle) safely; undefined when it is not a skill. */
+  /** Parse one bundle safely (SKILL.md or DESCRIPTION.md); undefined when it is not a skill. */
   private parseBundleDir(full: string): ParsedSkill | undefined {
-    const mdPath = join(full, 'SKILL.md')
-    if (!existsSync(mdPath)) return undefined
-    try { return parseSkillFile(readFileSync(mdPath, 'utf8')) ?? undefined } catch { return undefined }
+    return parseBundleDocs(full)?.parsed
   }
 
   /** Parse one flat `.md` file safely; undefined when it is not a skill. */
   private parseFlatFile(full: string): ParsedSkill | undefined {
-    try { return parseSkillFile(readFileSync(full, 'utf8')) ?? undefined } catch { return undefined }
+    return parseFlatDoc(full) ?? undefined
   }
 
   /**
@@ -778,11 +847,20 @@ export class SkillsManager {
         seen.add(full)
         const target = linkTarget(full)
         const resolved = target === undefined ? undefined : resolve(dir, target)
-        const tracked = this.linkRecordOf(full)
-        const parsed = resolved !== undefined && existsSync(resolved)
-          ? (statSync(resolved).isDirectory() ? this.parseBundleDir(resolved) : this.parseFlatFile(resolved))
-          : undefined
         if (resolved === undefined) continue
+        const tracked = this.linkRecordOf(full)
+        let parsed: ParsedSkill | undefined
+        let doc: string | undefined
+        if (existsSync(resolved)) {
+          const info = statSync(resolved)
+          if (info.isDirectory()) {
+            const found = parseBundleDocs(resolved)
+            if (found !== undefined) { parsed = found.parsed; doc = found.doc }
+          } else if (info.isFile()) {
+            parsed = this.parseFlatFile(resolved)
+            doc = resolved
+          }
+        }
         const stored = inside(store, resolved)
         const slug = stored ? basename(resolved) : (tracked?.slug ?? this.registryEntryOfByPath(resolved)?.slug ?? slugify(name))
         items.push({
@@ -798,14 +876,17 @@ export class SkillsManager {
           source,
           level: levelOf(source),
           kind: 'bundle',
-          path: stored ? join(store, slug, 'SKILL.md') : resolved,
+          path: stored ? (doc ?? join(store, slug, 'SKILL.md')) : resolved,
           slug,
         })
         continue
       }
 
       // Real file/directory: a native skill (or something that is not one).
-      const parsed = kind === 'directory' ? this.parseBundleDir(full) : (name.endsWith('.md') ? this.parseFlatFile(full) : undefined)
+      const found = kind === 'directory' ? parseBundleDocs(full) : undefined
+      const parsed = found !== undefined
+        ? found.parsed
+        : (kind === 'file' && name.endsWith('.md') && name !== 'DESCRIPTION.md' ? this.parseFlatFile(full) : undefined)
       if (parsed === undefined) continue
       if (seen.has(full)) continue
       seen.add(full)
@@ -834,7 +915,7 @@ export class SkillsManager {
         source,
         level: levelOf(source),
         kind: kind === 'directory' ? 'bundle' : 'file',
-        path: kind === 'directory' ? join(full, 'SKILL.md') : full,
+        path: kind === 'directory' ? (found?.doc ?? join(full, 'SKILL.md')) : full,
         slug,
       })
     }
@@ -884,24 +965,22 @@ export class SkillsManager {
     const linkedSlugs = new Set(items.filter((i) => i.group === 'stored').map((i) => i.slug))
     for (const entry of this.readStoreIndex().entries) {
       if (linkedSlugs.has(entry.slug)) continue
-      const mdPath = join(store, entry.slug, 'SKILL.md')
-      if (seen.has(mdPath)) continue
+      const found = parseBundleDocs(join(store, entry.slug))
+      if (found === undefined) continue
+      if (seen.has(found.doc)) continue
       if (this.linkedPath(entry.slug) !== undefined) continue
-      let parsed: ParsedSkill | null = null
-      try { parsed = parseSkillFile(readFileSync(mdPath, 'utf8')) } catch { continue }
-      if (parsed === null) continue
-      seen.add(mdPath)
+      seen.add(found.doc)
       items.push({
-        name: parsed.name,
-        description: parsed.description,
-        whenToUse: parsed.whenToUse,
+        name: found.parsed.name,
+        description: found.parsed.description,
+        whenToUse: found.parsed.whenToUse,
         group: 'stored',
         announce: entry.announce,
         linked: false,
         source: 'user-dsh',
         level: 'user',
         kind: 'bundle',
-        path: mdPath,
+        path: found.doc,
         slug: entry.slug,
       })
     }
@@ -912,30 +991,28 @@ export class SkillsManager {
     try { stored = readdirSync(store) } catch { /* store not created yet */ }
     for (const slug of stored) {
       if (slug.startsWith('.') || knownSlugs.has(slug)) continue
-      const mdPath = join(store, slug, 'SKILL.md')
-      if (!existsSync(mdPath)) continue
-      const parsed = this.parseBundleDir(join(store, slug))
-      if (parsed === undefined) continue
+      const found = parseBundleDocs(join(store, slug))
+      if (found === undefined) continue
       this.upsertEntry({
         slug,
-        name: parsed.name,
+        name: found.parsed.name,
         origin: '',
         announce: false,
         adoptedAt: new Date().toISOString(),
       })
-      if (seen.has(mdPath)) continue
-      seen.add(mdPath)
+      if (seen.has(found.doc)) continue
+      seen.add(found.doc)
       items.push({
-        name: parsed.name,
-        description: parsed.description,
-        whenToUse: parsed.whenToUse,
+        name: found.parsed.name,
+        description: found.parsed.description,
+        whenToUse: found.parsed.whenToUse,
         group: 'stored',
         announce: false,
         linked: false,
         source: 'user-dsh',
         level: 'user',
         kind: 'bundle',
-        path: mdPath,
+        path: found.doc,
         slug,
       })
     }
@@ -944,7 +1021,9 @@ export class SkillsManager {
     for (const entry of this.readRegistry().entries) {
       if (entry.origin !== 'external' || regLinked.has(entry.slug)) continue
       if (this.linkedPath(entry.slug) !== undefined) continue
-      const mdPath = entry.kind === 'bundle' ? join(entry.path, 'SKILL.md') : entry.path
+      const mdPath = entry.kind === 'bundle'
+        ? (admissionDoc(entry.path) ?? join(entry.path, 'SKILL.md'))
+        : entry.path
       if (seen.has(mdPath)) continue
       seen.add(mdPath)
       items.push({
@@ -973,33 +1052,37 @@ export class SkillsManager {
     return items
   }
 
-  /** Read one skill document (body included). */
+  /**
+   * Read one skill document (body included). Strict frontmatter first; a
+   * DESCRIPTION.md-style document falls back to the lenient parse (name from
+   * its directory, description from its body).
+   */
   readSkill(path: string): SkillDetail | null {
     if (!existsSync(path)) return null
     const raw = readFileSync(path, 'utf8')
-    const parsed = parseSkillFile(raw)
-    if (parsed === null) return null
+    const parsed = parseSkillFile(raw) ?? parseDescriptionFile(raw, basename(dirname(path)))
     return { ...parsed, path }
   }
 
   /**
    * Resolve a slug to a runtime `SkillRegistration` for the context engine:
    * looks in the store first, then the external registry, and reads the
-   * SKILL.md body verbatim (no frontmatter rewriting, ever).
+   * admission document (SKILL.md or DESCRIPTION.md) body verbatim (no
+   * frontmatter rewriting, ever).
    * @returns undefined when the slug is unknown or its copy is gone.
    */
   resolveRegistration(slug: string): SkillRegistration | undefined {
     const stored = this.entryOf(slug)
-    const candidates: string[] = []
-    if (stored !== undefined) candidates.push(join(this.storeDir(), slug, 'SKILL.md'))
+    const candidates: Array<{ path: string; bundle: boolean }> = []
+    if (stored !== undefined) candidates.push({ path: join(this.storeDir(), slug), bundle: true })
     const registered = this.registryEntryOf(slug)
     if (registered !== undefined) {
-      candidates.push(registered.kind === 'bundle' ? join(registered.path, 'SKILL.md') : registered.path)
+      candidates.push({ path: registered.path, bundle: registered.kind === 'bundle' })
     }
-    for (const mdPath of candidates) {
-      if (!existsSync(mdPath)) continue
-      let parsed: ParsedSkill | null = null
-      try { parsed = parseSkillFile(readFileSync(mdPath, 'utf8')) } catch { continue }
+    for (const candidate of candidates) {
+      const parsed = candidate.bundle
+        ? parseBundleDocs(candidate.path)?.parsed ?? null
+        : (existsSync(candidate.path) ? parseFlatDoc(candidate.path) : null)
       if (parsed === null) continue
       return {
         name: parsed.name,
@@ -1103,7 +1186,7 @@ export class SkillsManager {
         const kind = entryKind(full, entry)
         const parsed = kind === 'directory'
           ? this.parseBundleDir(full)
-          : (kind === 'file' && name.endsWith('.md') ? this.parseFlatFile(full) : undefined)
+          : (kind === 'file' && name.endsWith('.md') && name !== 'DESCRIPTION.md' ? this.parseFlatFile(full) : undefined)
         if (parsed === undefined) continue
         try {
           this.migrateToStore(
@@ -1186,7 +1269,7 @@ export class SkillsManager {
     try {
       for (const slug of readdirSync(dir)) {
         if (slug.startsWith('.') || knownSlugs.has(slug)) continue
-        if (existsSync(join(dir, slug, 'SKILL.md'))) extra++
+        if (admissionDoc(join(dir, slug)) !== undefined) extra++
       }
     } catch { /* store not created yet */ }
     const untracked = this.readLinks().links.filter((l) => !isLink(l.linkPath)).length
@@ -1238,7 +1321,7 @@ export class SkillsManager {
             continue
           }
           if (depth < SCAN_DEPTH) walk(full, depth + 1)
-        } else if (kind === 'file' && name.endsWith('.md') && name !== 'SKILL.md') {
+        } else if (kind === 'file' && name.endsWith('.md') && name !== 'SKILL.md' && name !== 'DESCRIPTION.md') {
           const parsed = this.parseFlatFile(full)
           if (parsed !== undefined) {
             seen.add(full)

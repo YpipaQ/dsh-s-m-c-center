@@ -37,9 +37,9 @@ export interface SkillSummary {
     /** The root it lives under, which also decides its level. */
     source: SkillSource;
     level: SkillLevel;
-    /** A directory holding SKILL.md, or a single flat `.md` file. */
+    /** A directory holding SKILL.md or DESCRIPTION.md, or a single flat `.md` file. */
     kind: 'bundle' | 'file';
-    /** Absolute path of the SKILL.md (bundle) or of the `.md` file. */
+    /** Absolute path of the admission document (SKILL.md / DESCRIPTION.md) or of the `.md` file. */
     path: string;
     /** Store / registry slug; present for stored and registered rows. */
     slug?: string;
