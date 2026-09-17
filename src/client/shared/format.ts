@@ -3,15 +3,6 @@
  * everything here is a plain function so it can be unit-tested in isolation.
  */
 
-/** Human label for a skill source id (the host reports stable ids, not paths). */
-export function sourceLabel(source: string): string {
-  if (source === 'project-dsh') return '.dsh/skills'
-  if (source === 'project-agents') return '.agents/skills'
-  if (source === 'user-dsh') return '~/.dsh/skills'
-  if (source === 'user-agents') return '~/.agents/skills'
-  return source
-}
-
 /** Parse `KEY=VALUE` lines into an object (blank/malformed lines are dropped). */
 export function parseKv(text: string): Record<string, string> {
   const obj: Record<string, string> = {}

@@ -104,8 +104,13 @@ export class SkillsMcpApi {
     await call('POST', SMC_API.skillDeleteLink, { path })
   }
 
-  async deleteSkill(path: string, kind: 'bundle' | 'file'): Promise<void> {
-    await call('POST', SMC_API.skillDelete, { path, kind })
+  /**
+   * Delete one **stored** skill by slug. Only the store's canonical copies are
+   * addressable this way — a native or registered skill is the user's (or
+   * another tool's) file and is never removed by this plugin.
+   */
+  async deleteSkill(slug: string): Promise<void> {
+    await call('POST', SMC_API.skillDelete, { slug })
   }
 
   async scanSkills(dir: string): Promise<ScannedSkill[]> {

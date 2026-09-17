@@ -13,6 +13,27 @@ export interface ButtonProps {
 }
 /** A single styled button; `type=button` so it never submits a form. */
 export declare function Button({ children, onClick, disabled, variant, title }: ButtonProps): import("react").JSX.Element;
+export interface ConfirmButtonProps {
+    /** Label while idle (e.g. 删除). */
+    label: string;
+    /** Label once armed (e.g. 再次点击确认删除). */
+    confirmLabel: string;
+    onConfirm: () => void;
+    disabled?: boolean;
+    variant?: ButtonVariant;
+}
+/**
+ * A destructive button that needs two clicks, and forgets the first one as
+ * soon as the pointer goes anywhere else.
+ *
+ * The arming state lives here rather than in the panel hooks: three panels need
+ * it and each had grown its own copy, which also meant an armed button stayed
+ * armed until it was clicked again — leaving a red "click again to confirm" on
+ * screen while the user went off and did something else entirely. Clicking
+ * anywhere but this button now disarms it, so the row always falls back to its
+ * ordinary label.
+ */
+export declare function ConfirmButton({ label, confirmLabel, onConfirm, disabled, variant, }: ConfirmButtonProps): import("react").JSX.Element;
 export interface FieldProps {
     /** Field caption (may include the key name in both languages). */
     label: string;

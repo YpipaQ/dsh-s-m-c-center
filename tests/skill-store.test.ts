@@ -322,7 +322,7 @@ describe('deleting', () => {
     bundle(userSkills(), 'beta', 'beta')
     skills.migrate()
 
-    skills.deleteSkill(join(userSkills(), 'alpha', 'SKILL.md'), 'bundle')
+    skills.deleteStored('alpha')
     expect(existsSync(join(userSkills(), 'alpha'))).toBe(false)
     expect(existsSync(join(store(), 'alpha'))).toBe(false)
     expect(skills.readStoreIndex().entries.map((e) => e.slug)).toEqual(['beta'])
@@ -330,24 +330,63 @@ describe('deleting', () => {
     expect(existsSync(join(store(), 'beta', 'SKILL.md'))).toBe(true)
   })
 
-  it('deletes an unlinked stored skill through its store path', () => {
+  it('deletes an unlinked stored skill', () => {
     const skills = new SkillsManager()
     bundle(userSkills(), 'alpha', 'alpha')
     skills.migrate()
     skills.unlinkSkill('alpha')
 
-    skills.deleteSkill(join(store(), 'alpha', 'SKILL.md'), 'bundle')
+    expect(skills.deleteStored('alpha')).toBe(join(store(), 'alpha'))
     expect(existsSync(join(store(), 'alpha'))).toBe(false)
     expect(skills.readStoreIndex().entries).toEqual([])
   })
 
-  it('deleting a registered skill leaves the external copy alone', () => {
+  it('refuses to delete anything that is not a stored skill', () => {
     const skills = new SkillsManager()
+    const alpha = bundle(userSkills(), 'alpha', 'alpha')
     const outside = bundle(join(home, 'incoming'), 'gamma', 'gamma')
     skills.registerExternal([{ sourcePath: outside, kind: 'bundle' }])
-    skills.deleteSkill(join(outside, 'SKILL.md'), 'bundle')
+
+    // A native skill is the user's own file and a registered one lives in
+    // someone else's directory: neither is the copy this plugin owns.
+    expect(() => skills.deleteStored('alpha')).toThrow(/储存库/)
+    expect(existsSync(join(alpha, 'SKILL.md'))).toBe(true)
+    expect(() => skills.deleteStored('gamma')).toThrow(/储存库/)
     expect(existsSync(join(outside, 'SKILL.md'))).toBe(true)
-    expect(skills.readRegistry().entries.some((e) => e.slug === 'gamma')).toBe(false)
+    expect(skills.readRegistry().entries.some((e) => e.slug === 'gamma')).toBe(true)
+  })
+
+  it('refuses a slug that is not a bare name, and a directory that is not a skill', () => {
+    const skills = new SkillsManager()
+    expect(() => skills.deleteStored('')).toThrow(/不是有效的技能标识/)
+    expect(() => skills.deleteStored('../outside')).toThrow(/不是有效的技能标识/)
+    expect(() => skills.deleteStored('a/b')).toThrow(/不是有效的技能标识/)
+
+    // A leftover directory in the store is not a skill, and must not be
+    // removable through this door either.
+    mkdirSync(join(store(), 'leftovers'), { recursive: true })
+    writeFileSync(join(store(), 'leftovers', 'notes.txt'), 'not a skill', 'utf8')
+    expect(() => skills.deleteStored('leftovers')).toThrow(/只能删除储存库/)
+    expect(existsSync(join(store(), 'leftovers', 'notes.txt'))).toBe(true)
+  })
+})
+
+describe('admission', () => {
+  it('migrates a DESCRIPTION.md-only bundle from the row path', () => {
+    const skills = new SkillsManager()
+    const dir = join(userSkills(), 'apple')
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(join(dir, 'DESCRIPTION.md'), '# Apple\n\nApple skills for macOS.\n', 'utf8')
+
+    // The panel sends the row's path, which is the *document* — not the
+    // directory. Stripping only `SKILL.md` (what this used to do) left the file
+    // path intact and made every migration of one of these fail.
+    const slug = skills.migrateToStore(join(dir, 'DESCRIPTION.md'), 'bundle', 'user-dsh')
+    expect(slug).toBe('apple')
+    expect(existsSync(join(store(), 'apple', 'DESCRIPTION.md'))).toBe(true)
+    const entry = skills.readStoreIndex().entries.find((e) => e.slug === 'apple')
+    // An unmigrate needs the directory, not the document.
+    expect(entry?.origin).toBe(dir)
   })
 })
 

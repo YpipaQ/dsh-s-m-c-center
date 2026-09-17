@@ -9,7 +9,7 @@
  * test both live in the hook, so this file stays declarative.
  */
 import { useState } from 'react'
-import { Badge, Button, EmptyState, ErrorText, Field, Loading, Switch } from '../../shared/ui.tsx'
+import { Badge, Button, ConfirmButton, EmptyState, ErrorText, Field, Loading, Switch } from '../../shared/ui.tsx'
 import type { UseMcpResult } from './useMcp.ts'
 import { MCP_STATUS_LABEL, mcpActiveLabel } from '../../shared/constants.ts'
 import type { Translate } from '../../shared/locales.ts'
@@ -85,9 +85,12 @@ export function McpPanel({ mcp, t }: McpPanelProps) {
                           onChange={() => { mcp.toggle(s) }}
                           label={t(mcpActiveLabel(s.enabled))}
                         />
-                        <Button variant="danger" onClick={() => { mcp.remove(s) }}>
-                          {mcp.confirmName === s.name ? t('confirmDelete') : t('delete')}
-                        </Button>
+                        <ConfirmButton
+                          variant="danger"
+                          label={t('delete')}
+                          confirmLabel={t('confirmDelete')}
+                          onConfirm={() => { mcp.remove(s) }}
+                        />
                       </div>
                     )
                   })}

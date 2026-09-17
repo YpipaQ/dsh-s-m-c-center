@@ -14,7 +14,7 @@
 import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs'
 import { basename, dirname, extname, join } from 'node:path'
 import {
-  parseBundleDocs, parseSkillFile, slugify, uniqueSlug,
+  bundleDirOf, parseBundleDocs, parseSkillFile, slugify, uniqueSlug,
 } from '../../shared/frontmatter.ts'
 import { movePath } from '../../shared/fs-utils.ts'
 import type { SkillSource } from '../../shared/protocol/index.ts'
@@ -37,20 +37,24 @@ import { dropRegistryEntry, upsertRegistryEntry } from './registry.ts'
  */
 export function migrateToStore(sourcePath: string, kind: 'bundle' | 'file', source: SkillSource): string {
   void source
+  // A bundle arrives as its admission document's path (that is the row's path),
+  // which may be SKILL.md *or* DESCRIPTION.md — derive the directory here so
+  // both documents are admitted, whatever the caller sent.
+  const from = kind === 'bundle' ? bundleDirOf(sourcePath) : sourcePath
   const store = storeSkillsDir()
   mkdirSync(store, { recursive: true })
   const parsed = kind === 'bundle'
-    ? parseBundleDocs(sourcePath)?.parsed ?? null
-    : parseSkillFile(readFileSync(sourcePath, 'utf8'))
+    ? parseBundleDocs(from)?.parsed ?? null
+    : parseSkillFile(readFileSync(from, 'utf8'))
   if (parsed === null) throw new Error('不是有效的技能文件：' + sourcePath)
   const taken = new Set<string>(childNames(store))
-  const slug = uniqueSlug(taken, slugify(parsed.name || basename(sourcePath, extname(sourcePath))))
+  const slug = uniqueSlug(taken, slugify(parsed.name || basename(from, extname(from))))
   const dest = join(store, slug)
 
-  if (kind === 'bundle') movePath(sourcePath, dest)
+  if (kind === 'bundle') movePath(from, dest)
   else {
     mkdirSync(dest, { recursive: true })
-    movePath(sourcePath, join(dest, 'SKILL.md'))
+    movePath(from, join(dest, 'SKILL.md'))
   }
 
   const nameSlug = slugify(parsed.name)
@@ -61,7 +65,8 @@ export function migrateToStore(sourcePath: string, kind: 'bundle' | 'file', sour
   upsertEntry({
     slug,
     name: parsed.name,
-    origin: sourcePath,
+    // The directory, for both kinds: an unmigrate moves the copy back to it.
+    origin: from,
     adoptedAt: new Date().toISOString(),
   })
   return slug

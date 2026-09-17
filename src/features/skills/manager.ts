@@ -33,7 +33,7 @@ import {
   refreshRegistry, registerExternal, unregisterExternal,
 } from './registry-ops.ts'
 import { migrate, reMigrate, rollbackMigration, storeStatus } from './migration.ts'
-import { deleteSkill } from './delete.ts'
+import { deleteStored } from './delete.ts'
 import type { SkillRegistration } from '@deepseek-ai/dsh-skill'
 
 /**
@@ -158,9 +158,12 @@ export class SkillsManager {
 
   // ── deletion ─────────────────────────────────────────────────────────────
 
-  /** Delete a skill wherever it lives. Returns the removed path. */
-  deleteSkill(path: string, kind: 'bundle' | 'file'): string {
-    return deleteSkill(path, kind)
+  /**
+   * Delete a **stored** skill by slug (the only delete there is). Throws when
+   * the slug is not a bare name or the store holds no such skill.
+   */
+  deleteStored(slug: string): string {
+    return deleteStored(slug)
   }
 
   // ── one-shot migration ───────────────────────────────────────────────────

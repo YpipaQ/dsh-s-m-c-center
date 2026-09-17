@@ -14,10 +14,14 @@
  * @module
  */
 import type { WebRoute } from '@deepseek-ai/dsh-host-webserver';
+import type { SkillsManager } from '../skills/index.ts';
 import type { ApplyOutcome } from './apply.ts';
+import type { ContextSelection } from './engine.ts';
 import type { AgentLike } from './tools.ts';
 /** What the context routes need from the host. */
 export interface ContextRouteDeps {
+    /** Resolves a selected slug, so a persist-only write never records a ghost. */
+    skills: SkillsManager;
     /**
      * Live agent registry, when the host provides one: flipping a switch in the
      * panel applies immediately to a running conversation through it.
@@ -26,10 +30,12 @@ export interface ContextRouteDeps {
         get(id: string): AgentLike | undefined;
     };
     /**
-     * Apply one live conversation's selection through `./apply.ts`. Resolves
-     * with what really happened; the route persists only when `applied` is true.
+     * Apply one live conversation's selection through `./apply.ts`. The route
+     * hands over the selection it just planned — reading the file here instead
+     * applied one flip behind. Resolves with what really happened; the route
+     * persists only when `applied` is true.
      */
-    applyToAgent?: (agent: AgentLike) => Promise<ApplyOutcome>;
+    applyToAgent?: (agent: AgentLike, selection: ContextSelection) => Promise<ApplyOutcome>;
 }
 /** Build the contexts route table. */
 export declare function contextRoutes(deps: ContextRouteDeps): WebRoute[];

@@ -72,6 +72,19 @@ export declare function parseDescriptionFile(raw: string, fallbackName: string):
  * SKILL.md wins when both exist; DESCRIPTION.md alone is enough.
  */
 export declare function admissionDoc(dir: string): string | undefined;
+/**
+ * The bundle directory a path refers to, given that the path may be the
+ * bundle's admission document instead.
+ *
+ * A row in the panel carries the *document* path (`…/apple/DESCRIPTION.md`)
+ * because that is what a skill is identified by; every bundle operation wants
+ * the directory. Deriving it here — for either document, and on the receiving
+ * side of the wire — is what keeps "SKILL.md or DESCRIPTION.md" true for the
+ * callers too: an earlier version stripped only `SKILL.md`, so migrating a
+ * `DESCRIPTION.md`-only bundle sent a file path where a directory was expected
+ * and failed every time.
+ */
+export declare function bundleDirOf(path: string): string;
 /** Strict parse of one flat skill document; null when it is not a skill. */
 export declare function parseFlatDoc(path: string): ParsedSkill | null;
 /**

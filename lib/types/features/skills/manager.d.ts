@@ -73,8 +73,11 @@ export declare class SkillsManager {
     resolveRegistration(slug: string): SkillRegistration | undefined;
     /** Scan a picked directory for import candidates. */
     scanSkills(dir: string): ScannedSkill[];
-    /** Delete a skill wherever it lives. Returns the removed path. */
-    deleteSkill(path: string, kind: 'bundle' | 'file'): string;
+    /**
+     * Delete a **stored** skill by slug (the only delete there is). Throws when
+     * the slug is not a bare name or the store holds no such skill.
+     */
+    deleteStored(slug: string): string;
     /** One-shot adoption of user-level native skills into the store. */
     migrate(): StoreOperation;
     /** Undo {@link migrate}: restore every stored skill to its original path. */

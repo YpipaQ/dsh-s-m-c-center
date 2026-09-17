@@ -33,8 +33,6 @@ export interface UseMcpResult {
     toggle: (s: McpServerSummary) => void;
     remove: (s: McpServerSummary) => void;
     edit: (s: McpServerSummary) => void;
-    /** Name armed for deletion, or null. */
-    confirmName: string | null;
 }
 /** MCP tab controller. */
 export declare function useMcp(options: UseMcpOptions): UseMcpResult;

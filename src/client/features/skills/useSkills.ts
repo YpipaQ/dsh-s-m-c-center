@@ -78,10 +78,8 @@ export interface UseSkillsResult {
   deleteUntracked: (skill: SkillSummary) => void
   /** Traceability pass over the registry; the summary lands in `message`. */
   refreshRegistry: () => void
-  /** Two-step delete: first call arms the confirm, second executes. */
+  /** Delete a stored skill (the shared confirm button owns the arming). */
   remove: (skill: SkillSummary) => void
-  /** Path armed for deletion, or null. */
-  confirmPath: string | null
 
   // detail
   detailPath: string | null
@@ -124,7 +122,6 @@ export function useSkills(options: UseSkillsOptions): UseSkillsResult {
   const [query, setQuery] = useState('')
   const [busyPath, setBusyPath] = useState('')
   const [message, setMessage] = useState('')
-  const [confirmPath, setConfirmPath] = useState<string | null>(null)
   const [detailPath, setDetailPath] = useState<string | null>(null)
   const [detail, setDetail] = useState<{ path: string; data: any } | null>(null)
   const [store, setStore] = useState<StoreStatus | null>(null)
@@ -168,12 +165,12 @@ export function useSkills(options: UseSkillsOptions): UseSkillsResult {
   }, [act])
 
   const migrate = useCallback((skill: SkillSummary) => {
-    // The API takes the bundle directory for bundles; the list row carries the
-    // SKILL.md path, so strip the trailing segment (both separators occur).
-    const sourcePath = skill.kind === 'bundle'
-      ? skill.path.replace(/[\\/]+SKILL\.md$/i, '')
-      : skill.path
-    act(skill, () => api.migrateSkill(sourcePath, skill.kind, skill.source))
+    // The row's path is the admission document's path, and that is exactly what
+    // the host expects: it derives the bundle directory, so both SKILL.md and
+    // DESCRIPTION.md bundles migrate. (Stripping a `SKILL.md` suffix here — as
+    // this used to — sent a *file* path for a DESCRIPTION.md bundle and made
+    // every migration of one fail.)
+    act(skill, () => api.migrateSkill(skill.path, skill.kind, skill.source))
   }, [act])
 
   const unregister = useCallback((skill: SkillSummary) => {
@@ -207,10 +204,8 @@ export function useSkills(options: UseSkillsOptions): UseSkillsResult {
   }, [reloadAll, t])
 
   const remove = useCallback((skill: SkillSummary) => {
-    if (confirmPath !== skill.path) { setConfirmPath(skill.path); return }
-    setConfirmPath(null)
-    act(skill, () => api.deleteSkill(skill.path, skill.kind))
-  }, [act, confirmPath])
+    act(skill, () => api.deleteSkill(skill.slug ?? ''))
+  }, [act])
 
   const view = useCallback((skill: SkillSummary) => {
     if (detailPath === skill.path) { setDetailPath(null); setDetail(null); return }
@@ -311,7 +306,7 @@ export function useSkills(options: UseSkillsOptions): UseSkillsResult {
     busyPath, message,
     link, unlink, migrate, unregister,
     verify, deleteUntracked, refreshRegistry,
-    remove, confirmPath,
+    remove,
     detailPath, detail, view,
     store,
     scan, setScanDir, chooseDir, doScan, toggleSelect, doRegister,

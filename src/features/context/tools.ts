@@ -60,12 +60,25 @@ function registrationsFor(
   return { registrations, missing }
 }
 
+/** The slugs in `selection` whose canonical copy cannot be resolved. */
+export function missingSlugs(skills: SkillsManager, selection: ContextSelection): string[] {
+  return registrationsFor(skills, selection).missing
+}
+
 /**
- * Bring one conversation's agent in line with its selection file.
+ * Bring one conversation's agent in line with a selection.
  *
  * The lifecycle hook (a new or resumed conversation), the panel and the tool
  * all call this; it is idempotent, so calling it again with the same selection
  * costs nothing and never disturbs a working binding.
+ *
+ * `selection` exists because the caller has usually *just computed* the new
+ * selection and the file still holds the old one. Re-reading the file here made
+ * the panel apply one flip behind — it installed the previous set, answered
+ * `applied: true` (the names had not changed, so the idempotent short-circuit
+ * fired) and only then wrote the new file. The lifecycle hook passes nothing
+ * and keeps reading the file, which is what "apply what this conversation
+ * asked for" means at creation time.
  *
  * Never throws: the callers are on the session-creation path, where an
  * exception would veto the conversation itself.
@@ -74,11 +87,22 @@ export async function applyToAgent(
   skills: SkillsManager,
   bindings: SkillBindings,
   agent: AgentLike,
+  selection?: ContextSelection,
 ): Promise<ApplyOutcome> {
   const workspace = workspaceOfAgent(agent)
-  const selection = readSelection(workspace, agent.id)
-  const { registrations, missing } = registrationsFor(skills, selection)
+  const chosen = selection ?? readSelection(workspace, agent.id)
+  const { registrations, missing } = registrationsFor(skills, chosen)
   return bindings.ensureAgent(agent, agent.ctx, registrations, missing)
+}
+
+/**
+ * Drop the slugs nothing could resolve, so a phantom name never reaches the
+ * selection file and the copy never reports a skill that is not there.
+ */
+export function withoutMissing(selection: ContextSelection, missing: string[]): ContextSelection {
+  if (missing.length === 0) return selection
+  const gone = new Set(missing)
+  return { ...selection, selected: selection.selected.filter((slug) => !gone.has(slug)) }
 }
 
 /** The result shape `skill_select` answers with. */
@@ -146,11 +170,15 @@ export function buildSkillSelectTool(skills: SkillsManager, bindings: SkillBindi
       const { registrations, missing } = registrationsFor(skills, planned)
       try {
         const outcome = await bindings.ensureAgent(agent, agent.ctx, registrations, missing)
-        if (outcome.applied) commitSelection(workspace, planned)
+        // Persist what can actually be resolved: the file is the panel's and
+        // the next session's source of truth, so a slug whose copy is gone must
+        // not be written into it.
+        const keep = withoutMissing(planned, outcome.missing)
+        if (outcome.applied) commitSelection(workspace, keep)
         return {
           slug: args.slug,
-          selected: planned.selected.includes(args.slug),
-          selectedAll: planned.selected,
+          selected: keep.selected.includes(args.slug),
+          selectedAll: keep.selected,
           applied: outcome.applied,
           missing: outcome.missing,
           error: outcome.error ?? '',

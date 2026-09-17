@@ -47,8 +47,6 @@ export interface UseMcpResult {
   toggle: (s: McpServerSummary) => void
   remove: (s: McpServerSummary) => void
   edit: (s: McpServerSummary) => void
-  /** Name armed for deletion, or null. */
-  confirmName: string | null
 }
 
 /** MCP tab controller. */
@@ -59,7 +57,6 @@ export function useMcp(options: UseMcpOptions): UseMcpResult {
   const [form, setForm] = useState<McpForm>(emptyMcpForm)
   const [busy, setBusy] = useState('')
   const [message, setMessage] = useState('')
-  const [confirmName, setConfirmName] = useState<string | null>(null)
   const [query, setQuery] = useState('')
 
   const patchForm = useCallback((p: Partial<McpForm>) => {
@@ -129,11 +126,9 @@ export function useMcp(options: UseMcpOptions): UseMcpResult {
   }, [list, t])
 
   const remove = useCallback((s: McpServerSummary) => {
-    if (confirmName !== s.name) { setConfirmName(s.name); return }
-    setConfirmName(null)
     setMessage('')
     api.deleteMcp(s.name).then(() => { list.reload() }).catch((e) => { setMessage(errorText(e)) })
-  }, [confirmName, list])
+  }, [list])
 
   const edit = useCallback((s: McpServerSummary) => {
     setForm({
@@ -141,7 +136,6 @@ export function useMcp(options: UseMcpOptions): UseMcpResult {
       args: (s.args || []).join('\n'), env: kvText(s.env), cwd: s.cwd || '',
       url: s.url || '', headers: kvText(s.headers), mode: 'form', json: JSON.stringify(s, null, 2),
     })
-    setConfirmName(null)
   }, [])
 
   const servers = useMemo(() => {
@@ -160,6 +154,5 @@ export function useMcp(options: UseMcpOptions): UseMcpResult {
     message,
     form, patchForm, busy,
     save, test, toggle, remove, edit,
-    confirmName,
   }
 }

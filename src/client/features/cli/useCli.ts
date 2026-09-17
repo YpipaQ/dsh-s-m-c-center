@@ -50,7 +50,6 @@ export interface UseCliResult {
 
   toggle: (entry: CliSummary) => void
   remove: (entry: CliSummary) => void
-  confirmName: string | null
 
   /** New registry entry being typed. */
   form: { name: string; command: string }
@@ -66,7 +65,6 @@ export function useCli(options: UseCliOptions): UseCliResult {
   const [form, setForm] = useState({ name: '', command: '' })
   const [detail, setDetail] = useState<CliDetailState | null>(null)
   const [message, setMessage] = useState('')
-  const [confirmName, setConfirmName] = useState<string | null>(null)
   const [query, setQuery] = useState('')
 
   const probe = useCallback((name: string) => {
@@ -99,12 +97,10 @@ export function useCli(options: UseCliOptions): UseCliResult {
     // Skill-embedded CLI entries are derived from the skill tree, not the
     // registry — they cannot be deleted here.
     if (entry.source !== 'registry') return
-    if (confirmName !== entry.name) { setConfirmName(entry.name); return }
-    setConfirmName(null)
     setMessage('')
     api.deleteCli(entry.name).then(() => { list.reload(); setDetail(null) })
       .catch((e) => { setMessage(errorText(e)) })
-  }, [confirmName, list])
+  }, [list])
 
   const addEntry = useCallback(() => {
     const name = form.name.trim()
@@ -133,7 +129,7 @@ export function useCli(options: UseCliOptions): UseCliResult {
     query, setQuery,
     message,
     detail, view,
-    toggle, remove, confirmName,
+    toggle, remove,
     form, setForm, addEntry,
   }
 }

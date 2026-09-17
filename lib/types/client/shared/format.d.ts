@@ -2,8 +2,6 @@
  * Pure formatting helpers for the manager UI. No React, no framework imports —
  * everything here is a plain function so it can be unit-tested in isolation.
  */
-/** Human label for a skill source id (the host reports stable ids, not paths). */
-export declare function sourceLabel(source: string): string;
 /** Parse `KEY=VALUE` lines into an object (blank/malformed lines are dropped). */
 export declare function parseKv(text: string): Record<string, string>;
 /** Render an object as `KEY=VALUE` lines (inverse of {@link parseKv}). */

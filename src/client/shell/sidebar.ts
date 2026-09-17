@@ -16,11 +16,12 @@
  * from the dsh client's persisted selection (`localStorage['dsh.sessions.current']`,
  * written by the session controller on every switch) and the title from
  * `document.title` (the layout layer projects the current session title there,
- * suffixed with ` — <product>`). Both are read when the panel opens, which is
- * why 刷新 reloads the page rather than re-fetching: renaming a conversation
- * updates `document.title`, and only a fresh document picks that up. The open
- * state lives in sessionStorage so the panel comes back after that reload —
- * but not in a new tab, where nothing asked for it.
+ * suffixed with ` — <product>`). 刷新 re-reads both and re-fetches the list, so
+ * a renamed conversation shows its new name without leaving the page — a full
+ * reload was the earlier answer to that, and it cost the window's position and
+ * anything typed in the composer. The open state lives in sessionStorage so the
+ * panel comes back after a reload the user asked for themselves — but not in a
+ * new tab, where nothing did.
  *
  * Toggling writes the same per-conversation JSON the settings page and the
  * `skill_select` tool write, so all three always agree.
@@ -204,18 +205,20 @@ async function toggleSkill(sessionId: string, slug: string, cwd: string): Promis
 /**
  * Open the floating panel.
  *
- * Data is fetched fresh on every open and toggles update the row in place. The
- * head's 刷新 button reloads the whole page instead: the panel's idea of *which
- * conversation this is* (id + title) is read from the document at open time,
- * and renaming a conversation only changes `document.title` — so a re-fetch
- * would refresh the skill list while leaving the stale title in place.
+ * Which conversation this panel is about (its id and title) is read from the
+ * page at open time — the session id from the client's persisted selection and
+ * the title from `document.title`. 刷新 re-reads both and re-fetches the list,
+ * so renaming a conversation shows up without a page reload. (An earlier
+ * version reloaded the whole page instead, which did fix the stale title but
+ * threw away the window's position and everything typed in the composer.)
  */
 function openPanel(entry: HTMLElement): void {
   ensureStyle()
   document.getElementById(PANEL_ID)?.remove()
 
-  const conversation = currentConversation()
-  const sessionId = conversation.id
+  // Which conversation the panel is about. Filled in by `syncConversation()`
+  // below and re-read on 刷新: a switch or a rename changes the page under us.
+  let sessionId: string | undefined
   const cwd = ''
   const saved = readBox()
 
@@ -232,8 +235,8 @@ function openPanel(entry: HTMLElement): void {
   title.textContent = '会话技能'
   const refresh = document.createElement('button')
   refresh.type = 'button'
-  refresh.textContent = '↻ 刷新页面'
-  refresh.title = '重新加载整个页面，会话标题随之更新'
+  refresh.textContent = '↻ 刷新'
+  refresh.title = '重新读取当前会话与技能列表（不刷新整个页面）'
   refresh.style.cssText = 'border:none;background:transparent;color:inherit;cursor:pointer;font-size:12px;opacity:.75'
   const close = document.createElement('button')
   close.type = 'button'
@@ -248,10 +251,22 @@ function openPanel(entry: HTMLElement): void {
   sub.className = 'smc-fp-sub'
   const subTitle = document.createElement('div')
   subTitle.className = 't'
-  subTitle.textContent = sessionId === undefined ? '新会话（尚未开始对话）' : (conversation.title || '当前会话')
   const subId = document.createElement('div')
-  subId.textContent = sessionId === undefined ? '开始对话后即可在此选择技能' : sessionId.slice(0, 8) + '…'
   sub.append(subTitle, subId)
+
+  /**
+   * Re-read which conversation we are in and redraw the caption. Everything
+   * that re-fetches (刷新, and a re-open) calls this first, because the id and
+   * the title both live on the page and can change under us — a rename only
+   * touches `document.title`.
+   */
+  const syncConversation = (): void => {
+    const current = currentConversation()
+    sessionId = current.id
+    subTitle.textContent = sessionId === undefined ? '新会话（尚未开始对话）' : (current.title || '当前会话')
+    subId.textContent = sessionId === undefined ? '开始对话后即可在此选择技能' : sessionId.slice(0, 8) + '…'
+  }
+  syncConversation()
 
   const bodyEl = document.createElement('div')
   bodyEl.className = 'smc-fp-body'
@@ -344,7 +359,8 @@ function openPanel(entry: HTMLElement): void {
 
   const render = (skillRows: SkillRow[], selected: string[]): void => {
     bodyEl.textContent = ''
-    if (sessionId === undefined) {
+    const id = sessionId
+    if (id === undefined) {
       note('新会话还没有会话 ID——发第一条消息后，这里就会跟随该对话的技能选择')
       return
     }
@@ -371,7 +387,7 @@ function openPanel(entry: HTMLElement): void {
       line.append(box, text)
       box.addEventListener('change', () => {
         box.disabled = true
-        toggleSkill(sessionId, row.slug ?? '', cwd).then((selection) => {
+        toggleSkill(id, row.slug ?? '', cwd).then((selection) => {
           picked.clear()
           for (const slug of selection.selected) picked.add(slug)
           box.checked = picked.has(row.slug ?? '')
@@ -407,7 +423,9 @@ function openPanel(entry: HTMLElement): void {
       }
     })()
   }
-  refresh.addEventListener('click', () => { window.location.reload() })
+  // 刷新 refreshes the panel, not the page: re-read the conversation (a rename
+  // lands in document.title) and re-fetch. The window stays where it is.
+  refresh.addEventListener('click', () => { syncConversation(); load() })
   load()
 }
 

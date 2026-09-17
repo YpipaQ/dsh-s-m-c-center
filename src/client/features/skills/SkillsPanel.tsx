@@ -5,11 +5,15 @@
  * registered / the link state as its own flag) and offers exactly the
  * operations its group allows:
  *
- * - native:      迁移入库 (canonical copy → store, link back in place) / delete
- * - stored:      联接 / 删除 (the copy stays in the store)
- * - registered:  联接 / 取消登记 / delete (the external copy stays)
+ * - native:      迁移入库 (canonical copy → store, link back in place)
+ * - stored:      联接 / 删除 (the canonical copy goes — the only delete)
+ * - registered:  联接 / 取消登记 (the external copy stays where it lives)
  * - untracked:   a link on disk with no ledger record — red flag, with
  *                验证 / 删除联接 instead of the normal actions
+ *
+ * Deletion is store-only: the plugin destroys nothing but its own canonical
+ * copies, because everything else on disk belongs to the user or to another
+ * tool. The row offers it exactly where it applies.
  *
  * Migration is deliberately one-way here. Undoing it is an uninstall-time
  * concern, so the bulk 撤销迁移 lives on the Guide tab's uninstall prep.
@@ -18,10 +22,10 @@
  * section and never calls the API directly.
  */
 import { useState } from 'react'
-import { Badge, Button, EmptyState, ErrorText, Loading } from '../../shared/ui.tsx'
+import { Badge, Button, ConfirmButton, EmptyState, ErrorText, Loading } from '../../shared/ui.tsx'
 import type { UseSkillsResult } from './useSkills.ts'
 import type { UseContextsResult } from './useContexts.ts'
-import { format, sourceLabel } from '../../shared/format.ts'
+import { format } from '../../shared/format.ts'
 import type { SkillGroup } from '../../../shared/protocol/index.ts'
 import type { SkillsMcpKey, Translate } from '../../shared/locales.ts'
 import css from '../../shared/settings-card.module.css'
@@ -218,8 +222,9 @@ interface SkillRowProps {
 }
 
 /**
- * One row: group badge, source badge, and exactly the operations the row's
- * group allows.
+ * One row: the group badge and exactly the operations the row's group allows.
+ * The source is not badged — every row in a group comes from the same place, so
+ * the pill said the same thing twice; the path stays visible in 详情.
  */
 function SkillRow({ skill, skills, t }: SkillRowProps) {
   const isBusy = skills.busyPath === skill.path
@@ -239,7 +244,6 @@ function SkillRow({ skill, skills, t }: SkillRowProps) {
           {skill.description ? <div className={css.desc}>{skill.description}</div> : null}
         </div>
         <Badge>{t(GROUP_KEY[skill.group])}</Badge>
-        <Badge>{sourceLabel(skill.source)}</Badge>
         {redFlag
           ? (
             <>
@@ -281,9 +285,22 @@ function SkillRow({ skill, skills, t }: SkillRowProps) {
             </>
           )}
         <Button onClick={() => { skills.view(skill) }}>{isOpen ? t('collapse') : t('details')}</Button>
-        <Button variant="danger" disabled={isBusy} onClick={() => { skills.remove(skill) }}>
-          {skills.confirmPath === skill.path ? t('confirmDelete') : t('delete')}
-        </Button>
+        {/* Deletion is store-only: the canonical copy under S-M-C/skills is the
+            one thing this plugin owns, so it is the only thing it destroys. A
+            native skill is deleted by migrating it in first; a registered one
+            by 取消登记, which drops the record and leaves the copy where it
+            lives. */}
+        {skill.group === 'stored'
+          ? (
+            <ConfirmButton
+              variant="danger"
+              label={t('delete')}
+              confirmLabel={t('confirmDelete')}
+              disabled={isBusy}
+              onConfirm={() => { skills.remove(skill) }}
+            />
+          )
+          : null}
       </div>
       {isOpen ? <SkillDetail detail={skills.detail} path={skill.path} fallback={skill.description} t={t} /> : null}
     </div>

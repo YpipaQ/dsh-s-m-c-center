@@ -36,7 +36,6 @@ export interface UseCliResult {
     view: (name: string) => void;
     toggle: (entry: CliSummary) => void;
     remove: (entry: CliSummary) => void;
-    confirmName: string | null;
     /** New registry entry being typed. */
     form: {
         name: string;

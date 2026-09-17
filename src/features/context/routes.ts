@@ -19,24 +19,31 @@ import { SMC_API } from '../../shared/protocol/index.ts'
 import {
   badRequest, bodyText, handle, ok, queryParam, writeJson,
 } from '../../shared/http.ts'
+import type { SkillsManager } from '../skills/index.ts'
 import type { ApplyOutcome } from './apply.ts'
+import type { ContextSelection } from './engine.ts'
 import {
   DEFAULT_CONTEXT_ID, commitSelection, planSelection, readContextIndex, readSelection, workspaceOf,
 } from './engine.ts'
 import type { AgentLike } from './tools.ts'
+import { missingSlugs, withoutMissing } from './tools.ts'
 
 /** What the context routes need from the host. */
 export interface ContextRouteDeps {
+  /** Resolves a selected slug, so a persist-only write never records a ghost. */
+  skills: SkillsManager
   /**
    * Live agent registry, when the host provides one: flipping a switch in the
    * panel applies immediately to a running conversation through it.
    */
   agents?: { get(id: string): AgentLike | undefined }
   /**
-   * Apply one live conversation's selection through `./apply.ts`. Resolves
-   * with what really happened; the route persists only when `applied` is true.
+   * Apply one live conversation's selection through `./apply.ts`. The route
+   * hands over the selection it just planned — reading the file here instead
+   * applied one flip behind. Resolves with what really happened; the route
+   * persists only when `applied` is true.
    */
-  applyToAgent?: (agent: AgentLike) => Promise<ApplyOutcome>
+  applyToAgent?: (agent: AgentLike, selection: ContextSelection) => Promise<ApplyOutcome>
 }
 
 /** Said by both write-ish routes when nothing tells us which workspace to use. */
@@ -94,13 +101,21 @@ export function contextRoutes(deps: ContextRouteDeps): WebRoute[] {
       if (workspace === undefined) { badRequest(res, NO_WORKSPACE); return }
       const agent = deps.agents?.get(sessionId)
       if (agent === undefined || deps.applyToAgent === undefined) {
+        // Nothing to apply to: persist the intent for the next start, but keep
+        // the ghost slugs out of the file (the client only learns from the
+        // response that they were dropped).
         const planned = planSelection(workspace, sessionId, slug)
-        commitSelection(workspace, planned)
-        writeJson(res, 200, ok({ selection: planned, applied: false }))
+        const missing = missingSlugs(deps.skills, planned)
+        const keep = withoutMissing(planned, missing)
+        commitSelection(workspace, keep)
+        writeJson(res, 200, ok({ selection: keep, applied: false, missing }))
         return
       }
       const planned = planSelection(workspace, sessionId, slug)
-      const outcome = await deps.applyToAgent(agent)
+      // Hand over the selection we just planned: the file still holds the old
+      // one, so letting `applyToAgent` read it applied the *previous* set and
+      // answered `applied: true` from the idempotent short-circuit.
+      const outcome = await deps.applyToAgent(agent, planned)
       if (!outcome.applied) {
         // Nothing was written: report the file's real content, not the intent.
         writeJson(res, 200, ok({
@@ -111,8 +126,9 @@ export function contextRoutes(deps: ContextRouteDeps): WebRoute[] {
         }))
         return
       }
-      commitSelection(workspace, planned)
-      writeJson(res, 200, ok({ selection: planned, applied: true, missing: outcome.missing }))
+      const keep = withoutMissing(planned, outcome.missing)
+      commitSelection(workspace, keep)
+      writeJson(res, 200, ok({ selection: keep, applied: true, missing: outcome.missing }))
     }),
   ]
 }

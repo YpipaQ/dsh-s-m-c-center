@@ -39,15 +39,25 @@ export function skillsRoutes(skills: SkillsManager): WebRoute[] {
       writeJson(res, 200, ok({ skill }))
     }),
 
+    // Delete a **stored** skill: the request names a store slug, never a path.
+    // An earlier version took a caller-supplied path plus a `kind` and
+    // `rm -rf`'d `dirname(path)` — an unvalidated recursive-delete primitive
+    // for any process on the machine, and one wrong `kind` away from removing
+    // the wrong directory. Only the canonical copy is ours to destroy, so only
+    // it is addressable.
     handle('POST', SMC_API.skillDelete, async (_req, res, body) => {
-      const path = bodyText(body, 'path')
-      if (!path) { badRequest(res, 'path required'); return }
-      const kind = body.kind === 'bundle' ? 'bundle' : 'file'
-      const removed = skills.deleteSkill(path, kind)
-      writeJson(res, 200, ok({ path, removed }))
+      const slug = bodyText(body, 'slug')
+      if (!slug) { badRequest(res, 'slug required'); return }
+      try {
+        writeJson(res, 200, ok({ slug, removed: skills.deleteStored(slug) }))
+      } catch (error) {
+        badRequest(res, String((error as Error)?.message ?? error))
+      }
     }),
 
     // Native → stored: canonical copy into the store, link back in place.
+    // `path` is the row's path — the admission document for a bundle, which
+    // `migrateToStore` turns into the directory (either document is admitted).
     handle('POST', SMC_API.skillMigrate, async (_req, res, body) => {
       const path = bodyText(body, 'path')
       if (!path) { badRequest(res, 'path required'); return }

@@ -20,6 +20,7 @@
 import type { Context } from '@deepseek-ai/cordis';
 import type { SkillsManager } from '../skills/index.ts';
 import type { ApplyOutcome, SkillBindings } from './apply.ts';
+import type { ContextSelection } from './engine.ts';
 /** The slice of a real dsh Agent this engine touches. */
 export interface AgentLike {
     /** Session id (stable across turns). */
@@ -35,17 +36,32 @@ export interface AgentLike {
 }
 /** The workspace a conversation runs in, as dsh reports it. */
 export declare function workspaceOfAgent(agent: AgentLike): string;
+/** The slugs in `selection` whose canonical copy cannot be resolved. */
+export declare function missingSlugs(skills: SkillsManager, selection: ContextSelection): string[];
 /**
- * Bring one conversation's agent in line with its selection file.
+ * Bring one conversation's agent in line with a selection.
  *
  * The lifecycle hook (a new or resumed conversation), the panel and the tool
  * all call this; it is idempotent, so calling it again with the same selection
  * costs nothing and never disturbs a working binding.
  *
+ * `selection` exists because the caller has usually *just computed* the new
+ * selection and the file still holds the old one. Re-reading the file here made
+ * the panel apply one flip behind — it installed the previous set, answered
+ * `applied: true` (the names had not changed, so the idempotent short-circuit
+ * fired) and only then wrote the new file. The lifecycle hook passes nothing
+ * and keeps reading the file, which is what "apply what this conversation
+ * asked for" means at creation time.
+ *
  * Never throws: the callers are on the session-creation path, where an
  * exception would veto the conversation itself.
  */
-export declare function applyToAgent(skills: SkillsManager, bindings: SkillBindings, agent: AgentLike): Promise<ApplyOutcome>;
+export declare function applyToAgent(skills: SkillsManager, bindings: SkillBindings, agent: AgentLike, selection?: ContextSelection): Promise<ApplyOutcome>;
+/**
+ * Drop the slugs nothing could resolve, so a phantom name never reaches the
+ * selection file and the copy never reports a skill that is not there.
+ */
+export declare function withoutMissing(selection: ContextSelection, missing: string[]): ContextSelection;
 /**
  * The `skill_select` tool: the model's only sanctioned way to change which
  * skills its conversation sees. Plans the change, applies it through the

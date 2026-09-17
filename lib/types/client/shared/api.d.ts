@@ -25,7 +25,12 @@ export declare class SkillsMcpApi {
     verifyLink(slug: string): Promise<VerifyResult>;
     /** Delete an untracked link (one the ledger has no record of). */
     deleteUntrackedLink(path: string): Promise<void>;
-    deleteSkill(path: string, kind: 'bundle' | 'file'): Promise<void>;
+    /**
+     * Delete one **stored** skill by slug. Only the store's canonical copies are
+     * addressable this way — a native or registered skill is the user's (or
+     * another tool's) file and is never removed by this plugin.
+     */
+    deleteSkill(slug: string): Promise<void>;
     scanSkills(dir: string): Promise<ScannedSkill[]>;
     /** Register external skills — the canonical copy stays where it is. */
     registerSkills(items: ImportItem[]): Promise<Array<{

@@ -16,11 +16,12 @@
  * from the dsh client's persisted selection (`localStorage['dsh.sessions.current']`,
  * written by the session controller on every switch) and the title from
  * `document.title` (the layout layer projects the current session title there,
- * suffixed with ` — <product>`). Both are read when the panel opens, which is
- * why 刷新 reloads the page rather than re-fetching: renaming a conversation
- * updates `document.title`, and only a fresh document picks that up. The open
- * state lives in sessionStorage so the panel comes back after that reload —
- * but not in a new tab, where nothing asked for it.
+ * suffixed with ` — <product>`). 刷新 re-reads both and re-fetches the list, so
+ * a renamed conversation shows its new name without leaving the page — a full
+ * reload was the earlier answer to that, and it cost the window's position and
+ * anything typed in the composer. The open state lives in sessionStorage so the
+ * panel comes back after a reload the user asked for themselves — but not in a
+ * new tab, where nothing did.
  *
  * Toggling writes the same per-conversation JSON the settings page and the
  * `skill_select` tool write, so all three always agree.

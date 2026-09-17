@@ -5,7 +5,7 @@
  * skills/MCP/CLI. They exist so the panels stay declarative and the class-name
  * vocabulary lives in exactly one place per widget.
  */
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { Translate } from '../shared/locales.ts'
 import css from '../shared/settings-card.module.css'
@@ -34,6 +34,63 @@ export function Button({ children, onClick, disabled, variant = 'default', title
     <button type="button" className={cls} onClick={onClick} disabled={disabled} title={title}>
       {children}
     </button>
+  )
+}
+
+export interface ConfirmButtonProps {
+  /** Label while idle (e.g. 删除). */
+  label: string
+  /** Label once armed (e.g. 再次点击确认删除). */
+  confirmLabel: string
+  onConfirm: () => void
+  disabled?: boolean
+  variant?: ButtonVariant
+}
+
+/**
+ * A destructive button that needs two clicks, and forgets the first one as
+ * soon as the pointer goes anywhere else.
+ *
+ * The arming state lives here rather than in the panel hooks: three panels need
+ * it and each had grown its own copy, which also meant an armed button stayed
+ * armed until it was clicked again — leaving a red "click again to confirm" on
+ * screen while the user went off and did something else entirely. Clicking
+ * anywhere but this button now disarms it, so the row always falls back to its
+ * ordinary label.
+ */
+export function ConfirmButton({
+  label, confirmLabel, onConfirm, disabled, variant = 'default',
+}: ConfirmButtonProps) {
+  const [armed, setArmed] = useState(false)
+  const box = useRef<HTMLSpanElement | null>(null)
+
+  useEffect(() => {
+    if (!armed) return undefined
+    // Capture phase so the disarm happens even if something inside the page
+    // stops propagation; a press inside this button is what re-arms/confirms.
+    const away = (event: Event): void => {
+      const target = event.target
+      if (target instanceof Node && box.current?.contains(target) === true) return
+      setArmed(false)
+    }
+    document.addEventListener('pointerdown', away, true)
+    return () => { document.removeEventListener('pointerdown', away, true) }
+  }, [armed])
+
+  return (
+    <span ref={box}>
+      <Button
+        variant={variant}
+        disabled={disabled}
+        onClick={() => {
+          if (!armed) { setArmed(true); return }
+          setArmed(false)
+          onConfirm()
+        }}
+      >
+        {armed ? confirmLabel : label}
+      </Button>
+    </span>
   )
 }
 

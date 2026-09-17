@@ -64,10 +64,8 @@ export interface UseSkillsResult {
     deleteUntracked: (skill: SkillSummary) => void;
     /** Traceability pass over the registry; the summary lands in `message`. */
     refreshRegistry: () => void;
-    /** Two-step delete: first call arms the confirm, second executes. */
+    /** Delete a stored skill (the shared confirm button owns the arming). */
     remove: (skill: SkillSummary) => void;
-    /** Path armed for deletion, or null. */
-    confirmPath: string | null;
     detailPath: string | null;
     detail: {
         path: string;

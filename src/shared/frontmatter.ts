@@ -15,7 +15,7 @@
  */
 
 import { existsSync, readFileSync } from 'node:fs'
-import { basename, join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 
 /** A skill document that parsed into the fields the UI and agent need. */
 export interface ParsedSkill {
@@ -169,6 +169,22 @@ export function admissionDoc(dir: string): string | undefined {
     if (existsSync(p)) return p
   }
   return undefined
+}
+
+/**
+ * The bundle directory a path refers to, given that the path may be the
+ * bundle's admission document instead.
+ *
+ * A row in the panel carries the *document* path (`…/apple/DESCRIPTION.md`)
+ * because that is what a skill is identified by; every bundle operation wants
+ * the directory. Deriving it here — for either document, and on the receiving
+ * side of the wire — is what keeps "SKILL.md or DESCRIPTION.md" true for the
+ * callers too: an earlier version stripped only `SKILL.md`, so migrating a
+ * `DESCRIPTION.md`-only bundle sent a file path where a directory was expected
+ * and failed every time.
+ */
+export function bundleDirOf(path: string): string {
+  return (ADMISSION_DOCS as readonly string[]).includes(basename(path)) ? dirname(path) : path
 }
 
 /** Strict parse of one flat skill document; null when it is not a skill. */

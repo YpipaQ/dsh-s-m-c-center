@@ -15,7 +15,7 @@ import type { ManagerSettings } from './shared/protocol/index.ts';
 import type { SkillsManager } from './features/skills/index.ts';
 import type { McpManager } from './features/mcp/index.ts';
 import type { CliManager } from './features/cli/index.ts';
-import type { AgentLike, ApplyOutcome } from './features/context/index.ts';
+import type { AgentLike, ApplyOutcome, ContextSelection } from './features/context/index.ts';
 export interface RoutesDeps {
     skills: SkillsManager;
     mcp: McpManager;
@@ -29,9 +29,11 @@ export interface RoutesDeps {
     };
     /**
      * Apply one live conversation's selection. Resolves with what really
-     * happened — the context route persists only when `applied` is true.
+     * happened — the context route persists only when `applied` is true. Called
+     * with the selection the route just planned, so a flush of the panel applies
+     * *that* set rather than the one still in the file.
      */
-    applyToAgent?: (agent: AgentLike) => Promise<ApplyOutcome>;
+    applyToAgent?: (agent: AgentLike, selection: ContextSelection) => Promise<ApplyOutcome>;
     /** Read the plugin's own persisted settings (~/.dsh/settings.yaml block). */
     readOwnSettings: () => ManagerSettings;
     /** Persist new settings, then re-apply surfaces; returns what landed. */

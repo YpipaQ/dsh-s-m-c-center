@@ -1,87 +1,62 @@
 /**
- * Deleting a skill, wherever it lives.
+ * Deleting a stored skill — the **only** delete this plugin performs.
  *
- * Three destinations, three different meanings of "delete" — which is the
- * whole reason this is one function rather than three call sites:
+ * The rule is deliberately narrow: the canonical copy under
+ * `~/.dsh/S-M-C/skills/<slug>/` is the one thing the plugin owns, so it is the
+ * one thing it destroys. A native skill under a skills root is the user's own
+ * file, and a registered skill lives in someone else's directory — both are
+ * removed by their owner, or by migrating into the store first and deleting it
+ * there.
  *
- * - **native** — the real file/directory goes. This is the only irreversible
- *   operation in the plugin.
- * - **stored** — the link, its ledger record, the manifest entry and the store
- *   copy all go.
- * - **registered** — the link and the record go; the external canonical copy
- *   is left alone, because the plugin never owned it.
- *
- * The path may arrive as a link's target rather than the link itself, so the
- * first branch identifies the skill by link target and never follows the path:
- * an `rm -rf` through a junction would gut the store copy behind it.
+ * An earlier version took an arbitrary path plus a `kind` and `rm -rf`'d
+ * `dirname(path)`. That made this route an unvalidated recursive-delete
+ * primitive for any process on the machine (and a mis-sent `kind` was enough to
+ * delete the wrong directory), so the entry point is now an identity — a store
+ * slug — and the path is derived here. Nothing outside the store is ever
+ * removed, and a store entry that turns out to be a link is refused rather than
+ * followed.
  * @module
  */
 
 import { existsSync, rmSync } from 'node:fs'
-import { basename, dirname, join, resolve } from 'node:path'
-import { slugify } from '../../shared/frontmatter.ts'
+import { join } from 'node:path'
+import { admissionDoc } from '../../shared/frontmatter.ts'
 import { storeSkillsDir } from '../../shared/paths.ts'
-import { inside, isLink, linkTarget } from './roots.ts'
+import { inside, isLink } from './roots.ts'
 import { removeLink } from './linking.ts'
 import { dropEntry } from './store-index.ts'
-import { dropRegistryEntry, readRegistry } from './registry.ts'
+import { dropRegistryEntry } from './registry.ts'
+
+/** Refusal shared with the route, which answers 400 with it. */
+export const ONLY_STORE = '只能删除储存库里的技能：该目标不在储存库内或不是技能'
 
 /**
- * Delete a skill wherever it lives.
- * @returns the path that was removed (or the link that was removed for a
- *   registered skill — the canonical copy survives).
+ * Delete one stored skill: its link, its canonical copy, its manifest entry and
+ * any registry record of it.
+ * @param slug - the store directory name (a bare name, never a path).
+ * @returns the bundle path that was removed.
+ * @throws when `slug` is not a bare name, or when the store holds no skill by
+ *   that name; the route turns both into a 400.
  */
-export function deleteSkill(path: string, kind: 'bundle' | 'file'): string {
+export function deleteStored(slug: string): string {
+  if (slug === '' || slug === '.' || slug === '..' || /[\\/]/.test(slug)) {
+    throw new Error('不是有效的技能标识：' + slug)
+  }
   const store = storeSkillsDir()
+  const bundle = join(store, slug)
+  // Belt and braces: without a separator the join cannot escape the store, but
+  // this check is what keeps that a property of the code rather than of the
+  // caller's string.
+  if (!inside(store, bundle)) throw new Error(ONLY_STORE)
+  if (!existsSync(bundle)) throw new Error('储存库中没有这个技能：' + slug)
+  // A store entry that is itself a link would send rmSync through it and gut
+  // whatever it points at.
+  if (isLink(bundle)) throw new Error('储存库条目是联接，已拒绝删除：' + slug)
+  if (admissionDoc(bundle) === undefined) throw new Error(ONLY_STORE)
 
-  // Reached through a link: identify the skill by the link target, never by
-  // following the path (a rmSync past a junction would gut the store copy).
-  const link = dirname(path)
-  if (isLink(link)) {
-    const target = linkTarget(link)
-    const resolved = target === undefined ? undefined : resolve(link, target)
-    const slug = basename(link)
-    removeLink(slug)
-    if (resolved !== undefined && inside(store, resolved)) {
-      const bundle = join(store, slug)
-      if (existsSync(bundle) && !isLink(bundle)) rmSync(bundle, { recursive: true, force: true })
-      dropEntry(slug)
-      return bundle
-    }
-    const reg = resolved === undefined
-      ? undefined
-      : readRegistry().entries.find((e) => inside(resolve(e.path), resolved))
-    if (reg !== undefined) dropRegistryEntry(reg.slug)
-    return link
-  }
-
-  // Stored: the SKILL.md path sits inside the store directory itself.
-  if (inside(store, path)) {
-    const slug = basename(dirname(path))
-    removeLink(slug)
-    const bundle = join(store, slug)
-    if (existsSync(bundle) && !isLink(bundle)) rmSync(bundle, { recursive: true, force: true })
-    dropEntry(slug)
-    dropRegistryEntry(slug)
-    return bundle
-  }
-
-  // Registered external: the link (if any) and the record go; the files stay.
-  const reg = readRegistry().entries.find((e) =>
-    resolve(e.path).toLowerCase() === resolve(dirname(path)).toLowerCase()
-    || resolve(path).toLowerCase() === resolve(e.path).toLowerCase(),
-  )
-  if (reg !== undefined) {
-    removeLink(reg.slug)
-    dropRegistryEntry(reg.slug)
-    return reg.path
-  }
-
-  // Native: delete the real thing (no link involved at this point).
-  const target = kind === 'bundle' ? dirname(path) : path
-  const slug = slugify(basename(target))
   removeLink(slug)
+  rmSync(bundle, { recursive: true, force: true })
+  dropEntry(slug)
   dropRegistryEntry(slug)
-  rmSync(target, { recursive: true, force: true })
-  return target
+  return bundle
 }

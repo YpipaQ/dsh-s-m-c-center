@@ -1,1 +1,1 @@
-{"version":3,"file":"delete.d.ts","sourceRoot":"","sources":["../../../../src/features/skills/delete.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;;;;;;;;GAiBG;AAWH;;;;GAIG;AACH,wBAAgB,WAAW,CAAC,IAAI,EAAE,MAAM,EAAE,IAAI,EAAE,QAAQ,GAAG,MAAM,GAAG,MAAM,CAqDzE"}
+{"version":3,"file":"delete.d.ts","sourceRoot":"","sources":["../../../../src/features/skills/delete.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;;;;;;;;;GAkBG;AAWH,gEAAgE;AAChE,eAAO,MAAM,UAAU,iKAA+B,CAAA;AAEtD;;;;;;;GAOG;AACH,wBAAgB,YAAY,CAAC,IAAI,EAAE,MAAM,GAAG,MAAM,CAqBjD"}

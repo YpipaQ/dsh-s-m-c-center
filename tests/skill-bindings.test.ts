@@ -19,7 +19,12 @@ import { Context } from '@deepseek-ai/cordis'
 import { createScope } from '@deepseek-ai/dsh-scope'
 import SkillRegistry from '@deepseek-ai/dsh-skill'
 import type { SkillRegistration } from '@deepseek-ai/dsh-skill'
-import { SkillBindings } from '../src/features/context/index.ts'
+import { applyToAgent, SkillBindings, withoutMissing, writeSelection } from '../src/features/context/index.ts'
+import type { AgentLike } from '../src/features/context/index.ts'
+import type { SkillsManager } from '../src/features/skills/index.ts'
+import { mkdirSync, rmSync } from 'node:fs'
+import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 
 interface FakeAgent { id: string }
 
@@ -153,5 +158,70 @@ describe('SkillBindings', () => {
     expect(await registry.list()).toEqual([])
     expect(await visible(one)).toEqual([])
     expect(await visible(two)).toEqual([])
+  })
+})
+
+/**
+ * `applyToAgent` — which selection reaches the agent.
+ *
+ * The panel computes the new selection and then asks for it to be applied; the
+ * file still holds the old one until the apply succeeds. Reading the file here
+ * made the panel install the *previous* set, answer `applied: true` (the names
+ * had not changed, so the idempotent short-circuit fired) and only then write
+ * the new file — a flip that silently did nothing while the UI claimed it
+ * worked. The lifecycle hook passes nothing, and still means "the file".
+ */
+describe('applyToAgent selection source', () => {
+  /** Captures what the engine handed to the bindings, and claims success. */
+  function spyBindings(captured: SkillRegistration[][]): SkillBindings {
+    return {
+      async ensureAgent(_agent, _ctx, registrations) {
+        captured.push(registrations)
+        return { applied: true, registered: registrations.map((r) => r.name), missing: [] }
+      },
+    } as unknown as SkillBindings
+  }
+
+  /** A manager that resolves every slug except `ghost`. */
+  function spyManager(): SkillsManager {
+    return {
+      resolveRegistration(slug: string) {
+        return slug === 'ghost' ? undefined : registration(slug)
+      },
+    } as unknown as SkillsManager
+  }
+
+  it('applies the selection it is handed, not the one still in the file', async () => {
+    const captured: SkillRegistration[][] = []
+    const agent = { id: 'session-1' } as unknown as AgentLike
+
+    await applyToAgent(spyManager(), spyBindings(captured), agent, {
+      sessionId: 'session-1', selected: ['planned'], updatedAt: '',
+    })
+
+    expect(captured[0].map((r) => r.name)).toEqual(['planned'])
+  })
+
+  it('falls back to the file when nothing is handed over (lifecycle hook)', async () => {
+    const workspace = join(tmpdir(), 'dsh-apply-test-' + Math.random().toString(36).slice(2))
+    mkdirSync(join(workspace, '.git'), { recursive: true })
+    writeSelection(workspace, { sessionId: 'session-1', selected: ['from-file'], updatedAt: '' })
+    const captured: SkillRegistration[][] = []
+    const agent = {
+      id: 'session-1', session: { header: { cwd: workspace } },
+    } as unknown as AgentLike
+
+    await applyToAgent(spyManager(), spyBindings(captured), agent)
+
+    expect(captured[0].map((r) => r.name)).toEqual(['from-file'])
+    rmSync(workspace, { recursive: true, force: true })
+  })
+
+  it('drops the slugs nothing can resolve from the selection', () => {
+    const selection = { sessionId: 's', selected: ['real', 'ghost'], updatedAt: '' }
+    expect(withoutMissing(selection, ['ghost']).selected).toEqual(['real'])
+    // Nothing to drop keeps the very same object, so callers can compare by
+    // identity.
+    expect(withoutMissing(selection, [])).toBe(selection)
   })
 })

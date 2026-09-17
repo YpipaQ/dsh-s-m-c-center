@@ -162,7 +162,7 @@ export function apply(ctx: Context, config?: ConfigShape): void {
     get agents() {
       return liveAgents
     },
-    applyToAgent: (agent) => applyToAgent(skills, bindings, agent),    readOwnSettings: () => readSettings(),
+    applyToAgent: (agent, selection) => applyToAgent(skills, bindings, agent, selection),    readOwnSettings: () => readSettings(),
     writeOwnSettings: (next) => {
       writeSettings(next)
       // Adopt the persisted value as the new source, then refresh the section.

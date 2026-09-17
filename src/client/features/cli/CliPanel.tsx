@@ -3,7 +3,7 @@
  * folded in as a small local sub-component since it is only used here.
  */
 import { useState } from 'react'
-import { Badge, Button, EmptyState, ErrorText, Loading, StateRow, Switch } from '../../shared/ui.tsx'
+import { Badge, Button, ConfirmButton, EmptyState, ErrorText, Loading, StateRow, Switch } from '../../shared/ui.tsx'
 import type { CliDetailState, UseCliResult } from './useCli.ts'
 import { cliAnnounceLabel } from '../../shared/constants.ts'
 import type { Translate } from '../../shared/locales.ts'
@@ -60,9 +60,12 @@ export function CliPanel({ cli, t }: CliPanelProps) {
                       <Button onClick={() => { cli.view(entry.name) }}>{isOpen ? t('collapse') : t('probe')}</Button>
                       {isRegistry
                         ? (
-                          <Button variant="danger" onClick={() => { cli.remove(entry) }}>
-                            {cli.confirmName === entry.name ? t('confirmDelete') : t('delete')}
-                          </Button>
+                          <ConfirmButton
+                            variant="danger"
+                            label={t('delete')}
+                            confirmLabel={t('confirmDelete')}
+                            onConfirm={() => { cli.remove(entry) }}
+                          />
                         )
                         : null}
                     </div>
