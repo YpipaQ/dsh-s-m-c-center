@@ -13,7 +13,7 @@ guide page that explains how each works and gives the managed data back before t
 | Skills 技能 | browse / enable / disable / delete / import skills (project + user roots) | user-level canonical copy in `~/.dsh/S-M-C/skills` + directory junction; project-level `SKILL.md` frontmatter rewrite |
 | MCP 服务 | create / edit / test / **enable / archive** / delete MCP servers | real `@deepseek-ai/dsh-mcp-client` connections (`mcp__<server>__<tool>`); archived → `S-M-C/mcp-archive.json` |
 | CLI 工具 | discover / probe local CLI tools; register system CLIs | skill-embedded `scripts/run-cli` + `S-M-C/cli.json` |
-| 使用说明 (Guide) | how each tool family works (store & junctions, real connections & archiving, CLI discovery & announcement), then giving the managed data back before removing the plugin: rollback ↔ re-migrate skills (red / green conditional button), inject all archived MCP back, list the files to delete by hand | `skills.reMigrate()` / `mcp.activateAll()`, plus the store paths read from `src/store.ts` |
+| 使用说明 (Guide) | how each tool family works (store & junctions, real connections & archiving, CLI discovery & announcement), then giving the managed data back before removing the plugin: rollback ↔ re-migrate skills (red / green conditional button), inject all archived MCP back, list the files to delete by hand | `skills.reMigrate()` / `mcp.activateAll()`, plus the store paths read from `src/shared/paths.ts` |
 
 It mounts purely as a profile bundle patch + package. **It does NOT modify DeepSeek Harness (DSH)
 source** — the plugin is a standalone package, installed alongside the harness.
@@ -23,22 +23,33 @@ source** — the plugin is a standalone package, installed alongside the harness
 ```
 dsh-s-m-c-center/
 ├── src/                # TypeScript source (host + client halves)
-│   ├── index.ts        # host entry (plug-in load, settings namespace, agent announcement)
-│   ├── skills.ts       # skills filesystem engine
-│   ├── mcp.ts          # MCP config store + real connection manager
-│   ├── cli.ts          # CLI discovery / probe / registry + cli-state parsing
-│   ├── routes.ts       # /api/dsh-s-m-c-center route family
-│   ├── protocol.ts     # shared types + API paths
-│   ├── store.ts        # unified store root (S-M-C) — single source of truth for paths
-│   ├── migrate.ts      # one-shot migration into the store root
-│   ├── announce.ts     # system-prompt section rendered for every agent
-│   ├── settings.ts     # read/write this plugin's block in ~/.dsh/settings.yaml
+│   ├── index.ts        # composition root: wires the three engines, routes, tools, announcement
+│   ├── setup.ts        # plugin identity + host constants (name / inject / Config / SMC_NAMESPACE)
+│   ├── routes.ts       # route table: concatenates every feature's routes, nothing else
+│   ├── shared/         # cross-domain primitives — no feature logic
+│   │   ├── paths.ts        # unified store root (S-M-C) — single source of truth for paths
+│   │   ├── fs-utils.ts     # symlink / existence / move / tree-size primitives
+│   │   ├── frontmatter.ts  # SKILL.md + DESCRIPTION.md parsing (admission rules, slugs)
+│   │   ├── http.ts         # loopback trust fence + request/response pipeline (`handle`)
+│   │   └── protocol/       # shared wire types + API paths, split by domain
+│   │       ├── index.ts        # barrel
+│   │       ├── api-paths.ts    # SMC_API — the one place both halves read paths from
+│   │       ├── skills.ts / mcp.ts / cli.ts / settings.ts
+│   ├── features/       # one vertical slice per tool family
+│   │   ├── skills/         # roots, store-index, registry, links, linking, adopt, scanner,
+│   │   │                   # registry-ops, delete, migration, manager, routes, store-migration
+│   │   ├── mcp/            # document (config/archive I/O), manager (live connections), routes
+│   │   ├── cli/            # registry (cli.json), probe (PATH/state probing), manager, routes
+│   │   ├── context/        # engine (per-session selections), tools (agent tool), routes
+│   │   ├── announce/       # system-prompt section rendered for every agent
+│   │   └── settings/       # this plugin's block in ~/.dsh/settings.yaml + routes
 │   ├── tsconfig.json / tsconfig.build.json / tsdown.config.ts  # type-check + declarations + two-half build
 │   ├── client/         # browser half
-│   │   ├── components/ # SettingsCard, ManagerShell, one panel per tab (Skills/Mcp/Cli/Guide), ui/ atoms
-│   │   ├── hooks/      # useApi, useAsyncList, useSkills, useMcp, useCli, useManagerSettings
-│   │   ├── utils/      # tab constants + formatting helpers
-│   │   └── index.ts / api.ts / locales.ts / settings-card.module.css
+│   │   ├── index.ts        # registers the settings page + sidebar entry
+│   │   ├── shared/         # api, locales, ui atoms, hooks (useApi/useAsyncList/useManagerSettings),
+│   │   │                   # constants, formatting, CSS module + its ambient declaration
+│   │   ├── shell/          # SettingsCard (slot face), ManagerShell (four tabs), sidebar entry
+│   │   └── features/       # one folder per tab: skills/ mcp/ cli/ guide/ (panel + its hooks)
 │   └── ../tests/       # vitest suites (isolated DSH_HOME / DSH_STORE_ROOT per test)
 ├── lib/                # built plugin (host: index.js; client: client.js; types/*)
 ├── cordis.patch.yml    # DSH bundle patch
@@ -50,16 +61,30 @@ dsh-s-m-c-center/
 └── scripts/install.*   # one-click install into a DSH profile
 ```
 
+Each `features/<domain>/` exposes a barrel `index.ts`; nothing outside a slice imports its
+internals. A slice owns its own `<domain>Routes(deps)` factory, so adding or removing a whole
+tool family is a one-line change in `src/routes.ts`.
+
 ## Hard rules
 
 - **Do NOT modify DeepSeek Harness (DSH) source.** Never write to `~/.dsh/source/current` or commit harness changes. The plugin is always a package the profile references.
 - **Install as a normal package, not a junction.** A junction breaks Node dependency resolution (the plugin's deps like `schemastery`/`react` fail to resolve upward) and desyncs the package name from `cordis.patch.yml`. Install via `dsh plugin --profile <name> add <path>` or `file:<tarball>`.
 - **The package name must match `cordis.patch.yml`'s `name`** (`dsh-s-m-c-center`). Do not rename one without the other, or DSH boot fails with `Cannot find package ...`.
 - `lib/` is the shipped artifact. It is **built from `src/`** (this repo has a source tree). To change behavior, edit `src/*`, then rebuild — `pnpm build` runs both steps: `tsc -p tsconfig.build.json` for `lib/types/**` (declarations + `.d.ts.map`) and `tsdown` for `lib/index.js` / `lib/client.js` — and commit the regenerated `lib/`. Running only `tsdown` leaves `lib/types/` stale, which is how an earlier release shipped without `reMigrate()` / `activateAll()` in its declarations.
-- The **host half** registers the `/api/dsh-s-m-c-center/*` route family on the loopback-only `webServer`; the **client half** registers the settings page. Keep the shared `SMC_API` path constants in `src/protocol.ts` as the single source of truth for both halves.
-- **Never hard-code a `~/.dsh/...` path in `src/`** — every store path comes from `src/store.ts`
+- The **host half** registers the `/api/dsh-s-m-c-center/*` route family on the loopback-only `webServer`; the **client half** registers the settings page. Keep the shared `SMC_API` path constants in `src/shared/protocol/api-paths.ts` as the single source of truth for both halves.
+- **Never hard-code a `~/.dsh/...` path in `src/`** — every store path comes from `src/shared/paths.ts`
 (`storeRoot()` / `storeSkillsDir()` / `storeMcpPath()` / `storeMcpArchivePath()` / `storeCliPath()`),
 which honours `$DSH_HOME` and `$DSH_STORE_ROOT`. Tests depend on that indirection.
+- **Write explicit module paths, not directory imports.** `moduleResolution: bundler` here does *not*
+resolve a directory import to its `index.ts`, and a file named `x.ts` next to a directory `x/` makes
+the bare specifier ambiguous. Always import `shared/protocol/index.ts` / `features/skills/index.ts`
+in full — a shortened `from '../shared/protocol.ts'` fails with TS2307 and then cascades into
+misleading TS7006 "implicitly any" errors.
+- **Keep each feature self-contained.** A slice may import from `shared/` and from its own files,
+  never from a sibling slice's internals. Cross-slice coordination (e.g. the announcement reading
+  all three engines) belongs in the consumer, wiring through the barrel exports.
+- **`import type` everywhere the import is types-only.** The client half bundles with
+  `react`/`react-dom` external; anything else reaching the bundle must be a real value import.
 
 ## Typical dev flow
 

@@ -16,8 +16,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { existsSync, mkdirSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { tmpdir } from 'node:os'
-import { SkillsManager } from '../src/skills.ts'
-import { storeSkillsDir } from '../src/store.ts'
+import { SkillsManager } from '../src/features/skills/index.ts'
+import { storeSkillsDir } from '../src/shared/paths.ts'
 
 let home: string
 let agents: string

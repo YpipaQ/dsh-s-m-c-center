@@ -1,17 +1,21 @@
 /**
  * The /api/dsh-s-m-c-center route family — the browser half's only data path.
- * Skills CRUD, MCP CRUD (plus a one-shot connection test), the local CLI
- * registry, and the plugin's own settings block. Every route sits behind a
- * loopback-only trust fence with browser same-origin markers: these endpoints
- * read and write user files and spawn MCP servers, so a LAN-exposed dsh web
- * deployment must not serve them.
+ *
+ * This module owns nothing but the assembly: it collects the per-feature route
+ * tables into the one list the host registers. Each feature's own `routes.ts`
+ * holds its handlers, and the shared trust fence they all sit behind
+ * (loopback-only, with browser same-origin markers) lives in `shared/http.ts`.
+ *
+ * Reading this file should tell you what the plugin exposes, not how any of it
+ * works — that is the split the feature directories are for.
  * @module
  */
 import type { WebRoute } from '@deepseek-ai/dsh-host-webserver';
-import { CliManager } from './cli.ts';
-import { McpManager } from './mcp.ts';
-import { SkillsManager } from './skills.ts';
-import type { ManagerSettings } from './protocol.ts';
+import type { ManagerSettings } from './shared/protocol/index.ts';
+import type { SkillsManager } from './features/skills/index.ts';
+import type { McpManager } from './features/mcp/index.ts';
+import type { CliManager } from './features/cli/index.ts';
+import type { AgentLike } from './features/context/index.ts';
 export interface RoutesDeps {
     skills: SkillsManager;
     mcp: McpManager;
@@ -21,26 +25,10 @@ export interface RoutesDeps {
      * panel applies immediately to a running conversation through it.
      */
     agents?: {
-        get(id: string): {
-            id: string;
-            ctx: unknown;
-            session?: {
-                header?: {
-                    cwd?: string;
-                };
-            };
-        } | undefined;
+        get(id: string): AgentLike | undefined;
     };
     /** Applied after a panel toggle for a live conversation (context engine). */
-    applyToAgent?: (agent: {
-        id: string;
-        ctx: unknown;
-        session?: {
-            header?: {
-                cwd?: string;
-            };
-        };
-    }) => void;
+    applyToAgent?: (agent: AgentLike) => void;
     /** Read the plugin's own persisted settings (~/.dsh/settings.yaml block). */
     readOwnSettings: () => ManagerSettings;
     /** Persist new settings, then re-apply surfaces; returns what landed. */

@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
   DEFAULT_CONTEXT_ID, listSelections, readSelection, toggleSelection, writeSelection,
-} from '../src/context-engine.ts'
+} from '../src/features/context/index.ts'
 
 let workspace: string
 

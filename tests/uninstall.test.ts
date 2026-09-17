@@ -15,10 +15,10 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import type { Context } from '@deepseek-ai/cordis'
-import { SkillsManager } from '../src/skills.ts'
-import { McpManager, readMcpArchive, readMcpConfig, writeMcpConfig } from '../src/mcp.ts'
-import { storeRoot, storeSkillsDir } from '../src/store.ts'
-import type { McpServerConfig } from '../src/protocol.ts'
+import { SkillsManager } from '../src/features/skills/index.ts'
+import { McpManager, readMcpArchive, readMcpConfig, writeMcpConfig } from '../src/features/mcp/index.ts'
+import { storeRoot, storeSkillsDir } from '../src/shared/paths.ts'
+import type { McpServerConfig } from '../src/shared/protocol/index.ts'
 
 let home: string
 let agents: string

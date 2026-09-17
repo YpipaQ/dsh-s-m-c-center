@@ -11,7 +11,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { CliManager, cliConfigPath, normalizeCliEntry, writeCliConfig } from '../src/cli.ts'
+import { CliManager, cliConfigPath, normalizeCliEntry, writeCliConfig } from '../src/features/cli/index.ts'
 
 /** Isolated DSH_HOME so the real ~/.dsh/S-M-C/cli.json is never touched. */
 let home: string

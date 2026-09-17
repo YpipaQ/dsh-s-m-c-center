@@ -15,7 +15,7 @@
  * that to the GUI.
  */
 import type { Context as ClientContext } from '@deepseek-ai/cordis';
-import { type SkillsMcpKey } from './locales.ts';
+import { type SkillsMcpKey } from './shared/locales.ts';
 declare module '@deepseek-ai/dsh-client-ui-slots' {
     interface LocaleNamespaceMap {
         /** dsh-s-m-c-center surface copy. */

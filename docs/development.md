@@ -12,19 +12,30 @@ Two halves, both built from `src/` into `lib/` by a single `tsdown` run:
 | Host (node) | `src/index.ts` | `lib/index.js` | ESM, platform `node` |
 | Client (browser) | `src/client/index.ts` | `lib/client.js` | CJS wrapped in `window.__ModuleLoader__.load(...)`, platform `browser` |
 
-- **Host half** (`index.ts`, `skills.ts`, `mcp.ts`, `cli.ts`, `routes.ts`, `protocol.ts`, plus the
-  supporting `store.ts`, `migrate.ts`, `announce.ts`, `settings.ts`) uses `node:fs`, `node:os`,
+- **Host half** — `src/index.ts` is a composition root: it constructs the three engines, builds
+  the route table, registers the agent tool and the announcement. Everything else lives in
+  `src/shared/` (cross-domain primitives) or `src/features/<domain>/` (one vertical slice per tool
+  family: `skills`, `mcp`, `cli`, `context`, `announce`, `settings`). It uses `node:fs`, `node:os`,
   `node:path`, `node:child_process`, `@deepseek-ai/dsh-settings`, `schemastery`,
   `@deepseek-ai/dsh-mcp-client`. It registers the `/api/dsh-s-m-c-center/*` route family on the
   **loopback-only** `webServer` and announces itself to every agent via `systemPrompt.section`.
-- **Client half** (`client/index.ts`, `client/SettingsCard.tsx`, `client/locales.ts`,
-  `client/api.ts`, `client/settings-card.module.css`, over the `client/components/**`,
-  `client/hooks/**` and `client/utils/**` layers) uses only `react` as a runtime external; the
-  `@deepseek-ai/dsh-client-*` imports are **type-only** (erased at build). It registers a
-  first-class `settings.section` page — one panel per tab (`SkillsPanel`, `McpPanel`, `CliPanel`,
-  `GuidePanel`) sharing the hooks in `client/hooks/`.
-- `src/protocol.ts` holds the shared `SMC_API` path constants both halves import — a route
-  rename is a single edit.
+- **Client half** — `src/client/index.ts` registers the settings page and the sidebar entry, over
+  `src/client/shared/` (api, locales, ui atoms, shared hooks, constants, formatting, styles),
+  `src/client/shell/` (`SettingsCard` slot face, `ManagerShell` tabs, `sidebar`) and
+  `src/client/features/<tab>/` (one panel + its hooks per tab: `skills`, `mcp`, `cli`, `guide`).
+  It uses only `react` as a runtime external; the `@deepseek-ai/dsh-client-*` imports are
+  **type-only** (erased at build).
+- `src/shared/protocol/api-paths.ts` holds the shared `SMC_API` path constants both halves import —
+  a route rename is a single edit.
+
+### Import-path rule
+
+`moduleResolution` is `bundler`, which does **not** resolve a directory import to its `index.ts`.
+Worse, a file `x.ts` sitting next to a directory `x/` makes the bare specifier `./x` ambiguous. So
+every cross-module import is written in full — `shared/protocol/index.ts`, `features/skills/index.ts`.
+A shortened `from '../shared/protocol.ts'` fails with TS2307 and then cascades into a wave of
+misleading TS7006 "Parameter implicitly has an 'any' type" errors, because the unresolved import
+degrades the types it was supposed to supply.
 
 ## Build
 
@@ -67,8 +78,8 @@ node --check lib/index.js
 node --check lib/client.js
 ```
 
-To sanity-check the CLI manager without a Host process, drive `src/cli.ts` with a stub
-`SkillsManager` (Node ≥23.6 with `--experimental-transform-types`) and point it at a real skill
+To sanity-check the CLI manager without a Host process, drive `src/features/cli/manager.ts` with a
+stub `SkillsManager` (Node ≥23.6 with `--experimental-transform-types`) and point it at a real skill
 bundle that ships `scripts/run-cli.*`.
 
 ## Install / activate
@@ -89,6 +100,6 @@ real `~/.dsh` is never touched. `tests/store-root.test.ts` also exercises the fu
 
 ## Store layout
 
-All runtime data lives in the unified store `~/.dsh/S-M-C` — see `src/store.ts` (the single source
-of truth for every path) and the 「统一外挂储存库」 chapter in `docs/功能介绍.md`. Never hard-code a
-`~/.dsh/...` path in `src/`.
+All runtime data lives in the unified store `~/.dsh/S-M-C` — see `src/shared/paths.ts` (the single
+source of truth for every path) and the 「统一外挂储存库」 chapter in `docs/功能介绍.md`. Never
+hard-code a `~/.dsh/...` path in `src/`.

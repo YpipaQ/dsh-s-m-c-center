@@ -1,8 +1,15 @@
 /**
- * Host half of dsh-s-m-c-center: three engines (skills on the
- * filesystem, MCP over real @deepseek-ai/dsh-mcp-client connections, the local
- * CLI registry), the /api/dsh-s-m-c-center route family the browser half drives,
- * and the system-prompt announcement.
+ * Host half of dsh-s-m-c-center: three engines (skills on the filesystem, MCP
+ * over real @deepseek-ai/dsh-mcp-client connections, the local CLI registry),
+ * the /api/dsh-s-m-c-center route family the browser half drives, and the
+ * system-prompt announcement.
+ *
+ * This module is the composition root and nothing else. It owns exactly the
+ * things that cannot live inside a feature: the live config getter that
+ * `sync()` reads, the order in which the one-shot migrations run, and the
+ * lifecycle that ties every registered surface to the current config. The
+ * actual work — what a skill is, how MCP converges, what the announcement says
+ * — lives in `src/features/*`.
  *
  * The browser half contributes a first-class settings PAGE — not a card inside
  * a group; see ./client/index.ts. Nothing here patches dsh: every surface is
@@ -12,80 +19,26 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-settings'
-import z from 'schemastery'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 import type {} from '@deepseek-ai/dsh-system-prompt'
 import type {} from '@deepseek-ai/dsh-tools'
-import { invalidateAnnouncement, renderAnnouncement } from './announce.ts'
-import { CliManager } from './cli.ts'
-import { migrateStoreRoot } from './migrate.ts'
-import { McpManager } from './mcp.ts'
+import type { AgentLike } from './features/context/index.ts'
+import { CliManager } from './features/cli/index.ts'
+import { applyToAgent, buildSkillSelectTool } from './features/context/index.ts'
+import { McpManager } from './features/mcp/index.ts'
+import { SkillsManager } from './features/skills/index.ts'
+import { migrateStoreRoot } from './features/skills/store-migration.ts'
+import { invalidateAnnouncement, renderAnnouncement } from './features/announce/index.ts'
+import { migrateSettingsNamespace, readSettings, writeSettings } from './features/settings/index.ts'
 import { makeRoutes } from './routes.ts'
-import { SkillsManager } from './skills.ts'
-import { applyToAgent, buildSkillSelectTool } from './context-tools.ts'
-import { migrateSettingsNamespace, readSettings, writeSettings } from './settings.ts'
+import {
+  Config, DEFAULT_ANNOUNCE, DEFAULT_ENABLED, SECTION_ORDER, SMC_GUIDANCE, SMC_NAMESPACE,
+  workspaceCwd,
+} from './setup.ts'
+import type { Config as ConfigShape } from './setup.ts'
 
-/** Cordis plugin id. Renaming it breaks existing profiles — treat as fixed. */
-export const name = 'dsh-s-m-c-center'
-
-/** Services that must be present before any surface mounts. `settings` is
- * absent on purpose: the config section is attached later through
- * `ctx.inject`, so a host without a settings surface still gets routes + MCP. */
-export const inject = ['webServer', 'tools', 'systemPrompt']
-
-/**
- * Key of this plugin's block in `~/.dsh/settings.yaml`.
- *
- * Written as a literal rather than imported so the browser half can spell the
- * same value without depending on a Host package. It stays a plain kebab-case
- * string because the `settingsNamespace()` branding helper was dropped from
- * `@deepseek-ai/dsh-settings` in DSH 0.1.2-alpha.2.
- */
-export const SMC_NAMESPACE = 'dsh-s-m-c-center'
-
-/** Fields a user may put in that block. */
-export interface Config {
-  /** Master switch: routes, MCP connections and the prompt section. */
-  enabled?: boolean
-  /** Whether to announce the plugin in every agent's system prompt. */
-  announceToAgent?: boolean
-}
-
-/** Schema form of the above, so dsh validates the block as it loads it. */
-export const Config: z<Config> = z.object({
-  enabled: z.boolean().default(true),
-  announceToAgent: z.boolean().default(true),
-})
-
-/** Fallbacks used until a config block has been written. */
-const DEFAULT_ENABLED = true
-const DEFAULT_ANNOUNCE = true
-
-/** Where the announcement sits inside the tool-guidance band. */
-const SECTION_ORDER = 160
-
-/**
- * Workspace root for project-scoped discovery in the announcement.
- * Project-level skills live under the cwd, so the same plugin announces a
- * different skill set depending on where dsh is running.
- */
-function workspaceCwd(): string | undefined {
-  try {
-    return process.cwd()
-  } catch {
-    return undefined
-  }
-}
-
-/**
- * Model-facing announcement: plugin presence, capabilities, and limits.
- *
- * Kept as the static form of the announcement and used as the fallback when the
- * live state cannot be read. The section normally renders
- * {@link renderAnnouncement} instead, which splices in the actual skills, MCP
- * servers and CLI tools — see `src/announce.ts` for why that matters.
- */
-export const SMC_GUIDANCE = '本机装有 dsh-s-m-c-center 插件（技能/MCP/CLI 管理器，设置页「Web UI 插件 → 工具管理」）。协作规则：1. 新建用户级技能 → 写到 ~/.dsh/S-M-C/skills/<名>/（含 SKILL.md，frontmatter 需 name+description）；禁写 ~/.dsh/skills、~/.agents/skills 等库外目录；写入后为「未启用」，用户启用后可用；项目专用技能放当前项目的 .dsh/skills/。2. 技能加载：仅用 skill 工具加载已启用技能。3. MCP：仅调已连接服务器的 mcp__<server>__<tool>；未连接/归档不可用，需用户激活。4. 本地 CLI（gh/git 及 skill 内嵌 scripts/run-cli 包装的）：经终端按名调用，可报安装/版本/更新/API-Key/子命令状态；「未找到」先装。5. 技能删除＝物理删除不可恢复，先获用户确认。6. 启停/增删归用户在管理页操作。数据在 ~/.dsh/S-M-C（MCP 凭证明文）。提到「技能管理 / 技能导入 / MCP 服务器 / MCP 连接 / CLI 工具 / CLI 状态」即指本插件。'
+export { name, inject, Config, SMC_NAMESPACE, SMC_GUIDANCE } from './setup.ts'
+export type { Config as ConfigFields } from './setup.ts'
 
 /**
  * Wire this plugin into a host context: adopt any legacy on-disk layout, build
@@ -96,12 +49,12 @@ export const SMC_GUIDANCE = '本机装有 dsh-s-m-c-center 插件（技能/MCP/C
  * @param config - the composition entry's config, if any; schema defaults are
  *   already applied by the loader before this runs.
  */
-export function apply(ctx: Context, config?: Config): void {
+export function apply(ctx: Context, config?: ConfigShape): void {
   // The loader hands the first config in already defaulted; a later settings
   // write replaces it, so keep reading through the getter rather than closing
   // over the original value.
-  let current = (): Config => config ?? {}
-  const resolve = (): Config => ({
+  let current = (): ConfigShape => config ?? {}
+  const resolve = (): Required<ConfigShape> => ({
     enabled: current().enabled ?? DEFAULT_ENABLED,
     announceToAgent: current().announceToAgent ?? DEFAULT_ANNOUNCE,
   })
@@ -113,8 +66,7 @@ export function apply(ctx: Context, config?: Config): void {
   // One-shot adoption: the canonical copy of every user-level skill moves into
   // the store, and each root gets a link back. Best effort by design — a
   // failure must never keep the plugin from mounting, and a skill that cannot
-  // be moved simply stays where it is, still usable and still toggled through
-  // its own frontmatter.
+  // be moved simply stays where it is, still usable.
   try {
     // The settings block moved with the package name; carry the user's values
     // over before anything reads them.
@@ -136,19 +88,12 @@ export function apply(ctx: Context, config?: Config): void {
   let disposeRoutes: (() => void) | undefined
   let applyAnnouncement: () => void = () => {}
 
-  // Settings routes edit the owned YAML block, then re-apply the announcement
-  // so an announceToAgent flip takes effect immediately (register/drop the
-  // system-prompt section) without a dsh restart. Routes are deliberately NOT
-  // re-registered here: this runs inside a live request handler, and disposing
-  // the in-flight route would truncate the response.
   // Live agents, when the host provides the registry (optional inject: a
   // deployment without it still mounts — panel flips just persist without the
   // live-apply path). Resolved lazily so the routes see it whenever it lands.
-  let liveAgents: { get(id: string): { id: string; ctx: unknown; session?: { header?: { cwd?: string } } } | undefined } | undefined
+  let liveAgents: { get(id: string): AgentLike | undefined } | undefined
   ctx.inject(['agents'], (agentsCtx) => {
-    liveAgents = (agentsCtx as unknown as {
-      agents?: { get(id: string): { id: string; ctx: unknown; session?: { header?: { cwd?: string } } } | undefined }
-    }).agents
+    liveAgents = (agentsCtx as unknown as { agents?: { get(id: string): AgentLike | undefined } }).agents
   })
 
   const { routes } = makeRoutes({
@@ -159,7 +104,7 @@ export function apply(ctx: Context, config?: Config): void {
     get agents() {
       return liveAgents
     },
-    applyToAgent: (agent) => { applyToAgent(skills, agent as Parameters<typeof applyToAgent>[1]) },
+    applyToAgent: (agent) => { applyToAgent(skills, agent) },
     readOwnSettings: () => readSettings(),
     writeOwnSettings: (next) => {
       writeSettings(next)

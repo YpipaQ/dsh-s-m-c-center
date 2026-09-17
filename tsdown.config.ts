@@ -121,6 +121,13 @@ function hostConfig(id: string): UserConfig {
     fixedExtension: false,
     dts: false,
     clean: false,
+    // The host half ships as comments-and-all source otherwise: rolldown keeps
+    // every JSDoc block it reaches, and splitting src/ into per-domain modules
+    // means far more of them survive into the bundle than the old single-file
+    // layout did. Minifying drops those docblocks (and the `//#region` markers)
+    // without touching behaviour — the client half is minified for the same
+    // reason, which is why its size is unchanged by the split.
+    minify: true,
     deps: {
       neverBundle: isHostExternal,
       alwaysBundle: (specifier: string) => !isHostExternal(specifier),

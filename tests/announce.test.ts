@@ -10,8 +10,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { mkdirSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { invalidateAnnouncement, renderAnnouncement } from '../src/announce.ts'
-import type { CliSummary, McpServerSummary, SkillSummary } from '../src/protocol.ts'
+import { invalidateAnnouncement, renderAnnouncement } from '../src/features/announce/index.ts'
+import type { CliSummary, McpServerSummary, SkillSummary } from '../src/shared/protocol/index.ts'
 
 let home: string
 let origHome: string | undefined

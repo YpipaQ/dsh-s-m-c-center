@@ -16,7 +16,7 @@
  */
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
-import { mountSidebarEntry } from './sidebar.ts'
+import { mountSidebarEntry } from './shell/sidebar.ts'
 // Type-only: pulls the settings shell's SlotMap merge (the 'settings.section' entry).
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 // Type-only: pulls the SlotRegistry service merge (ctx.slots).
@@ -29,8 +29,8 @@ import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 // Type-only: pulls the slots merge tables (SlotMap / LocaleNamespaceMap).
 import type {} from '@deepseek-ai/dsh-client-ui-slots'
-import { en, zh, type SkillsMcpKey } from './locales.ts'
-import { SkillsMcpSection } from './SettingsCard.tsx'
+import { en, zh, type SkillsMcpKey } from './shared/locales.ts'
+import { SkillsMcpSection } from './shell/SettingsCard.tsx'
 
 /** Locale namespace this plugin owns. */
 const NS = 'dsh-s-m-c-center'

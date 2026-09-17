@@ -16,8 +16,8 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import { join, dirname } from 'node:path'
 import { tmpdir } from 'node:os'
 import type { Context } from '@deepseek-ai/cordis'
-import { McpManager, mcpArchivePath, mcpConfigPath, readMcpArchive, readMcpConfig, writeMcpConfig } from '../src/mcp.ts'
-import type { McpServerConfig } from '../src/protocol.ts'
+import { McpManager, mcpArchivePath, mcpConfigPath, readMcpArchive, readMcpConfig, writeMcpConfig } from '../src/features/mcp/index.ts'
+import type { McpServerConfig } from '../src/shared/protocol/index.ts'
 
 let home: string
 let origHome: string | undefined

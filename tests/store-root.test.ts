@@ -15,14 +15,14 @@ import {
 } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
-import { migrateStoreRoot } from '../src/migrate.ts'
-import { cliConfigPath } from '../src/cli.ts'
-import { mcpArchivePath, mcpConfigPath } from '../src/mcp.ts'
-import { SkillsManager } from '../src/skills.ts'
+import { migrateStoreRoot } from '../src/features/skills/store-migration.ts'
+import { cliConfigPath } from '../src/features/cli/index.ts'
+import { mcpArchivePath, mcpConfigPath } from '../src/features/mcp/index.ts'
+import { SkillsManager } from '../src/features/skills/index.ts'
 import {
   dshHomeDir, storeCliPath, storeMcpArchivePath, storeMcpPath, storeRoot,
   storeSkillsDir,
-} from '../src/store.ts'
+} from '../src/shared/paths.ts'
 
 let home: string
 let agents: string
