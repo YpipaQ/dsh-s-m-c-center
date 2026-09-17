@@ -144,6 +144,23 @@ export class SkillsMcpApi {
     return body.results
   }
 
+  // ── conversation contexts ────────────────────────────────────────────────
+
+  /** Conversations that hold a selection under one workspace. */
+  async listContexts(cwd: string): Promise<{ workspace: string; selections: Array<{ sessionId: string; count: number; updatedAt: string }> }> {
+    return await call('GET', withCwd(SMC_API.contexts, cwd))
+  }
+
+  /** One conversation's selection. */
+  async getContext(sessionId: string, cwd: string): Promise<{ workspace: string; selection: { sessionId: string; selected: string[]; updatedAt: string } }> {
+    return await call('POST', SMC_API.contextsGet, { sessionId, cwd })
+  }
+
+  /** Flip one slug in one conversation; applied live when it is running. */
+  async toggleContext(sessionId: string, slug: string, cwd: string): Promise<{ selection: { sessionId: string; selected: string[] }; applied: boolean }> {
+    return await call('POST', SMC_API.contextsToggle, { sessionId, slug, cwd })
+  }
+
   async storeStatus(): Promise<StoreStatus> {
     const body = await call<{ store: StoreStatus }>('GET', SMC_API.skillStore)
     return body.store

@@ -45,6 +45,32 @@ export declare class SkillsMcpApi {
         name: string;
         exists: boolean;
     }>>;
+    /** Conversations that hold a selection under one workspace. */
+    listContexts(cwd: string): Promise<{
+        workspace: string;
+        selections: Array<{
+            sessionId: string;
+            count: number;
+            updatedAt: string;
+        }>;
+    }>;
+    /** One conversation's selection. */
+    getContext(sessionId: string, cwd: string): Promise<{
+        workspace: string;
+        selection: {
+            sessionId: string;
+            selected: string[];
+            updatedAt: string;
+        };
+    }>;
+    /** Flip one slug in one conversation; applied live when it is running. */
+    toggleContext(sessionId: string, slug: string, cwd: string): Promise<{
+        selection: {
+            sessionId: string;
+            selected: string[];
+        };
+        applied: boolean;
+    }>;
     storeStatus(): Promise<StoreStatus>;
     /** Undo the one-shot migration: every stored skill returns to its origin. */
     rollbackStore(): Promise<StoreOperation>;

@@ -13,6 +13,7 @@ import { McpPanel } from './McpPanel.tsx'
 import { CliPanel } from './CliPanel.tsx'
 import { GuidePanel } from './GuidePanel.tsx'
 import { useSkills } from '../hooks/useSkills.ts'
+import { useContexts } from '../hooks/useContexts.ts'
 import { useMcp } from '../hooks/useMcp.ts'
 import { useCli } from '../hooks/useCli.ts'
 import { useManagerSettings } from '../hooks/useManagerSettings.ts'
@@ -41,6 +42,7 @@ export function ManagerShell({ cwd, enabled, pickDirectory, t }: ManagerShellPro
 
   // All three hooks mount with the shell so a tab switch never refetches.
   const skills = useSkills({ cwd, refreshKey, pickDirectory, t })
+  const contexts = useContexts({ cwd, refreshKey, skills: skills.filtered, t })
   const mcp = useMcp({ refreshKey, t })
   const cli = useCli({ cwd, refreshKey, t })
 
@@ -105,7 +107,7 @@ export function ManagerShell({ cwd, enabled, pickDirectory, t }: ManagerShellPro
           </p>
         )}
 
-      {tab === 'skills' ? <SkillsPanel skills={skills} t={t} /> : null}
+      {tab === 'skills' ? <SkillsPanel skills={skills} contexts={contexts} t={t} /> : null}
       {tab === 'mcp' ? <McpPanel mcp={mcp} t={t} /> : null}
       {tab === 'cli' ? <CliPanel cli={cli} t={t} /> : null}
       {tab === 'guide' ? <GuidePanel skills={skills} mcp={mcp} refresh={bump} t={t} /> : null}

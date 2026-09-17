@@ -199,6 +199,15 @@ export type SkillsMcpKey =
   | 'msgVerifyUntracked'
   | 'msgRefreshOk'
   | 'msgRefreshMissing'
+  // conversation contexts (phase two)
+  | 'contextTitle'
+  | 'contextNote'
+  | 'emptyContexts'
+  | 'contextSessionItem'
+  | 'contextNoCandidates'
+  | 'msgContextApplied'
+  | 'msgContextLive'
+  | 'msgContextSaved'
 
   // uninstall preparation page
   | 'uninstallIntro'
@@ -415,6 +424,15 @@ export const zh: Record<SkillsMcpKey, string> = {
   msgRefreshOk: '溯源刷新完成：{n} 条记录均存在',
   msgRefreshMissing: '溯源刷新：{n} 条记录的目录已不存在 → ',
 
+  contextTitle: '会话技能（上下文级）',
+  contextNote: '每个对话独立选择注入哪些技能，默认全不选。对话里的 agent 也可以自己开关（写入同一份配置）。此列表只显示已有选择记录的会话。',
+  emptyContexts: '还没有会话保存过技能选择——在对话里让 agent 用 skill_select 启用即可',
+  contextSessionItem: '会话 {id}…（{n} 个已选）',
+  contextNoCandidates: '没有可勾选的技能（先在下方登记或迁移入库）',
+  msgContextApplied: '已保存，本会话共选 {n} 个技能（{state}）',
+  msgContextLive: '已即时生效',
+  msgContextSaved: '会话未运行，下次启动生效',
+
   detailWhenToUse: '何时使用',
   helpToggle: '/help 帮助文本',
   cliSkillPrefix: '技能',
@@ -626,6 +644,15 @@ export const en: Record<SkillsMcpKey, string> = {
   msgVerifyUntracked: 'Link is valid (no ledger record) → ',
   msgRefreshOk: 'Traceability refresh done: all {n} records exist',
   msgRefreshMissing: 'Traceability refresh: {n} record(s) missing → ',
+
+  contextTitle: 'Conversation skills (context level)',
+  contextNote: 'Each conversation picks which skills are injected, all unselected by default. The agent can flip its own skills in-conversation (same config file). This list shows conversations that already hold a selection.',
+  emptyContexts: 'No conversation has a selection yet — ask the agent to enable one via skill_select',
+  contextSessionItem: 'Session {id}… ({n} selected)',
+  contextNoCandidates: 'Nothing to tick (register or migrate skills first)',
+  msgContextApplied: 'Saved; {n} skill(s) selected for this conversation ({state})',
+  msgContextLive: 'applied live',
+  msgContextSaved: 'session idle; takes effect on next start',
 
   detailWhenToUse: 'When to use',
   helpToggle: '/help text',

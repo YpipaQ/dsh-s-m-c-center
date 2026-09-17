@@ -17,6 +17,7 @@
 import { useState } from 'react'
 import { Badge, Button, EmptyState, ErrorText, Loading, Switch } from './ui/index.tsx'
 import type { UseSkillsResult } from '../hooks/useSkills.ts'
+import type { UseContextsResult } from '../hooks/useContexts.ts'
 import { format, sourceLabel } from '../utils/format.ts'
 import type { SkillGroup } from '../../protocol.ts'
 import type { SkillsMcpKey, Translate } from '../locales.ts'
@@ -24,6 +25,7 @@ import css from '../settings-card.module.css'
 
 export interface SkillsPanelProps {
   skills: UseSkillsResult
+  contexts: UseContextsResult
   t: Translate
 }
 
@@ -35,11 +37,13 @@ const GROUP_KEY: Record<SkillGroup, SkillsMcpKey> = {
 }
 
 /** Skills tab. */
-export function SkillsPanel({ skills, t }: SkillsPanelProps) {
+export function SkillsPanel({ skills, contexts, t }: SkillsPanelProps) {
   const { store } = skills
 
   return (
     <div className={css.panel}>
+      <ContextSection contexts={contexts} skills={skills} t={t} />
+
       {store !== null && store.migrated
         ? (
           <div className={css.storeNote}>
@@ -98,6 +102,64 @@ function Messages({ skills }: { skills: UseSkillsResult }) {
       {skills.message ? <ErrorText>{skills.message}</ErrorText> : null}
       {skills.error ? <ErrorText>{skills.error}</ErrorText> : null}
     </>
+  )
+}
+
+/**
+ * Phase two: per-conversation skill selection. A conversation starts with
+ * everything unselected — the agent flips its own skills through the
+ * `skill_select` tool, and this block edits any conversation that already
+ * holds a selection.
+ */
+function ContextSection({ contexts, skills, t }: { contexts: UseContextsResult; skills: UseSkillsResult; t: Translate }) {
+  return (
+    <div className={css.section}>
+      <div className={css.inline}>
+        <div className={css.hGrow}>{t('contextTitle')}</div>
+        <Button onClick={contexts.reload}>{t('refresh')}</Button>
+      </div>
+      <div className={css.descWrap}>{t('contextNote')}</div>
+      {contexts.sessions.length === 0
+        ? <EmptyState title={t('emptyContexts')} />
+        : (
+          <div className={css.inline}>
+            <select
+              className={css.filterSelect}
+              value={contexts.activeId ?? ''}
+              onChange={(e) => { contexts.setActiveId(e.target.value) }}
+            >
+              {contexts.sessions.map((s) => (
+                <option key={s.sessionId} value={s.sessionId}>
+                  {format(t('contextSessionItem'), { id: s.sessionId.slice(0, 8), n: s.count })}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+      {contexts.message ? <ErrorText>{contexts.message}</ErrorText> : null}
+      {contexts.activeId !== null
+        ? (
+          <div className={css.scanList}>
+            {contexts.candidates.length === 0
+              ? <div className={css.note}>{t('contextNoCandidates')}</div>
+              : contexts.candidates.map((skill) => (
+                <div key={skill.slug ?? skill.path} className={css.row}>
+                  <input
+                    type="checkbox"
+                    disabled={contexts.busySlug === (skill.slug ?? '')}
+                    checked={!!contexts.checked[skill.slug ?? '']}
+                    onChange={() => { contexts.toggle(skill.slug ?? '') }}
+                  />
+                  <div className={css.main}>
+                    <div className={css.name}><span className={css.nameText}>{skill.name}</span></div>
+                  </div>
+                  <Badge>{t(skill.group === 'stored' ? 'groupStored' : skill.group === 'registered' ? 'groupRegistered' : 'groupNative')}</Badge>
+                </div>
+              ))}
+          </div>
+        )
+        : null}
+    </div>
   )
 }
 
