@@ -14,6 +14,13 @@
   <a href="./package.json"><img alt="node" src="https://img.shields.io/node/v/dsh-s-m-c-center?style=flat-square&amp;labelColor=555" /></a>
 </div>
 
+> [!WARNING]
+> **This release (0.1.1) still has known issues.** Read these three before relying on it.
+>
+> - **A linked skill appears in every conversation's skill catalog**, and the session-default switch does not control it: the catalog's membership comes from dsh scanning the skill roots — a plugin can only override the *content* of a same-named line, never remove one. To keep a skill out by default, unlink it on the skills page (the canonical copy stays in the store and can be re-enabled at any time).
+> - The fix is identified (shadow entries / taking over the catalog), but both are breaking changes and **not shipped yet**.
+> - See [Issues](https://github.com/YpipaQ/dsh-s-m-c-center/issues) for the rest.
+
 # 三合一工具台 · dsh-s-m-c-center
 
 > Chinese name: **三合一工具台** (three-in-one console) ｜ UI entry: Settings → Web UI Plugins → Tool Manager ｜ Aliases: 工具管理, 工具中心, 技能管理, MCP 服务器管理, CLI 工具管理, Skills / MCP / CLI manager
@@ -112,7 +119,7 @@ dsh plugin --profile web add dsh-s-m-c-center
 dsh plugin --profile web add <absolute path to this folder>
 
 # Or from a packed tarball
-dsh plugin --profile web add <path>/dsh-s-m-c-center-0.1.0.tgz
+dsh plugin --profile web add <path>/dsh-s-m-c-center-0.1.1.tgz
 
 # Or the one-shot scripts
 bash scripts/install.sh                                        # macOS / Linux / Git Bash

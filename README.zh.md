@@ -14,6 +14,13 @@
   <a href="./package.json"><img alt="node" src="https://img.shields.io/node/v/dsh-s-m-c-center?style=flat-square&amp;labelColor=555" /></a>
 </div>
 
+> [!WARNING]
+> **当前版本（0.1.1）仍有已知问题**，请先读这三条再决定怎么用。
+>
+> - **已「联接」的技能会出现在每一个对话的技能目录里**，「会话默认」的开关管不到它：目录成员由 dsh 自己扫描技能根得出，插件只能覆盖同名那一行的**内容**，不能让它少列一条。要让它默认不出现，请在技能页把它设为**不启用**（即断开联接；正本仍在储存库，随时可再启用）。
+> - 这个问题已定位（静默条目 / 接管目录两种修法），但都属于破坏性改动，**尚未实施**。
+> - 其余已知问题与进展见 [Issues](https://github.com/YpipaQ/dsh-s-m-c-center/issues)。
+
 # 三合一工具台 · dsh-s-m-c-center
 
 > 中文名：**三合一工具台** ｜ 界面入口：「Web UI 插件 → 工具管理」 ｜ 别名：工具管理、工具中心、技能管理、MCP 服务器管理、CLI 工具管理、Skills / MCP / CLI 管理器
@@ -112,7 +119,7 @@ dsh plugin --profile web add dsh-s-m-c-center
 dsh plugin --profile web add <本文件夹绝对路径>
 
 # 或安装打包产物
-dsh plugin --profile web add <path>/dsh-s-m-c-center-0.1.0.tgz
+dsh plugin --profile web add <path>/dsh-s-m-c-center-0.1.1.tgz
 
 # 或使用一键脚本
 bash scripts/install.sh                                        # macOS / Linux / Git Bash
