@@ -74,11 +74,11 @@ describe('SkillBindings', () => {
     const agent: FakeAgent = { id: 'session-1' }
     const scope = createScope(globalCtx, agent)
 
-    const outcome = await bindings.apply(agent, scope.ctx, [registration('gsap')])
+    const outcome = await bindings.apply(agent, scope.ctx, [registration('demo-skill')])
 
     expect(outcome.applied).toBe(true)
-    expect(outcome.registered).toEqual(['gsap'])
-    expect(await visible(agent)).toEqual(['gsap'])
+    expect(outcome.registered).toEqual(['demo-skill'])
+    expect(await visible(agent)).toEqual(['demo-skill'])
     expect(await registry.list()).toEqual([])
     await bindings.releaseAll()
   })
@@ -91,7 +91,7 @@ describe('SkillBindings', () => {
     const agent: FakeAgent = { id: 'session-1' }
     const withoutSkills = createScope(new Context(), agent)
 
-    const outcome = await bindings.apply(agent, withoutSkills.ctx, [registration('gsap')])
+    const outcome = await bindings.apply(agent, withoutSkills.ctx, [registration('demo-skill')])
 
     expect(outcome.applied).toBe(false)
     expect(outcome.error).toMatch(/skills/)
@@ -104,8 +104,8 @@ describe('SkillBindings', () => {
     const agent: FakeAgent = { id: 'session-1' }
     const scope = createScope(globalCtx, agent)
 
-    await bindings.apply(agent, scope.ctx, [registration('gsap')])
-    expect(await visible(agent)).toEqual(['gsap'])
+    await bindings.apply(agent, scope.ctx, [registration('demo-skill')])
+    expect(await visible(agent)).toEqual(['demo-skill'])
 
     // Off.
     await bindings.apply(agent, scope.ctx, [])
@@ -113,9 +113,9 @@ describe('SkillBindings', () => {
 
     // On again — the registration must be real, not a no-op the registry
     // dropped because a previous layer still held the name.
-    const again = await bindings.apply(agent, scope.ctx, [registration('gsap')])
+    const again = await bindings.apply(agent, scope.ctx, [registration('demo-skill')])
     expect(again.applied).toBe(true)
-    expect(await visible(agent)).toEqual(['gsap'])
+    expect(await visible(agent)).toEqual(['demo-skill'])
     await bindings.releaseAll()
   })
 
@@ -135,7 +135,7 @@ describe('SkillBindings', () => {
     const bindings = new SkillBindings()
     const agent: FakeAgent = { id: 'session-1' }
     const scope = createScope(globalCtx, agent)
-    const wanted = [registration('gsap')]
+    const wanted = [registration('demo-skill')]
 
     const first = await bindings.ensureAgent(agent, scope.ctx, wanted)
     const second = await bindings.ensureAgent(agent, scope.ctx, wanted)
@@ -143,7 +143,7 @@ describe('SkillBindings', () => {
     expect(first.applied).toBe(true)
     expect(second.applied).toBe(true)
     // One registration, not two: the second call reused the binding.
-    expect(await visible(agent)).toEqual(['gsap'])
+    expect(await visible(agent)).toEqual(['demo-skill'])
     await bindings.releaseAll()
   })
 
@@ -281,10 +281,10 @@ describe('skill_query', () => {
     return {
       listSkills: () => ([
         { name: 'planned', description: 'resolvable', group: 'stored', linked: true, source: 'user-dsh', level: 'user', kind: 'bundle', path: 'y', slug: 'planned' },
-        { name: 'apple', description: 'a container', group: 'native', linked: true, source: 'user-dsh', level: 'user', kind: 'bundle', path: 'z', slug: 'apple' },
+        { name: 'demo-pack', description: 'a container', group: 'native', linked: true, source: 'user-dsh', level: 'user', kind: 'bundle', path: 'z', slug: 'demo-pack' },
       ] satisfies SkillSummary[]),
       enableBlocker: (slug: string) => (
-        slug === 'apple' ? '该条目是容器目录（只有 DESCRIPTION.md，没有可加载的正文）' : undefined
+        slug === 'demo-pack' ? '该条目是容器目录（只有 DESCRIPTION.md，没有可加载的正文）' : undefined
       ),
     } as unknown as SkillsManager
   }
@@ -302,7 +302,7 @@ describe('skill_query', () => {
     expect(answer.skills.find((s) => s.name === 'planned')).toMatchObject({
       linked: true, selected: true, usable: true,
     })
-    const container = answer.skills.find((s) => s.name === 'apple')
+    const container = answer.skills.find((s) => s.name === 'demo-pack')
     expect(container?.selected).toBe(false)
     expect(container?.usable).toBe(false)
     expect(container?.reason).toContain('容器')
@@ -315,7 +315,7 @@ describe('skill_query', () => {
     const agent = { id: 'session-1', session: { header: { cwd: workspace } } } as unknown as AgentLike
 
     const byKeyword = await tool.execute({ query: 'CONTAINER' }, { agent } as never) as QueryAnswer
-    expect(byKeyword.skills.map((s) => s.name)).toEqual(['apple'])
+    expect(byKeyword.skills.map((s) => s.name)).toEqual(['demo-pack'])
     const byGroup = await tool.execute({ group: 'stored' }, { agent } as never) as QueryAnswer
     expect(byGroup.skills.map((s) => s.name)).toEqual(['planned'])
     rmSync(workspace, { recursive: true, force: true })
@@ -348,14 +348,14 @@ describe('skill_select', () => {
     // never scans. Accepting the flip produced a dead catalog line while those
     // skills stayed unreachable.
     const container: SkillsManager = {
-      resolveRegistration: (slug: string) => (slug === 'apple' ? registration('apple') : undefined),
-      enableBlocker: (slug: string) => (slug === 'apple' ? '该条目是容器目录（只有 DESCRIPTION.md，没有可加载的正文）' : undefined),
+      resolveRegistration: (slug: string) => (slug === 'demo-pack' ? registration('demo-pack') : undefined),
+      enableBlocker: (slug: string) => (slug === 'demo-pack' ? '该条目是容器目录（只有 DESCRIPTION.md，没有可加载的正文）' : undefined),
       listSkills: () => [],
     } as unknown as SkillsManager
     const tool = buildSkillSelectTool(container, spyBindings(captured))
     const agent = { id: 'session-1' } as unknown as AgentLike
 
-    const result = await tool.execute({ slug: 'apple', selected: true }, { agent } as never) as {
+    const result = await tool.execute({ slug: 'demo-pack', selected: true }, { agent } as never) as {
       applied: boolean
       error: string
     }

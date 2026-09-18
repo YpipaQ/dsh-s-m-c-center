@@ -44,7 +44,7 @@
 
   <rect x="510" y="250" width="340" height="90" rx="8" fill="#FFFFFF" stroke="#888780"/>
   <text x="526" y="272" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="12" font-weight="500" fill="#2C2C2A">联接（Windows junction / POSIX symlink）</text>
-  <text x="526" y="292" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="12" fill="#5F5E5A">~/.dsh/skills/gsap → S-M-C/skills/gsap</text>
+  <text x="526" y="292" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="12" fill="#5F5E5A">~/.dsh/skills/&lt;slug&gt; → S-M-C/skills/&lt;slug&gt;</text>
   <text x="526" y="312" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="12" fill="#5F5E5A">联接里存的是绝对路径</text>
   <text x="526" y="330" font-family="'Segoe UI', system-ui, -apple-system, 'Microsoft YaHei', sans-serif" font-size="12" fill="#A32D2D">手动剪切储存库会让技能对 agent 全部消失</text>
 

@@ -196,19 +196,19 @@ describe('migrateStoreRoot', () => {
 
   it('carries a real skill through the whole upgrade path', () => {
     // Start from the pre-store layout: an ordinary directory in ~/.dsh/skills.
-    bundle(userSkills(), 'gsap')
+    bundle(userSkills(), 'demo-skill')
     const skills = new SkillsManager()
     skills.migrate() // → 0.3/0.4: canonical copy in skills-store, link back
-    expect(isLinked(join(userSkills(), 'gsap'))).toBe(true)
+    expect(isLinked(join(userSkills(), 'demo-skill'))).toBe(true)
 
     migrateStoreRoot(skills) // → 0.5: S-M-C/skills, link repaired
 
-    expect(existsSync(join(storeSkillsDir(), 'gsap', 'SKILL.md'))).toBe(true)
+    expect(existsSync(join(storeSkillsDir(), 'demo-skill', 'SKILL.md'))).toBe(true)
     expect(existsSync(oldStore())).toBe(false)
-    expect(resolve(readlinkSync(join(userSkills(), 'gsap'))))
-      .toBe(resolve(join(storeSkillsDir(), 'gsap')))
+    expect(resolve(readlinkSync(join(userSkills(), 'demo-skill'))))
+      .toBe(resolve(join(storeSkillsDir(), 'demo-skill')))
     // The agent still sees it, which is the only thing that actually matters.
-    const found = skills.listSkills().find((s) => s.name === 'gsap')
+    const found = skills.listSkills().find((s) => s.name === 'demo-skill')
     expect(found?.group).toBe('stored')
     expect(found?.linked).toBe(true)
   })

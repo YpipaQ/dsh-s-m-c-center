@@ -184,9 +184,9 @@ describe('block scalars', () => {
   it('folds `>` into one line and keeps `|` as written', () => {
     const folded = [
       '---',
-      'name: gsap',
+      'name: demo-skill',
       'description: >',
-      '  完整的 GSAP 动画技能包。',
+      '  完整的 DEMO-SKILL 动画技能包。',
       '  覆盖核心 Tween API。',
       '---',
       '',
@@ -203,7 +203,7 @@ describe('block scalars', () => {
       '# body',
     ].join('\n')
 
-    expect(parseSkillFile(folded)?.description).toBe('完整的 GSAP 动画技能包。 覆盖核心 Tween API。')
+    expect(parseSkillFile(folded)?.description).toBe('完整的 DEMO-SKILL 动画技能包。 覆盖核心 Tween API。')
     expect(parseSkillFile(literal)?.description).toBe('第一行\n第二行')
   })
 

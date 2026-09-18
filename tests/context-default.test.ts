@@ -83,55 +83,55 @@ function setDefault(selected: string[], updatedAt = ''): void {
 
 describe('the session default (_default)', () => {
   it('a conversation with no row of its own is the default', () => {
-    setDefault(['gsap', 'pptx-author'])
+    setDefault(['demo-skill', 'demo-author'])
     const inherited = readSelection('session-1')
-    expect(inherited.selected).toEqual(['gsap', 'pptx-author'])
+    expect(inherited.selected).toEqual(['demo-skill', 'demo-author'])
     expect(inherited.configured).toBe(false)
   })
 
   it('a conversation with a row ignores the part of the default it ruled out', () => {
-    setDefault(['gsap'])
+    setDefault(['demo-skill'])
     writeSelection({ sessionId: 'session-1', selected: ['audit-xl'], updatedAt: '' })
     expect(readSelection('session-1').selected).toEqual(['audit-xl'])
     // …and the row is stored as a diff, not a copy of the whole set.
-    expect(onDisk().sessions['session-1']).toMatchObject({ on: ['audit-xl'], off: ['gsap'] })
+    expect(onDisk().sessions['session-1']).toMatchObject({ on: ['audit-xl'], off: ['demo-skill'] })
   })
 
   it('an empty world selects nothing, and the default itself is readable', () => {
     expect(readSelection('session-1')).toEqual({
       sessionId: 'session-1', selected: [], updatedAt: '', overrides: { on: [], off: [] }, configured: false,
     })
-    setDefault(['gsap'])
-    expect(readSelection(DEFAULT_CONTEXT_ID).selected).toEqual(['gsap'])
+    setDefault(['demo-skill'])
+    expect(readSelection(DEFAULT_CONTEXT_ID).selected).toEqual(['demo-skill'])
   })
 
   it('toggleSelection flips one slug and persists it', () => {
-    setDefault(['gsap'])
+    setDefault(['demo-skill'])
     const next = toggleSelection('session-1', 'audit-xl')
-    expect(next.selected).toEqual(['gsap', 'audit-xl'])
-    const after = toggleSelection('session-1', 'gsap')
+    expect(next.selected).toEqual(['demo-skill', 'audit-xl'])
+    const after = toggleSelection('session-1', 'demo-skill')
     expect(after.selected).toEqual(['audit-xl'])
   })
 })
 
 describe('planSelection — decide without writing', () => {
   it('the requested state decides, and flipping is only the default', () => {
-    writeSelection({ sessionId: 'session-1', selected: ['gsap'], updatedAt: '' })
-    expect(planSelection('session-1', 'gsap', true).selected).toEqual(['gsap'])
-    expect(planSelection('session-1', 'gsap', false).selected).toEqual([])
-    expect(planSelection('session-1', 'other', true).selected).toEqual(['gsap', 'other'])
+    writeSelection({ sessionId: 'session-1', selected: ['demo-skill'], updatedAt: '' })
+    expect(planSelection('session-1', 'demo-skill', true).selected).toEqual(['demo-skill'])
+    expect(planSelection('session-1', 'demo-skill', false).selected).toEqual([])
+    expect(planSelection('session-1', 'other', true).selected).toEqual(['demo-skill', 'other'])
     // Omitted → flip.
-    expect(planSelection('session-1', 'gsap').selected).toEqual([])
+    expect(planSelection('session-1', 'demo-skill').selected).toEqual([])
   })
 
   it('writes nothing — only commitSelection persists', () => {
-    planSelection('session-1', 'gsap', true)
+    planSelection('session-1', 'demo-skill', true)
     expect(onDisk().sessions).toEqual({})
   })
 
   it('plans from the inherited default, so the first flip does not drop it', () => {
-    setDefault(['gsap'])
-    expect(planSelection('session-1', 'audit-xl', true).selected).toEqual(['gsap', 'audit-xl'])
+    setDefault(['demo-skill'])
+    expect(planSelection('session-1', 'audit-xl', true).selected).toEqual(['demo-skill', 'audit-xl'])
   })
 })
 
@@ -141,9 +141,9 @@ describe('readContextIndex — reserved rows are reported, not listed', () => {
   })
 
   it('lists the default first, then conversations newest-first, by effective count', () => {
-    setDefault(['gsap'], '2026-01-01T00:00:00Z')
-    writeSelection({ sessionId: 'old', selected: ['gsap', 'a'], updatedAt: '2026-01-02T00:00:00Z' }, { stamp: false })
-    writeSelection({ sessionId: 'new', selected: ['gsap', 'b', 'c'], updatedAt: '2026-01-03T00:00:00Z' }, { stamp: false })
+    setDefault(['demo-skill'], '2026-01-01T00:00:00Z')
+    writeSelection({ sessionId: 'old', selected: ['demo-skill', 'a'], updatedAt: '2026-01-02T00:00:00Z' }, { stamp: false })
+    writeSelection({ sessionId: 'new', selected: ['demo-skill', 'b', 'c'], updatedAt: '2026-01-03T00:00:00Z' }, { stamp: false })
 
     const rows = listSelections()
 
@@ -152,8 +152,8 @@ describe('readContextIndex — reserved rows are reported, not listed', () => {
   })
 
   it('reports a row named after the default instead of reading it as a conversation', () => {
-    setDefault(['gsap'])
-    writeSelection({ sessionId: 'session-1', selected: ['gsap', 'a'], updatedAt: '' })
+    setDefault(['demo-skill'])
+    writeSelection({ sessionId: 'session-1', selected: ['demo-skill', 'a'], updatedAt: '' })
     // A row this code would never write: it comes from a caller that sent the
     // reserved id, and the last time one appeared it was taken for a migration.
     const raw = onDisk()
@@ -185,12 +185,12 @@ describe('readContextIndex — reserved rows are reported, not listed', () => {
  */
 describe('a conversation row stores a diff, not a pinned set', () => {
   it('a conversation that never configured itself follows later default edits', () => {
-    setDefault(['gsap'])
-    expect(readSelection('session-1').selected).toEqual(['gsap'])
+    setDefault(['demo-skill'])
+    expect(readSelection('session-1').selected).toEqual(['demo-skill'])
 
-    setDefault(['gsap', 'audit-xl'])
+    setDefault(['demo-skill', 'audit-xl'])
 
-    expect(readSelection('session-1').selected).toEqual(['gsap', 'audit-xl'])
+    expect(readSelection('session-1').selected).toEqual(['demo-skill', 'audit-xl'])
   })
 
   it('turning one skill off does not freeze the rest of the default', () => {
@@ -247,14 +247,14 @@ describe('a conversation row stores a diff, not a pinned set', () => {
  */
 describe('session ids the table will store', () => {
   it('stores an id that merely starts with underscores', () => {
-    writeSelection({ sessionId: '__probe', selected: ['gsap'], updatedAt: '' })
+    writeSelection({ sessionId: '__probe', selected: ['demo-skill'], updatedAt: '' })
 
-    expect(readSelection('__probe')).toMatchObject({ selected: ['gsap'], configured: true })
+    expect(readSelection('__probe')).toMatchObject({ selected: ['demo-skill'], configured: true })
     expect(Object.keys(onDisk().sessions)).toEqual(['__probe'])
   })
 
   it('refuses __proto__ instead of writing a row nobody could read', () => {
-    writeSelection({ sessionId: '__proto__', selected: ['gsap'], updatedAt: '' })
+    writeSelection({ sessionId: '__proto__', selected: ['demo-skill'], updatedAt: '' })
 
     expect(Object.keys(onDisk().sessions)).toEqual([])
     // …and a lookup for it must not answer with Object.prototype.

@@ -377,7 +377,7 @@ describe('deleting', () => {
 describe('admission', () => {
   it('migrates a DESCRIPTION.md-only bundle from the row path', () => {
     const skills = new SkillsManager()
-    const dir = join(userSkills(), 'apple')
+    const dir = join(userSkills(), 'demo-pack')
     mkdirSync(dir, { recursive: true })
     writeFileSync(join(dir, 'DESCRIPTION.md'), '# Apple\n\nApple skills for macOS.\n', 'utf8')
 
@@ -385,9 +385,9 @@ describe('admission', () => {
     // directory. Stripping only `SKILL.md` (what this used to do) left the file
     // path intact and made every migration of one of these fail.
     const slug = skills.migrateToStore(join(dir, 'DESCRIPTION.md'), 'bundle', 'user-dsh')
-    expect(slug).toBe('apple')
-    expect(existsSync(join(store(), 'apple', 'DESCRIPTION.md'))).toBe(true)
-    const entry = skills.readStoreIndex().entries.find((e) => e.slug === 'apple')
+    expect(slug).toBe('demo-pack')
+    expect(existsSync(join(store(), 'demo-pack', 'DESCRIPTION.md'))).toBe(true)
+    const entry = skills.readStoreIndex().entries.find((e) => e.slug === 'demo-pack')
     // An unmigrate needs the directory, not the document.
     expect(entry?.origin).toBe(dir)
   })
@@ -563,10 +563,10 @@ describe('container detection', () => {
   it('refuses a container and lets a real skill through', () => {
     const skills = new SkillsManager()
     bundle(userSkills(), 'alpha', 'alpha')
-    container(userSkills(), 'apple', 'apple')
+    container(userSkills(), 'demo-pack', 'demo-pack')
     skills.migrate()
 
-    expect(enableBlocker('apple')).toContain('容器目录')
+    expect(enableBlocker('demo-pack')).toContain('容器目录')
     expect(enableBlocker('alpha')).toBeUndefined()
     // An unknown slug is not a blocker: the route's own identity checks own that.
     expect(enableBlocker('nope')).toBeUndefined()
@@ -574,11 +574,11 @@ describe('container detection', () => {
 
   it('still resolves a container as a registration — listing and loading differ', () => {
     const skills = new SkillsManager()
-    container(userSkills(), 'apple', 'apple')
+    container(userSkills(), 'demo-pack', 'demo-pack')
     skills.migrate()
 
     // Refusing the *flip* must not make the row unresolvable: the panel lists
     // it, and its description is what tells a reader where the real skills are.
-    expect(skills.resolveRegistration('apple')?.description).toBe('a container row')
+    expect(skills.resolveRegistration('demo-pack')?.description).toBe('a container row')
   })
 })

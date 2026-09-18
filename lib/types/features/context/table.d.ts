@@ -28,7 +28,7 @@
  * ```json
  * {
  *   "version": 1,
- *   "default":  { "selected": ["gsap"], "updatedAt": "..." },
+ *   "default":  { "selected": ["demo-skill"], "updatedAt": "..." },
  *   "sessions": { "<sessionId>": { "on": ["x"], "off": ["y"], "updatedAt": "..." } }
  * }
  * ```
