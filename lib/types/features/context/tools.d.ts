@@ -34,7 +34,13 @@ export interface AgentLike {
         };
     };
 }
-/** The workspace a conversation runs in, as dsh reports it. */
+/**
+ * The workspace a conversation runs in, as dsh reports it.
+ *
+ * Only the *skill list* depends on this now (project-level roots); which skills
+ * a conversation has enabled does not — that is keyed by session id in the
+ * relay table. See `./table.ts` for why that split matters.
+ */
 export declare function workspaceOfAgent(agent: AgentLike): string;
 /** The slugs in `selection` whose canonical copy cannot be resolved. */
 export declare function missingSlugs(skills: SkillsManager, selection: ContextSelection): string[];

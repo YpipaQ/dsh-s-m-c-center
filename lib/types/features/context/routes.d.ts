@@ -1,15 +1,19 @@
 /**
  * The `/contexts` route family — per-conversation skill selection.
  *
- * The workspace is resolved in a deliberate order: the live agent's own cwd
- * first (so a panel call from a running conversation lands in *that*
- * conversation's workspace), then the request's `cwd`. When neither is
- * available the request is **refused** — the old fallback walked up from the
- * host process's own directory, which silently filed another workspace's
- * conversations under whatever directory dsh happened to be started in.
+ * Selections live in one **relay table** (`$STORE_ROOT/contexts.json`, see
+ * `./table.ts`), keyed by session id. Nothing here resolves a workspace any
+ * more, and that removed two failures at once:
+ *
+ * - the `cwd required` 400, which fired for every request about a conversation
+ *   that was not currently running — nothing could say which workspace it
+ *   belonged to, so the panel refused to act;
+ * - the settings page and the sidebar reading *two different files* (the page
+ *   resolved the workspace dsh reports, the sidebar the one the conversation
+ *   runs in), which is how one switch could show two answers.
  *
  * A toggle applies to the live agent **before** it persists. The order is the
- * point: persisting first means a failed apply leaves a file (and a panel)
+ * point: persisting first means a failed apply leaves a row (and a panel)
  * claiming a skill the agent cannot see. Only a successful apply is written.
  * @module
  */
@@ -31,7 +35,7 @@ export interface ContextRouteDeps {
     };
     /**
      * Apply one live conversation's selection through `./apply.ts`. The route
-     * hands over the selection it just planned — reading the file here instead
+     * hands over the selection it just planned — reading the table here instead
      * applied one flip behind. Resolves with what really happened; the route
      * persists only when `applied` is true.
      */

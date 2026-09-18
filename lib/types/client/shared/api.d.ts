@@ -47,13 +47,14 @@ export declare class SkillsMcpApi {
         exists: boolean;
     }>>;
     /** One conversation's selection: the effective set plus how it differs. */
-    getContext(sessionId: string, cwd: string): Promise<{
-        workspace: string;
+    getContext(sessionId: string): Promise<{
+        /** Path of the relay table — shown in the UI so the state is findable. */
+        table: string;
         selection: {
             sessionId: string;
             selected: string[];
             updatedAt: string;
-            /** False when the conversation has no file of its own (pure default). */
+            /** False when the conversation has no row of its own (pure default). */
             configured?: boolean;
             /** The diff against the default, for a conversation that has one. */
             overrides?: {
@@ -63,7 +64,8 @@ export declare class SkillsMcpApi {
         };
     }>;
     /** Flip one slug in one conversation; applied live when it is running. */
-    toggleContext(sessionId: string, slug: string, cwd: string): Promise<{
+    toggleContext(sessionId: string, slug: string): Promise<{
+        table: string;
         selection: {
             sessionId: string;
             selected: string[];
@@ -75,8 +77,8 @@ export declare class SkillsMcpApi {
      * The escape hatch for a conversation that pinned a default it can no longer
      * turn off.
      */
-    resetContext(sessionId: string, cwd: string): Promise<{
-        workspace: string;
+    resetContext(sessionId: string): Promise<{
+        table: string;
         selection: {
             sessionId: string;
             selected: string[];

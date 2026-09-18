@@ -27,7 +27,7 @@ import type { AgentLike } from '../src/features/context/index.ts'
 import type { SkillsManager } from '../src/features/skills/index.ts'
 import { INDEX_NAME } from '../src/features/skills/index.ts'
 import type { SkillSummary } from '../src/shared/protocol/index.ts'
-import { mkdirSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 
@@ -36,13 +36,27 @@ interface FakeAgent { id: string }
 let globalCtx: Context
 let registry: SkillRegistry
 
+/**
+ * Every selection now lives in one relay table under $DSH_HOME, so a test that
+ * writes one must own the home directory — otherwise it edits the real
+ * machine's table (and reads its rows).
+ */
+let home: string
+let origHome: string | undefined
+
 beforeEach(() => {
   globalCtx = new Context()
   registry = new SkillRegistry(globalCtx)
+  home = mkdtempSync(join(tmpdir(), 'smc-bindings-home-'))
+  origHome = process.env.DSH_HOME
+  process.env.DSH_HOME = home
 })
 
 afterEach(() => {
   globalCtx = undefined as unknown as Context
+  if (origHome === undefined) delete process.env.DSH_HOME
+  else process.env.DSH_HOME = origHome
+  rmSync(home, { recursive: true, force: true })
 })
 
 function registration(name: string): SkillRegistration {
@@ -225,7 +239,7 @@ describe('applyToAgent selection source', () => {
   it('falls back to the file when nothing is handed over (lifecycle hook)', async () => {
     const workspace = join(tmpdir(), 'dsh-apply-test-' + Math.random().toString(36).slice(2))
     mkdirSync(join(workspace, '.git'), { recursive: true })
-    writeSelection(workspace, { sessionId: 'session-1', selected: ['from-file'], updatedAt: '' })
+    writeSelection({ sessionId: 'session-1', selected: ['from-file'], updatedAt: '' })
     const captured: SkillRegistration[][] = []
     const agent = {
       id: 'session-1', session: { header: { cwd: workspace } },
@@ -277,7 +291,7 @@ describe('skill_query', () => {
 
   it('answers with live state: linked, selected, and why a row is unusable', async () => {
     const workspace = tempWorkspace()
-    writeSelection(workspace, { sessionId: 'session-1', selected: ['planned'], updatedAt: '' })
+    writeSelection({ sessionId: 'session-1', selected: ['planned'], updatedAt: '' })
     const tool = buildSkillQueryTool(queryManager())
     const agent = { id: 'session-1', session: { header: { cwd: workspace } } } as unknown as AgentLike
 

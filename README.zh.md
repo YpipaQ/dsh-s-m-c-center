@@ -48,7 +48,7 @@
 
 | | **启用（联接）** | **注入（会话选择）** |
 |---|---|---|
-| 载体 | `~/.dsh/skills/<slug>` 目录联接 | `<workspace>/.dsh/S-M-C/contexts/*.json` |
+| 载体 | `~/.dsh/skills/<slug>` 目录联接 | 会话技能表 `~/.dsh/S-M-C/contexts.json` 里每个对话一行 |
 | 作用范围 | **全局**：所有对话、所有工作区、含子智能体 | **仅本对话** |
 | 谁维护 | 技能页的「启用 / 不启用」 | 「会话默认」开关、小窗、以及模型自己的 `skill_select` |
 | 谁看得见 | dsh 原生文件系统扫描 | 本插件的会话注入 |
@@ -139,7 +139,7 @@ dsh-s-m-c-center:
 运行时状态：
 
 - **统一外挂储存库**：`~/.dsh/S-M-C/`（**S**kills / **M**CP / **C**LI）—— `skills/`（正本与 `index.json` 清单）、`skills-links.json`（联接账本）、`skills-registry.json`（登记的外部技能）、`mcp.json`、`mcp-archive.json`、`cli.json`。旧位置在首次启动时自动迁入；整个库可用 `DSH_STORE_ROOT` 挪到别处（插件会重建目录联接）。
-- **会话选择**：每个工作区一份 —— `<workspace>/.dsh/S-M-C/contexts/`，`_default.json` 是会话默认，`<sessionId>.json` 是该对话与默认的差异。工作区按「最近的 `.git`」认定；**没有 `.git` 时就用对话自己的目录**，不会上溯到盘根。
+- **会话选择**：全机一张表 —— `~/.dsh/S-M-C/contexts.json`，`default` 是会话默认，`sessions.<sessionId>` 是该对话与默认的差异（`on` / `off`）。**不涉及工作区**：键就是会话 id，所以设置页与小窗读的是同一份文档。旧版每个工作区一份文件，首次挂载（表不存在时）会一次性并入。
 - MCP：激活的 `S-M-C/mcp.json`，归档的 `S-M-C/mcp-archive.json`（凭证 / headers 明文保存 —— 请保持这两个文件 `0600`）。
 - CLI 注册表：`S-M-C/cli.json`。
 
@@ -149,7 +149,7 @@ dsh-s-m-c-center:
 
 | 能力 | 做什么 | 范围与边界 |
 |---|---|---|
-| **文件** | 读写储存库 `~/.dsh/S-M-C/**`；在技能根目录创建 / 移除目录联接；读写各工作区的 `<workspace>/.dsh/S-M-C/contexts/*.json`；读取 `SKILL.md` 与 skill 内嵌脚本 | 只动储存库、dsh 扫描的四个技能根目录、以及对话所属工作区的 `.dsh/S-M-C` 目录；就地技能只改写前言标记；不读写其它路径 |
+| **文件** | 读写储存库 `~/.dsh/S-M-C/**`；在技能根目录创建 / 移除目录联接；读写会话技能表 `~/.dsh/S-M-C/contexts.json`（以及旧布局的 `<workspace>/.dsh/S-M-C/contexts/*.json`，仅由导入读取一次）；读取 `SKILL.md` 与 skill 内嵌脚本 | 只动储存库与 dsh 扫描的四个技能根目录；就地技能只改写前言标记；不读写其它路径 |
 | **网络** | 连接用户自己配置的 MCP 服务器（stdio 走子进程，streamable-http 走 HTTP） | 只连用户在管理页填写的服务器地址；插件自身**无**内置外部服务、**无**遥测、不上报任何数据 |
 | **命令** | 探测本地 CLI 工具：执行其 `--help` / `--version` 或 `cli-state` 声明的探测命令 | 只执行注册表内、管理页可见的命令；不执行用户未登记的其它命令 |
 | **凭据** | 保存 MCP 的 env / headers / API-Key，读取 CLI 的 `cli-state` | 只在本机 `~/.dsh/S-M-C/*.json` 明文读写、不外发；建议将这两个文件权限设为 `0600` |

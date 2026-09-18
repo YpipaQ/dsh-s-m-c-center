@@ -1,30 +1,32 @@
 /**
  * The `/contexts` route family — per-conversation skill selection.
  *
- * The workspace is resolved in a deliberate order: the live agent's own cwd
- * first (so a panel call from a running conversation lands in *that*
- * conversation's workspace), then the request's `cwd`. When neither is
- * available the request is **refused** — the old fallback walked up from the
- * host process's own directory, which silently filed another workspace's
- * conversations under whatever directory dsh happened to be started in.
+ * Selections live in one **relay table** (`$STORE_ROOT/contexts.json`, see
+ * `./table.ts`), keyed by session id. Nothing here resolves a workspace any
+ * more, and that removed two failures at once:
+ *
+ * - the `cwd required` 400, which fired for every request about a conversation
+ *   that was not currently running — nothing could say which workspace it
+ *   belonged to, so the panel refused to act;
+ * - the settings page and the sidebar reading *two different files* (the page
+ *   resolved the workspace dsh reports, the sidebar the one the conversation
+ *   runs in), which is how one switch could show two answers.
  *
  * A toggle applies to the live agent **before** it persists. The order is the
- * point: persisting first means a failed apply leaves a file (and a panel)
+ * point: persisting first means a failed apply leaves a row (and a panel)
  * claiming a skill the agent cannot see. Only a successful apply is written.
  * @module
  */
 
 import type { WebRoute } from '@deepseek-ai/dsh-host-webserver'
 import { SMC_API } from '../../shared/protocol/index.ts'
-import {
-  badRequest, bodyText, handle, ok, queryParam, writeJson,
-} from '../../shared/http.ts'
+import { badRequest, bodyText, handle, ok, writeJson } from '../../shared/http.ts'
 import type { SkillsManager } from '../skills/index.ts'
 import type { ApplyOutcome } from './apply.ts'
 import type { ContextSelection } from './engine.ts'
 import {
-  DEFAULT_CONTEXT_ID, commitSelection, normaliseSelection, planSelection, readContextIndex,
-  readSelection, resetSelection, workspaceOf,
+  DEFAULT_CONTEXT_ID, commitSelection, contextTablePath, planSelection, readContextIndex,
+  readSelection, resetSelection,
 } from './engine.ts'
 import type { AgentLike } from './tools.ts'
 import { missingSlugs, withoutMissing } from './tools.ts'
@@ -40,76 +42,47 @@ export interface ContextRouteDeps {
   agents?: { get(id: string): AgentLike | undefined }
   /**
    * Apply one live conversation's selection through `./apply.ts`. The route
-   * hands over the selection it just planned — reading the file here instead
+   * hands over the selection it just planned — reading the table here instead
    * applied one flip behind. Resolves with what really happened; the route
    * persists only when `applied` is true.
    */
   applyToAgent?: (agent: AgentLike, selection: ContextSelection) => Promise<ApplyOutcome>
 }
 
-/** Said by both write-ish routes when nothing tells us which workspace to use. */
-const NO_WORKSPACE = 'cwd required：该会话未在运行，无法确定它的工作区'
-
 /** Build the contexts route table. */
 export function contextRoutes(deps: ContextRouteDeps): WebRoute[] {
-  /**
-   * The workspace cwd of a live conversation, when the host provides the agent
-   * registry: context files live under the conversation's own workspace, so a
-   * panel call without an explicit cwd still lands in the right directory for
-   * any conversation that is (or was recently) running.
-   */
-  const agentCwdOf = (sessionId: string): string | undefined =>
-    deps.agents?.get(sessionId)?.session?.header?.cwd
-
-  /**
-   * The workspace a session-scoped request is about, or undefined when nothing
-   * says. Deliberately never guesses: a guessed workspace writes real files
-   * into the wrong directory, which is not recoverable by a later fix.
-   */
-  const workspaceFor = (sessionId: string, requested: string | undefined): string | undefined => {
-    const live = agentCwdOf(sessionId)
-    if (live !== undefined && live !== '') return workspaceOf(live)
-    if (requested !== undefined && requested !== '') return workspaceOf(requested)
-    return undefined
-  }
-
   return [
-    // The index also reports the files it skipped, so a stray one is explained
+    // The index also reports rows it skipped, so a stray one is explained
     // instead of being read as a conversation (or as a schema change).
-    handle('GET', SMC_API.contexts, async (_req, res, _body, url) => {
-      const workspace = workspaceOf(queryParam(url, 'cwd'))
-      const { selections, ignored } = readContextIndex(workspace)
-      writeJson(res, 200, ok({ workspace, defaultId: DEFAULT_CONTEXT_ID, selections, ignored }))
+    handle('GET', SMC_API.contexts, async (_req, res) => {
+      const { selections, ignored } = readContextIndex()
+      writeJson(res, 200, ok({
+        table: contextTablePath(), defaultId: DEFAULT_CONTEXT_ID, selections, ignored,
+      }))
     }),
 
     handle('POST', SMC_API.contextsGet, async (_req, res, body) => {
       const sessionId = bodyText(body, 'sessionId')
       if (!sessionId) { badRequest(res, 'sessionId required'); return }
-      const workspace = workspaceFor(sessionId, bodyText(body, 'cwd') || undefined)
-      if (workspace === undefined) { badRequest(res, NO_WORKSPACE); return }
-      // A file an older version wrote carries a pinned set; rewrite it as a diff
-      // here, so merely opening the panel stops it from freezing the default.
-      normaliseSelection(workspace, sessionId)
-      writeJson(res, 200, ok({ workspace, selection: readSelection(workspace, sessionId) }))
+      writeJson(res, 200, ok({
+        table: contextTablePath(), selection: readSelection(sessionId),
+      }))
     }),
 
-    // Drop the conversation's own selection, so it follows the default again.
-    // The escape hatch for a conversation that pinned a default it can no longer
-    // turn off — and for one whose file the user wants gone.
+    // Drop the conversation's row, so it follows the default again. The escape
+    // hatch for a conversation that pinned a default it can no longer turn off.
     handle('POST', SMC_API.contextsReset, async (_req, res, body) => {
       const sessionId = bodyText(body, 'sessionId')
       if (!sessionId) { badRequest(res, 'sessionId required'); return }
-      const workspace = workspaceFor(sessionId, bodyText(body, 'cwd') || undefined)
-      if (workspace === undefined) { badRequest(res, NO_WORKSPACE); return }
-      const selection = resetSelection(workspace, sessionId)
+      const selection = resetSelection(sessionId)
       const agent = deps.agents?.get(sessionId)
       if (agent === undefined || deps.applyToAgent === undefined) {
-        writeJson(res, 200, ok({ workspace, selection, applied: false, missing: [] }))
+        writeJson(res, 200, ok({ table: contextTablePath(), selection, applied: false, missing: [] }))
         return
       }
       const outcome = await deps.applyToAgent(agent, selection)
       writeJson(res, 200, ok({
-        workspace,
+        table: contextTablePath(),
         selection,
         applied: outcome.applied,
         missing: outcome.missing,
@@ -125,29 +98,28 @@ export function contextRoutes(deps: ContextRouteDeps): WebRoute[] {
       const sessionId = bodyText(body, 'sessionId')
       const slug = bodyText(body, 'slug')
       if (!sessionId || !slug) { badRequest(res, 'sessionId and slug required'); return }
-      const workspace = workspaceFor(sessionId, bodyText(body, 'cwd') || undefined)
-      if (workspace === undefined) { badRequest(res, NO_WORKSPACE); return }
       const agent = deps.agents?.get(sessionId)
       if (agent === undefined || deps.applyToAgent === undefined) {
         // Nothing to apply to: persist the intent for the next start, but keep
-        // the ghost slugs out of the file (the client only learns from the
+        // the ghost slugs out of the table (the client only learns from the
         // response that they were dropped).
-        const planned = planSelection(workspace, sessionId, slug)
+        const planned = planSelection(sessionId, slug)
         const missing = missingSlugs(deps.skills, planned)
         const keep = withoutMissing(planned, missing)
-        commitSelection(workspace, keep)
-        writeJson(res, 200, ok({ selection: keep, applied: false, missing }))
+        commitSelection(keep)
+        writeJson(res, 200, ok({ table: contextTablePath(), selection: keep, applied: false, missing }))
         return
       }
-      const planned = planSelection(workspace, sessionId, slug)
-      // Hand over the selection we just planned: the file still holds the old
+      const planned = planSelection(sessionId, slug)
+      // Hand over the selection we just planned: the table still holds the old
       // one, so letting `applyToAgent` read it applied the *previous* set and
       // answered `applied: true` from the idempotent short-circuit.
       const outcome = await deps.applyToAgent(agent, planned)
       if (!outcome.applied) {
-        // Nothing was written: report the file's real content, not the intent.
+        // Nothing was written: report the table's real content, not the intent.
         writeJson(res, 200, ok({
-          selection: readSelection(workspace, sessionId),
+          table: contextTablePath(),
+          selection: readSelection(sessionId),
           applied: false,
           error: outcome.error ?? '',
           missing: outcome.missing,
@@ -155,8 +127,10 @@ export function contextRoutes(deps: ContextRouteDeps): WebRoute[] {
         return
       }
       const keep = withoutMissing(planned, outcome.missing)
-      commitSelection(workspace, keep)
-      writeJson(res, 200, ok({ selection: keep, applied: true, missing: outcome.missing }))
+      commitSelection(keep)
+      writeJson(res, 200, ok({
+        table: contextTablePath(), selection: keep, applied: true, missing: outcome.missing,
+      }))
     }),
   ]
 }

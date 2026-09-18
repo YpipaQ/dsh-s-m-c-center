@@ -1,9 +1,12 @@
 /**
  * Public surface of the context feature.
+ *
+ * The selection state is one relay document (see `./table.ts`); the API here is
+ * keyed by session id and never asks for a workspace.
  * @module
  */
-export { CONTEXTS_DIR_NAME, DEFAULT_CONTEXT_ID, commitSelection, defaultWorkspace, diffAgainst, listSelections, normaliseSelection, planSelection, readContextIndex, readSelection, resetSelection, selectionPath, toggleSelection, workspaceOf, writeSelection, } from './engine.ts';
-export type { ContextOverrides, ContextSelection, IgnoredSelection, SelectionRow } from './engine.ts';
+export { CONTEXTS_DIR_NAME, DEFAULT_CONTEXT_ID, applyOverrides, commitSelection, contextTablePath, diffAgainst, importLegacyContexts, legacyContextCandidates, legacySelectionDir, listSelections, planSelection, readContextIndex, readSelection, resetSelection, toggleSelection, writeSelection, } from './engine.ts';
+export type { ContextOverrides, ContextSelection, ContextTable, ContextTableEntry, IgnoredSelection, LegacyImportReport, SelectionRow, } from './engine.ts';
 export { SkillBindings } from './apply.ts';
 export type { ApplyOutcome } from './apply.ts';
 export { applyToAgent, buildSkillQueryTool, buildSkillSelectTool, missingSlugs, withoutMissing, workspaceOfAgent, } from './tools.ts';

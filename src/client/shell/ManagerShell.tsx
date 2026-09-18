@@ -42,7 +42,7 @@ export function ManagerShell({ cwd, enabled, pickDirectory, t }: ManagerShellPro
 
   // All three hooks mount with the shell so a tab switch never refetches.
   const skills = useSkills({ cwd, refreshKey, pickDirectory, t })
-  const contexts = useContexts({ cwd, refreshKey, skills: skills.filtered, t })
+  const contexts = useContexts({ refreshKey, skills: skills.filtered, t })
   const mcp = useMcp({ refreshKey, t })
   const cli = useCli({ cwd, refreshKey, t })
 

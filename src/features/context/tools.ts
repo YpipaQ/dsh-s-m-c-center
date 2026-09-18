@@ -22,10 +22,10 @@ import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { Context } from '@deepseek-ai/cordis'
 import type { SkillRegistration } from '@deepseek-ai/dsh-skill'
 import type { SkillsManager } from '../skills/index.ts'
-import { buildIndexSkill } from '../skills/index.ts'
+import { buildIndexSkill, findProjectRoot } from '../skills/index.ts'
 import type { ApplyOutcome, SkillBindings } from './apply.ts'
 import type { ContextSelection } from './engine.ts'
-import { commitSelection, planSelection, readSelection, workspaceOf } from './engine.ts'
+import { commitSelection, planSelection, readSelection } from './engine.ts'
 
 /** The slice of a real dsh Agent this engine touches. */
 export interface AgentLike {
@@ -37,9 +37,15 @@ export interface AgentLike {
   readonly session?: { header?: { cwd?: string } }
 }
 
-/** The workspace a conversation runs in, as dsh reports it. */
+/**
+ * The workspace a conversation runs in, as dsh reports it.
+ *
+ * Only the *skill list* depends on this now (project-level roots); which skills
+ * a conversation has enabled does not — that is keyed by session id in the
+ * relay table. See `./table.ts` for why that split matters.
+ */
 export function workspaceOfAgent(agent: AgentLike): string {
-  return workspaceOf(agent.session?.header?.cwd)
+  return findProjectRoot(agent.session?.header?.cwd)
 }
 
 /**
@@ -109,7 +115,7 @@ export async function applyToAgent(
   selection?: ContextSelection,
 ): Promise<ApplyOutcome> {
   const workspace = workspaceOfAgent(agent)
-  const chosen = selection ?? readSelection(workspace, agent.id)
+  const chosen = selection ?? readSelection(agent.id)
   const { registrations, missing } = registrationsFor(skills, chosen)
   const publish = publishSet(skills, workspace, registrations, chosen.selected)
   return bindings.ensureAgent(agent, agent.ctx, publish, missing)
@@ -207,13 +213,13 @@ export function buildSkillSelectTool(skills: SkillsManager, bindings: SkillBindi
         return {
           slug: args.slug,
           selected: false,
-          selectedAll: readSelection(workspace, agent.id).selected,
+          selectedAll: readSelection(agent.id).selected,
           applied: false,
           missing: [],
           error: blocker,
         }
       }
-      const planned = planSelection(workspace, agent.id, args.slug, args.selected)
+      const planned = planSelection(agent.id, args.slug, args.selected)
       const { registrations, missing } = registrationsFor(skills, planned)
       try {
         const outcome = await bindings.ensureAgent(
@@ -223,7 +229,7 @@ export function buildSkillSelectTool(skills: SkillsManager, bindings: SkillBindi
         // the next session's source of truth, so a slug whose copy is gone must
         // not be written into it.
         const keep = withoutMissing(planned, outcome.missing)
-        if (outcome.applied) commitSelection(workspace, keep)
+        if (outcome.applied) commitSelection(keep)
         return {
           slug: args.slug,
           selected: keep.selected.includes(args.slug),
@@ -235,7 +241,7 @@ export function buildSkillSelectTool(skills: SkillsManager, bindings: SkillBindi
       } catch (error) {
         // Nothing was applied, so nothing was written: report the state the
         // conversation is really in rather than the one that was requested.
-        const current = readSelection(workspace, agent.id)
+        const current = readSelection(agent.id)
         return {
           slug: args.slug,
           selected: current.selected.includes(args.slug),
@@ -362,7 +368,7 @@ export function buildSkillQueryTool(skills: SkillsManager) {
       const agent = exec.agent as AgentLike | undefined
       if (agent === undefined) throw new Error('skill_query 只能在会话内调用')
       const workspace = workspaceOfAgent(agent)
-      const selected = new Set(readSelection(workspace, agent.id).selected)
+      const selected = new Set(readSelection(agent.id).selected)
       const keyword = text(args.query).toLowerCase()
       const group = text(args.group).toLowerCase()
       const rows = skills

@@ -48,7 +48,7 @@ This is the most misunderstood part of the plugin — and the one place where a 
 
 | | **Enable (linking)** | **Injection (conversation selection)** |
 |---|---|---|
-| Carrier | A directory junction at `~/.dsh/skills/<slug>` | `<workspace>/.dsh/S-M-C/contexts/*.json` |
+| Carrier | A directory junction at `~/.dsh/skills/<slug>` | One row per conversation in the session table `~/.dsh/S-M-C/contexts.json` |
 | Scope | **Global**: every conversation, every workspace, sub-agents included | **This conversation only** |
 | Maintained by | The "enable / disable" button on the skills tab | The session default, the sidebar panel, and the model's own `skill_select` |
 | Seen by | dsh's own filesystem scan | This plugin's conversation injection |
@@ -139,7 +139,7 @@ dsh-s-m-c-center:
 Runtime state:
 
 - **Unified external store**: `~/.dsh/S-M-C/` (**S**kills / **M**CP / **C**LI) — `skills/` (canonical copies plus `index.json` manifest), `skills-links.json` (junction ledger), `skills-registry.json` (registered external skills), `mcp.json`, `mcp-archive.json`, `cli.json`. The old locations are migrated in on first start; the whole store can move elsewhere with `DSH_STORE_ROOT` (the plugin rebuilds the junctions).
-- **Conversation selections**: one set per workspace at `<workspace>/.dsh/S-M-C/contexts/` — `_default.json` is the session default, `<sessionId>.json` holds that conversation's difference from it. A workspace is the nearest `.git` ancestor; **with no `.git` it is the conversation's own directory**, never the volume root.
+- **Conversation selections**: one table for the whole machine at `~/.dsh/S-M-C/contexts.json` — `default` is the session default and `sessions.<sessionId>` holds that conversation's difference from it (`on` / `off`). **No workspace is involved**: the key is the session id, so the settings page and the sidebar read the same document. An older version kept one file per workspace; those are folded in once, on the first mount with the table missing.
 - MCP: active definitions in `S-M-C/mcp.json`, archived ones in `S-M-C/mcp-archive.json` (credentials and headers are stored in plain text — keep both files `0600`).
 - CLI registry: `S-M-C/cli.json`.
 
@@ -149,7 +149,7 @@ The plugin runs with the DSH process's privileges and uses four kinds of capabil
 
 | Capability | What it does | Scope and limits |
 |---|---|---|
-| **Files** | Reads and writes the store `~/.dsh/S-M-C/**`; creates / removes directory junctions in the skill roots; reads and writes every workspace's `<workspace>/.dsh/S-M-C/contexts/*.json`; reads `SKILL.md` and skill-embedded scripts | Only the store, the four skill roots dsh scans, and the `.dsh/S-M-C` directory of a conversation's own workspace; in-place skills only get their frontmatter rewritten; no other paths are read or written |
+| **Files** | Reads and writes the store `~/.dsh/S-M-C/**`; creates / removes directory junctions in the skill roots; reads and writes the session table `~/.dsh/S-M-C/contexts.json` (plus any legacy `<workspace>/.dsh/S-M-C/contexts/*.json`, read once by the import); reads `SKILL.md` and skill-embedded scripts | Only the store and the four skill roots dsh scans; in-place skills only get their frontmatter rewritten; no other paths are read or written |
 | **Network** | Connects to the MCP servers the user configured (stdio through a subprocess, streamable-http over HTTP) | Only the addresses typed into the manager page; the plugin has **no** built-in external service, **no** telemetry, and reports nothing anywhere |
 | **Commands** | Probes local CLI tools: runs their `--help` / `--version` or the command declared in `cli-state` | Only commands inside the registry and visible on the manager page; nothing the user did not register is executed |
 | **Credentials** | Stores MCP env / headers / API keys, reads CLI `cli-state` | Plain text under `~/.dsh/S-M-C/*.json`, local only, never sent out; keep those files at `0600` |

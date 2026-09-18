@@ -24,7 +24,10 @@ import type {} from '@deepseek-ai/dsh-system-prompt'
 import type {} from '@deepseek-ai/dsh-tools'
 import type { AgentLike } from './features/context/index.ts'
 import { CliManager } from './features/cli/index.ts'
-import { SkillBindings, applyToAgent, buildSkillQueryTool, buildSkillSelectTool } from './features/context/index.ts'
+import {
+  SkillBindings, applyToAgent, buildSkillQueryTool, buildSkillSelectTool, importLegacyContexts,
+  legacyContextCandidates,
+} from './features/context/index.ts'
 import { McpManager } from './features/mcp/index.ts'
 import { SkillsManager } from './features/skills/index.ts'
 import { migrateStoreRoot } from './features/skills/store-migration.ts'
@@ -101,6 +104,18 @@ export function apply(ctx: Context, config?: ConfigShape): void {
     // Same idea for MCP: a definition that is not active belongs in the
     // archive, not in the active document with a flag on it.
     mcp.migrateArchive()
+    // Selections used to be one file per workspace, which made "what has this
+    // conversation enabled" depend on resolving a workspace first — and two
+    // panels resolved differently. Fold the old files into the relay table.
+    // Runs only while the table does not exist, so it cannot fight live state.
+    const imported = importLegacyContexts(legacyContextCandidates())
+    if (imported.ran) {
+      console.log(
+        '[dsh-s-m-c-center] 会话技能已并入中转配置表：默认 ' + imported.defaultSelected.length
+        + ' 项（取自 ' + imported.defaultFrom + '），会话 ' + imported.sessions.length + ' 条'
+        + (imported.skipped.length > 0 ? '，跳过 ' + imported.skipped.length + ' 个文件' : ''),
+      )
+    }
     invalidateAnnouncement()
   } catch {
     // The status routes report the state; mounting is more important.

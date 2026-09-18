@@ -114,6 +114,11 @@ function ContextSection({ contexts, t }: { contexts: UseContextsResult; t: Trans
               <div className={css.descWrap}>{t('contextLinkedNote')}</div>
             </div>
             <div className={css.inline}>
+              <div className={css.descWrap}>
+                {format(t('contextTableNote'), { path: contexts.tablePath || '—' })}
+              </div>
+            </div>
+            <div className={css.inline}>
               <span className={css.note}>{t('contextDefaultItem')}</span>
               <Button onClick={contexts.reload}>{t('refresh')}</Button>
             </div>

@@ -49,6 +49,22 @@ export const STORE_SKILLS_REGISTRY_NAME = 'skills-registry.json'
 /** File name of the link ledger (every junction this plugin ever created). */
 export const STORE_SKILLS_LINKS_NAME = 'skills-links.json'
 
+/**
+ * File name of the session-skill table — the relay document.
+ *
+ * This one is deliberately **one file for the whole machine**, not one per
+ * workspace. Which skills a conversation has enabled used to live in
+ * `<workspace>/.dsh/S-M-C/contexts/<sessionId>.json`, which meant the answer
+ * depended on resolving the right workspace first: two panels asking the same
+ * question could read two different files (the settings page resolves the
+ * workspace dsh reports for the *page*, the sidebar resolves the one the
+ * *conversation* runs in), and a workspace whose root cannot be determined at
+ * all filed its state somewhere nobody would look. The state is
+ * per-conversation — its natural key is the session id, which is unique on its
+ * own — so it is kept in one table and nothing has to guess a directory.
+ */
+export const STORE_CONTEXT_TABLE_NAME = 'contexts.json'
+
 /** The dsh home directory: `$DSH_HOME`, falling back to `~/.dsh`. */
 export function dshHomeDir(): string {
   return process.env.DSH_HOME || join(homedir(), '.dsh')
@@ -95,6 +111,11 @@ export function storeSkillsRegistryPath(): string {
 /** `$STORE_ROOT/skills-links.json` — the ledger of links this plugin created. */
 export function storeSkillsLinksPath(): string {
   return join(storeRoot(), STORE_SKILLS_LINKS_NAME)
+}
+
+/** `$STORE_ROOT/contexts.json` — the session-skill relay table. */
+export function storeContextTablePath(): string {
+  return join(storeRoot(), STORE_CONTEXT_TABLE_NAME)
 }
 
 /**

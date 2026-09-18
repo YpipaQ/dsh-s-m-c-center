@@ -141,30 +141,37 @@ export class SkillsMcpApi {
 
   // ── conversation contexts ────────────────────────────────────────────────
   //
-  // Only the workspace default (`_default`) is wired up: the panel exposes it
-  // alone, and a conversation's own selection is the agent's business. The
-  // Host still serves `GET SMC_API.contexts` (every selection under a
-  // workspace) for anything that wants the whole picture.
+  // Every selection lives in one relay table on the host
+  // (`$STORE_ROOT/contexts.json`), keyed by session id — so these calls take no
+  // cwd, and the panel and the sidebar always read the same document. The panel
+  // wires up the default (`_default`) alone: a conversation's own selection is
+  // the agent's business. `GET SMC_API.contexts` (the whole table) stays
+  // available for anything that wants the full picture.
 
   /** One conversation's selection: the effective set plus how it differs. */
-  async getContext(sessionId: string, cwd: string): Promise<{
-    workspace: string
+  async getContext(sessionId: string): Promise<{
+    /** Path of the relay table — shown in the UI so the state is findable. */
+    table: string
     selection: {
       sessionId: string
       selected: string[]
       updatedAt: string
-      /** False when the conversation has no file of its own (pure default). */
+      /** False when the conversation has no row of its own (pure default). */
       configured?: boolean
       /** The diff against the default, for a conversation that has one. */
       overrides?: { on: string[]; off: string[] }
     }
   }> {
-    return await call('POST', SMC_API.contextsGet, { sessionId, cwd })
+    return await call('POST', SMC_API.contextsGet, { sessionId })
   }
 
   /** Flip one slug in one conversation; applied live when it is running. */
-  async toggleContext(sessionId: string, slug: string, cwd: string): Promise<{ selection: { sessionId: string; selected: string[] }; applied: boolean }> {
-    return await call('POST', SMC_API.contextsToggle, { sessionId, slug, cwd })
+  async toggleContext(sessionId: string, slug: string): Promise<{
+    table: string
+    selection: { sessionId: string; selected: string[] }
+    applied: boolean
+  }> {
+    return await call('POST', SMC_API.contextsToggle, { sessionId, slug })
   }
 
   /**
@@ -172,13 +179,13 @@ export class SkillsMcpApi {
    * The escape hatch for a conversation that pinned a default it can no longer
    * turn off.
    */
-  async resetContext(sessionId: string, cwd: string): Promise<{
-    workspace: string
+  async resetContext(sessionId: string): Promise<{
+    table: string
     selection: { sessionId: string; selected: string[]; configured?: boolean }
     applied: boolean
     error?: string
   }> {
-    return await call('POST', SMC_API.contextsReset, { sessionId, cwd })
+    return await call('POST', SMC_API.contextsReset, { sessionId })
   }
 
   async storeStatus(): Promise<StoreStatus> {

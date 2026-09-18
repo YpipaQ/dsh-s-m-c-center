@@ -194,18 +194,23 @@ function currentConversation(): { id: string | undefined; title: string } {
   return { id, title }
 }
 
-/** One toggle round trip against the live routes. */
-async function toggleSkill(sessionId: string, slug: string, cwd: string): Promise<{ selected: string[] }> {
+/**
+ * One toggle round trip against the live routes.
+ *
+ * No cwd: every selection lives in one relay table on the host, keyed by
+ * session id, so this panel and the settings page read the same document.
+ */
+async function toggleSkill(sessionId: string, slug: string): Promise<{ selected: string[] }> {
   const body = await api<{ selection: { selected: string[] }; applied: boolean }>(
-    'POST', SMC_API.contextsToggle, { sessionId, slug, cwd },
+    'POST', SMC_API.contextsToggle, { sessionId, slug },
   )
   return body.selection
 }
 
 /** Drop this conversation's own selection so it follows the default again. */
-async function resetSelection(sessionId: string, cwd: string): Promise<string[]> {
+async function resetSelection(sessionId: string): Promise<string[]> {
   const body = await api<{ selection: { selected: string[] } }>(
-    'POST', SMC_API.contextsReset, { sessionId, cwd },
+    'POST', SMC_API.contextsReset, { sessionId },
   )
   return body.selection.selected
 }
@@ -368,7 +373,7 @@ function openPanel(entry: HTMLElement): void {
 const render = (
   skillRows: SkillRow[],
   selection: { selected: string[]; configured?: boolean },
-  workspace: string,
+  table: string,
 ): void => {
   bodyEl.textContent = ''
   const id = sessionId
@@ -376,10 +381,11 @@ const render = (
     note('新会话还没有会话 ID——发第一条消息后，这里就会跟随该对话的技能选择')
     return
   }
-  // Which workspace answered is not cosmetic: the host resolves it from the
-  // conversation's own agent, and a selection that seems not to stick is nearly
-  // always a different file than the one being edited.
-  note('工作区：' + (workspace === '' ? '（未解析）' : workspace))
+  // Which state this panel is showing is not cosmetic: the settings page reads
+  // the same relay table, so "跟随默认" here means the default card up there is
+  // what governs this conversation.
+  note(selection.configured === true ? '本会话已单独配置' : '本会话跟随「会话默认」')
+  note('配置表：' + (table === '' ? '（未解析）' : table))
   // Only offered once the conversation has a selection of its own: without one
   // there is nothing to drop, and the button would do nothing.
   if (selection.configured === true) {
@@ -391,7 +397,7 @@ const render = (
       + 'cursor:pointer;font-size:12px;padding:2px 8px;border-radius:6px;opacity:.8'
     reset.addEventListener('click', () => {
       reset.disabled = true
-      resetSelection(id, cwd).then(() => { load() }).catch((e: unknown) => {
+      resetSelection(id).then(() => { load() }).catch((e: unknown) => {
         note(String((e as Error)?.message ?? e), true)
         reset.disabled = false
       })
@@ -421,7 +427,7 @@ const render = (
       line.append(box, text)
       box.addEventListener('change', () => {
         box.disabled = true
-        toggleSkill(id, row.slug ?? '', cwd).then((selection) => {
+        toggleSkill(id, row.slug ?? '').then((selection) => {
           picked.clear()
           for (const slug of selection.selected) picked.add(slug)
           box.checked = picked.has(row.slug ?? '')
@@ -444,15 +450,15 @@ const render = (
       const [skillBody, selectionBody] = await Promise.all([
         api<{ items: SkillRow[] }>('GET', cwd !== '' ? `${SMC_API.skills}?cwd=${encodeURIComponent(cwd)}` : SMC_API.skills),
         sessionId === undefined
-          ? Promise.resolve({ selection: { selected: [] as string[] }, workspace: '' })
-          : api<{ workspace: string; selection: { selected: string[]; configured?: boolean } }>(
-            'POST', SMC_API.contextsGet, { sessionId, cwd },
+          ? Promise.resolve({ selection: { selected: [] as string[] }, table: '' })
+          : api<{ table: string; selection: { selected: string[]; configured?: boolean } }>(
+            'POST', SMC_API.contextsGet, { sessionId },
           ),
       ])
       // Only rows the context engine can resolve carry a slug
       // (stored / registered); native rows have nothing to register yet.
       const rows = skillBody.items.filter((s) => s.level === 'user' && typeof s.slug === 'string' && s.slug !== '')
-      render(rows, selectionBody.selection, selectionBody.workspace)
+      render(rows, selectionBody.selection, selectionBody.table)
       } catch (e) {
         bodyEl.textContent = ''
         note(String((e as Error)?.message ?? e), true)
