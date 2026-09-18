@@ -23,7 +23,8 @@ import type { SkillsManager } from '../skills/index.ts'
 import type { ApplyOutcome } from './apply.ts'
 import type { ContextSelection } from './engine.ts'
 import {
-  DEFAULT_CONTEXT_ID, commitSelection, planSelection, readContextIndex, readSelection, workspaceOf,
+  DEFAULT_CONTEXT_ID, commitSelection, normaliseSelection, planSelection, readContextIndex,
+  readSelection, resetSelection, workspaceOf,
 } from './engine.ts'
 import type { AgentLike } from './tools.ts'
 import { missingSlugs, withoutMissing } from './tools.ts'
@@ -86,7 +87,34 @@ export function contextRoutes(deps: ContextRouteDeps): WebRoute[] {
       if (!sessionId) { badRequest(res, 'sessionId required'); return }
       const workspace = workspaceFor(sessionId, bodyText(body, 'cwd') || undefined)
       if (workspace === undefined) { badRequest(res, NO_WORKSPACE); return }
+      // A file an older version wrote carries a pinned set; rewrite it as a diff
+      // here, so merely opening the panel stops it from freezing the default.
+      normaliseSelection(workspace, sessionId)
       writeJson(res, 200, ok({ workspace, selection: readSelection(workspace, sessionId) }))
+    }),
+
+    // Drop the conversation's own selection, so it follows the default again.
+    // The escape hatch for a conversation that pinned a default it can no longer
+    // turn off — and for one whose file the user wants gone.
+    handle('POST', SMC_API.contextsReset, async (_req, res, body) => {
+      const sessionId = bodyText(body, 'sessionId')
+      if (!sessionId) { badRequest(res, 'sessionId required'); return }
+      const workspace = workspaceFor(sessionId, bodyText(body, 'cwd') || undefined)
+      if (workspace === undefined) { badRequest(res, NO_WORKSPACE); return }
+      const selection = resetSelection(workspace, sessionId)
+      const agent = deps.agents?.get(sessionId)
+      if (agent === undefined || deps.applyToAgent === undefined) {
+        writeJson(res, 200, ok({ workspace, selection, applied: false, missing: [] }))
+        return
+      }
+      const outcome = await deps.applyToAgent(agent, selection)
+      writeJson(res, 200, ok({
+        workspace,
+        selection,
+        applied: outcome.applied,
+        missing: outcome.missing,
+        error: outcome.error ?? '',
+      }))
     }),
 
     // A panel flip. Two paths, chosen by whether the conversation is running:

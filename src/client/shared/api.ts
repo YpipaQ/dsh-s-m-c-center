@@ -146,14 +146,39 @@ export class SkillsMcpApi {
   // Host still serves `GET SMC_API.contexts` (every selection under a
   // workspace) for anything that wants the whole picture.
 
-  /** One conversation's selection. */
-  async getContext(sessionId: string, cwd: string): Promise<{ workspace: string; selection: { sessionId: string; selected: string[]; updatedAt: string } }> {
+  /** One conversation's selection: the effective set plus how it differs. */
+  async getContext(sessionId: string, cwd: string): Promise<{
+    workspace: string
+    selection: {
+      sessionId: string
+      selected: string[]
+      updatedAt: string
+      /** False when the conversation has no file of its own (pure default). */
+      configured?: boolean
+      /** The diff against the default, for a conversation that has one. */
+      overrides?: { on: string[]; off: string[] }
+    }
+  }> {
     return await call('POST', SMC_API.contextsGet, { sessionId, cwd })
   }
 
   /** Flip one slug in one conversation; applied live when it is running. */
   async toggleContext(sessionId: string, slug: string, cwd: string): Promise<{ selection: { sessionId: string; selected: string[] }; applied: boolean }> {
     return await call('POST', SMC_API.contextsToggle, { sessionId, slug, cwd })
+  }
+
+  /**
+   * Drop one conversation's own selection, so it follows the default again.
+   * The escape hatch for a conversation that pinned a default it can no longer
+   * turn off.
+   */
+  async resetContext(sessionId: string, cwd: string): Promise<{
+    workspace: string
+    selection: { sessionId: string; selected: string[]; configured?: boolean }
+    applied: boolean
+    error?: string
+  }> {
+    return await call('POST', SMC_API.contextsReset, { sessionId, cwd })
   }
 
   async storeStatus(): Promise<StoreStatus> {

@@ -122,7 +122,19 @@ export async function applyToAgent(
 export function withoutMissing(selection: ContextSelection, missing: string[]): ContextSelection {
   if (missing.length === 0) return selection
   const gone = new Set(missing)
-  return { ...selection, selected: selection.selected.filter((slug) => !gone.has(slug)) }
+  return {
+    ...selection,
+    selected: selection.selected.filter((slug) => !gone.has(slug)),
+    // A phantom name must not survive in the conversation's diff either: `on`
+    // is the list that re-adds slugs, so dropping it there is what keeps a
+    // deleted skill from coming back if a same-named copy is adopted later.
+    ...(selection.overrides === undefined ? {} : {
+      overrides: {
+        on: selection.overrides.on.filter((slug) => !gone.has(slug)),
+        off: selection.overrides.off,
+      },
+    }),
+  }
 }
 
 /** The result shape `skill_select` answers with. */

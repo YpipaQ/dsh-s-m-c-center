@@ -45,6 +45,7 @@ export const SMC_API = {
   /** One conversation's selection (get / toggle). */
   contextsGet: '/api/dsh-s-m-c-center/contexts/get',
   contextsToggle: '/api/dsh-s-m-c-center/contexts/toggle',
+  contextsReset: '/api/dsh-s-m-c-center/contexts/reset',
   skillStore: '/api/dsh-s-m-c-center/skills/store',
   skillRollback: '/api/dsh-s-m-c-center/skills/rollback',
   /** Re-run the one-shot migration after a rollback (the uninstall page's undo). */

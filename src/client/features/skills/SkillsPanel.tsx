@@ -25,7 +25,7 @@ import { useState } from 'react'
 import { Badge, Button, ConfirmButton, EmptyState, ErrorText, Loading, Switch } from '../../shared/ui.tsx'
 import type { UseSkillsResult } from './useSkills.ts'
 import type { UseContextsResult } from './useContexts.ts'
-import { format } from '../../shared/format.ts'
+import { format, shortText } from '../../shared/format.ts'
 import type { SkillGroup } from '../../../shared/protocol/index.ts'
 import type { SkillsMcpKey, Translate } from '../../shared/locales.ts'
 import css from '../../shared/settings-card.module.css'
@@ -126,16 +126,18 @@ function ContextSection({ contexts, t }: { contexts: UseContextsResult; t: Trans
                   const on = contexts.checked[slug] === true
                   return (
                     <div key={slug || skill.path} className={css.row}>
+                      <div className={css.main}>
+                        <div className={css.name}><span className={css.nameText}>{skill.name}</span></div>
+                        {skill.description.trim() === ''
+                          ? null
+                          : <div className={css.desc}>{shortText(skill.description)}</div>}
+                      </div>
                       <Switch
                         checked={on}
                         disabled={contexts.busySlug === slug}
                         onChange={() => { contexts.toggle(slug) }}
                         label={on ? t('injectOn') : t('injectOff')}
                       />
-                      <div className={css.main}>
-                        <div className={css.name}><span className={css.nameText}>{skill.name}</span></div>
-                      </div>
-                      <Badge>{t(skill.group === 'stored' ? 'groupStored' : skill.group === 'registered' ? 'groupRegistered' : 'groupNative')}</Badge>
                     </div>
                   )
                 })}

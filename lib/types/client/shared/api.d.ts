@@ -46,13 +46,20 @@ export declare class SkillsMcpApi {
         name: string;
         exists: boolean;
     }>>;
-    /** One conversation's selection. */
+    /** One conversation's selection: the effective set plus how it differs. */
     getContext(sessionId: string, cwd: string): Promise<{
         workspace: string;
         selection: {
             sessionId: string;
             selected: string[];
             updatedAt: string;
+            /** False when the conversation has no file of its own (pure default). */
+            configured?: boolean;
+            /** The diff against the default, for a conversation that has one. */
+            overrides?: {
+                on: string[];
+                off: string[];
+            };
         };
     }>;
     /** Flip one slug in one conversation; applied live when it is running. */
@@ -62,6 +69,21 @@ export declare class SkillsMcpApi {
             selected: string[];
         };
         applied: boolean;
+    }>;
+    /**
+     * Drop one conversation's own selection, so it follows the default again.
+     * The escape hatch for a conversation that pinned a default it can no longer
+     * turn off.
+     */
+    resetContext(sessionId: string, cwd: string): Promise<{
+        workspace: string;
+        selection: {
+            sessionId: string;
+            selected: string[];
+            configured?: boolean;
+        };
+        applied: boolean;
+        error?: string;
     }>;
     storeStatus(): Promise<StoreStatus>;
     /** Undo the one-shot migration: every stored skill returns to its origin. */

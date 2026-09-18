@@ -202,6 +202,14 @@ async function toggleSkill(sessionId: string, slug: string, cwd: string): Promis
   return body.selection
 }
 
+/** Drop this conversation's own selection so it follows the default again. */
+async function resetSelection(sessionId: string, cwd: string): Promise<string[]> {
+  const body = await api<{ selection: { selected: string[] } }>(
+    'POST', SMC_API.contextsReset, { sessionId, cwd },
+  )
+  return body.selection.selected
+}
+
 /**
  * Open the floating panel.
  *
@@ -357,18 +365,44 @@ function openPanel(entry: HTMLElement): void {
     bodyEl.appendChild(el)
   }
 
-  const render = (skillRows: SkillRow[], selected: string[]): void => {
-    bodyEl.textContent = ''
-    const id = sessionId
-    if (id === undefined) {
-      note('新会话还没有会话 ID——发第一条消息后，这里就会跟随该对话的技能选择')
-      return
-    }
-    const picked = new Set(selected)
-    if (skillRows.length === 0) {
-      note('没有可勾选的技能（先在管理页登记或迁移入库）')
-      return
-    }
+const render = (
+  skillRows: SkillRow[],
+  selection: { selected: string[]; configured?: boolean },
+  workspace: string,
+): void => {
+  bodyEl.textContent = ''
+  const id = sessionId
+  if (id === undefined) {
+    note('新会话还没有会话 ID——发第一条消息后，这里就会跟随该对话的技能选择')
+    return
+  }
+  // Which workspace answered is not cosmetic: the host resolves it from the
+  // conversation's own agent, and a selection that seems not to stick is nearly
+  // always a different file than the one being edited.
+  note('工作区：' + (workspace === '' ? '（未解析）' : workspace))
+  // Only offered once the conversation has a selection of its own: without one
+  // there is nothing to drop, and the button would do nothing.
+  if (selection.configured === true) {
+    const reset = document.createElement('button')
+    reset.type = 'button'
+    reset.textContent = '跟随默认（清除本会话）'
+    reset.title = '删除本会话自己的选择，改为跟随「会话默认」'
+    reset.style.cssText = 'border:1px solid currentColor;background:transparent;color:inherit;'
+      + 'cursor:pointer;font-size:12px;padding:2px 8px;border-radius:6px;opacity:.8'
+    reset.addEventListener('click', () => {
+      reset.disabled = true
+      resetSelection(id, cwd).then(() => { load() }).catch((e: unknown) => {
+        note(String((e as Error)?.message ?? e), true)
+        reset.disabled = false
+      })
+    })
+    bodyEl.appendChild(reset)
+  }
+  const picked = new Set(selection.selected)
+  if (skillRows.length === 0) {
+    note('没有可勾选的技能（先在管理页登记或迁移入库）')
+    return
+  }
     for (const row of skillRows) {
       const line = document.createElement('div')
       line.className = 'smc-fp-row'
@@ -407,16 +441,18 @@ function openPanel(entry: HTMLElement): void {
     bodyEl.textContent = '加载中…'
     void (async () => {
       try {
-        const [skillBody, selectionBody] = await Promise.all([
-          api<{ items: SkillRow[] }>('GET', cwd !== '' ? `${SMC_API.skills}?cwd=${encodeURIComponent(cwd)}` : SMC_API.skills),
-          sessionId === undefined
-            ? Promise.resolve({ selection: { selected: [] as string[] } })
-            : api<{ selection: { selected: string[] } }>('POST', SMC_API.contextsGet, { sessionId, cwd }),
-        ])
-        // Only rows the context engine can resolve carry a slug
-        // (stored / registered); native rows have nothing to register yet.
-        const rows = skillBody.items.filter((s) => s.level === 'user' && typeof s.slug === 'string' && s.slug !== '')
-        render(rows, selectionBody.selection.selected)
+      const [skillBody, selectionBody] = await Promise.all([
+        api<{ items: SkillRow[] }>('GET', cwd !== '' ? `${SMC_API.skills}?cwd=${encodeURIComponent(cwd)}` : SMC_API.skills),
+        sessionId === undefined
+          ? Promise.resolve({ selection: { selected: [] as string[] }, workspace: '' })
+          : api<{ workspace: string; selection: { selected: string[]; configured?: boolean } }>(
+            'POST', SMC_API.contextsGet, { sessionId, cwd },
+          ),
+      ])
+      // Only rows the context engine can resolve carry a slug
+      // (stored / registered); native rows have nothing to register yet.
+      const rows = skillBody.items.filter((s) => s.level === 'user' && typeof s.slug === 'string' && s.slug !== '')
+      render(rows, selectionBody.selection, selectionBody.workspace)
       } catch (e) {
         bodyEl.textContent = ''
         note(String((e as Error)?.message ?? e), true)
