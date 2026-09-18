@@ -66,7 +66,14 @@ export interface ContextTable {
 }
 /** Where the table lives — surfaced in the UI so the state is findable. */
 export declare function contextTablePath(): string;
-/** An empty table (no default, no conversations). */
+/**
+ * An empty table (no default, no conversations).
+ *
+ * `sessions` is a **null-prototype** map on purpose. On a plain object,
+ * `sessions['__proto__']` answers with `Object.prototype` — a truthy value
+ * where the caller asked "is there a row named this?", so such a lookup would
+ * be read as a configured conversation.
+ */
 export declare function emptyTable(): ContextTable;
 /**
  * Read the table, tolerating anything.

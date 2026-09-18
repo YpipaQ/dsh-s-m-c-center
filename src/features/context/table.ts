@@ -75,9 +75,25 @@ export function contextTablePath(): string {
   return storeContextTablePath()
 }
 
-/** An empty table (no default, no conversations). */
+/**
+ * An empty table (no default, no conversations).
+ *
+ * `sessions` is a **null-prototype** map on purpose. On a plain object,
+ * `sessions['__proto__']` answers with `Object.prototype` — a truthy value
+ * where the caller asked "is there a row named this?", so such a lookup would
+ * be read as a configured conversation.
+ */
 export function emptyTable(): ContextTable {
-  return { version: CONTEXT_TABLE_VERSION, default: { selected: [], updatedAt: '' }, sessions: {} }
+  return {
+    version: CONTEXT_TABLE_VERSION,
+    default: { selected: [], updatedAt: '' },
+    sessions: emptySessions(),
+  }
+}
+
+/** A session map whose lookups cannot reach `Object.prototype`. */
+function emptySessions(): Record<string, ContextTableEntry> {
+  return Object.create(null) as Record<string, ContextTableEntry>
 }
 
 /**
@@ -114,7 +130,7 @@ export function writeContextTable(table: ContextTable): void {
       selected: asStringList(table.default?.selected),
       updatedAt: asText(table.default?.updatedAt),
     },
-    sessions: {},
+    sessions: emptySessions(),
   }
   for (const [sessionId, entry] of Object.entries(table.sessions ?? {})) {
     if (!isSessionId(sessionId) || isReservedSessionId(sessionId)) continue
@@ -189,13 +205,27 @@ function parseTable(raw: unknown): ContextTable {
 }
 
 /**
+ * Keys that cannot be stored as a key at all.
+ *
+ * Assigning `__proto__` onto a plain object rewrites that object's prototype
+ * instead of adding a row, and `constructor` / `prototype` are the same trap.
+ * They are refused rather than renamed: a row under one of them could never be
+ * read back, so accepting it would be a write that reports success and stores
+ * nothing.
+ */
+const UNSAFE_SESSION_IDS = new Set(['__proto__', 'constructor', 'prototype'])
+
+/**
  * Whether a key can be used as a session id at all.
  *
- * Kept permissive on purpose — dsh mints these, and the id only ever reaches
- * the filesystem as a JSON key, never a path segment.
+ * Deliberately permissive: dsh mints these, and the id reaches the document as
+ * a JSON key, never a path segment. An earlier version also refused every id
+ * starting with `__`, which silently dropped legitimate rows — a write that
+ * answered `ok` and stored nothing (found by probing the live routes with such
+ * an id).
  */
 function isSessionId(value: string): boolean {
-  return value !== '' && !value.startsWith('__')
+  return value !== '' && !UNSAFE_SESSION_IDS.has(value)
 }
 
 /** The default with one conversation's additions and withholdings applied. */

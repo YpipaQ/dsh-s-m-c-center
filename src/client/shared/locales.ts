@@ -200,7 +200,6 @@ export type SkillsMcpKey =
   | 'injectOn'
   | 'injectOff'
   | 'contextTableNote'
-  | 'contextLinkedNote'
   | 'msgContextApplied'
   | 'msgContextLive'
   | 'msgContextSaved'
@@ -420,7 +419,6 @@ export const zh: Record<SkillsMcpKey, string> = {
   injectOn: '注入',
   injectOff: '隐藏',
   contextTableNote: '以上状态存在一张中转配置表里（设置页与小窗读的是同一份）：{path}',
-  contextLinkedNote: '⚠️ 已「联接」的技能由 dsh 自己列进每个会话的目录，与本开关无关；要让它默认不出现，请先断开联接。',
   msgContextApplied: '已保存，本会话共注入 {n} 个技能（{state}）',
   msgContextLive: '已即时生效',
   msgContextSaved: '会话未运行，下次启动生效',
@@ -637,7 +635,6 @@ export const en: Record<SkillsMcpKey, string> = {
   injectOn: 'Injected',
   injectOff: 'Hidden',
   contextTableNote: 'All of the above lives in one relay table, read by both this page and the sidebar: {path}',
-  contextLinkedNote: '⚠️ A linked skill is listed by dsh itself in every conversation\'s catalog, whatever this switch says; unlink it to keep it out by default.',
   msgContextApplied: 'Saved; {n} skill(s) injected for this conversation ({state})',
   msgContextLive: 'applied live',
   msgContextSaved: 'session idle; takes effect on next start',

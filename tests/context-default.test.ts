@@ -237,6 +237,31 @@ describe('a conversation row stores a diff, not a pinned set', () => {
  * runs once (only while the table does not exist), rewrites what it finds as
  * diffs against the imported default, and reports the choices it had to make.
  */
+/**
+ * Which keys the table will store.
+ *
+ * The filter exists for the three names that cannot be stored as a key at all:
+ * assigning `__proto__` onto a plain object rewrites its prototype. It used to
+ * refuse every id starting with `__` as well, which silently dropped a
+ * legitimate write — found by probing the live routes with such an id.
+ */
+describe('session ids the table will store', () => {
+  it('stores an id that merely starts with underscores', () => {
+    writeSelection({ sessionId: '__probe', selected: ['gsap'], updatedAt: '' })
+
+    expect(readSelection('__probe')).toMatchObject({ selected: ['gsap'], configured: true })
+    expect(Object.keys(onDisk().sessions)).toEqual(['__probe'])
+  })
+
+  it('refuses __proto__ instead of writing a row nobody could read', () => {
+    writeSelection({ sessionId: '__proto__', selected: ['gsap'], updatedAt: '' })
+
+    expect(Object.keys(onDisk().sessions)).toEqual([])
+    // …and a lookup for it must not answer with Object.prototype.
+    expect(readSelection('__proto__')).toMatchObject({ selected: [], configured: false })
+  })
+})
+
 describe('importLegacyContexts', () => {
   it('folds per-workspace files in, preserving every effective set', () => {
     const older = legacyDir('proj-old', {

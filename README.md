@@ -44,16 +44,12 @@
 
 ## 🧠 Two channels: linking vs injection
 
-This is the most misunderstood part of the plugin — and the one place where a normal behaviour looks like a bug: a fresh conversation shows skills in the agent's catalog that were never injected into it.
-
 | | **Enable (linking)** | **Injection (conversation selection)** |
 |---|---|---|
 | Carrier | A directory junction at `~/.dsh/skills/<slug>` | One row per conversation in the session table `~/.dsh/S-M-C/contexts.json` |
 | Scope | **Global**: every conversation, every workspace, sub-agents included | **This conversation only** |
 | Maintained by | The "enable / disable" button on the skills tab | The session default, the sidebar panel, and the model's own `skill_select` |
 | Seen by | dsh's own filesystem scan | This plugin's conversation injection |
-
-**Consequence**: a **linked** skill appears in **every** conversation's catalog, because that is dsh's own scan — not our injection. So for a linked skill, **turning injection off does not hide it from the model**; to keep it out by default, **unlink it** (the skills tab's "disable"). Conversely, an **unlinked** skill is visible only through injection.
 
 **How a conversation stores its choice**: the file keeps the **difference from the default** (`overrides: { on, off }`), and the effective set is `default ∪ on \ off`. Editing the default therefore reaches every conversation that never configured itself, while a skill you turned off in one conversation stays off.
 

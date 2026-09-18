@@ -273,6 +273,13 @@
   white-space: nowrap;
   cursor: pointer;
   user-select: none;
+  /* The label (注入 / 隐藏) is a fixed two characters: never let the row
+     squeeze it. As a flex item it could be compressed until the text was
+     clipped, and on a narrow row it wrapped to the far left of the next
+     line; `flex: none` + `margin-left: auto` keeps it whole and, when the
+     row does wrap, right-aligned where the eye expects the control. */
+  flex: none;
+  margin-left: auto;
 }
 
 .switch input {

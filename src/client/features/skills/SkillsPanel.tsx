@@ -111,9 +111,6 @@ function ContextSection({ contexts, t }: { contexts: UseContextsResult; t: Trans
               <div className={css.descWrap}>{t('contextNote')}</div>
             </div>
             <div className={css.inline}>
-              <div className={css.descWrap}>{t('contextLinkedNote')}</div>
-            </div>
-            <div className={css.inline}>
               <div className={css.descWrap}>
                 {format(t('contextTableNote'), { path: contexts.tablePath || '—' })}
               </div>
