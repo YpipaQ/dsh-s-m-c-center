@@ -56,6 +56,24 @@ declare module '@deepseek-ai/dsh-llm' {
 }
 /** Catalog identity, dsh-style: hash the entries, not the prose around them. */
 export declare function smcDigest(entries: readonly CatalogEntry[]): string;
+/** What the session history says about our catalog frames (dsh `catalogHistory` twin). */
+export interface CatalogHistory {
+    /** Digest of the most recent frame still visible to the model, if any. */
+    visibleDigest?: string;
+    /** True once any frame of ours exists in the session history. */
+    published: boolean;
+}
+/**
+ * Read our frames out of the session's durable history.
+ *
+ * This is the half the first implementation missed: `decision.messages` only
+ * covers the current step, so "already published?" asked against it is
+ * always no — every turn re-appended a first-publication frame and none was
+ * ever marked as a replacement (BUG-A3). dsh's own catalog walks
+ * `session.eventAt` for the same reason; this is that walk, filtered to our
+ * private kind.
+ */
+export declare function smcCatalogHistory(agent: AgentLike | undefined): CatalogHistory;
 /**
  * The model-facing catalog message. First publication states the frame;
  * a replacement says so explicitly, so the model drops names it saw earlier.
@@ -64,17 +82,26 @@ export declare function renderSmcCatalog(entries: readonly CatalogEntry[], updat
 /**
  * What this step's message list should look like for `entries`.
  *
- * A message with the same digest already in the list is left alone (the step
- * is a no-op); a different one is replaced in place and announced as an
- * update; none means this is the first publication. Only our own kind is
- * considered — dsh's catalog messages are another plugin's property here.
+ * Three outcomes, mirroring dsh's own catalog listener:
+ *
+ * - The session history already shows these exact entries → nothing to do
+ *   (`undefined`); this is the gate that stops a frame per turn (BUG-A3).
+ * - The current step's message list already carries one of our frames → it is
+ *   replaced **in place**, keeping its id.
+ * - Otherwise a new frame is appended — marked as a replacement when the
+ *   history shows an earlier publication, so the model drops names it saw
+ *   before. A brand-new frame is appended as-is and never touched with a
+ *   fabricated `id`.
+ *
+ * Only our own kind is considered — dsh's catalog messages are another
+ * plugin's property here.
  */
 export declare function nextCatalogDecision<T extends {
     id: string;
     source?: {
         kind?: string;
     };
-}>(messages: readonly T[], entries: readonly CatalogEntry[]): readonly T[] | undefined;
+}>(messages: readonly T[], entries: readonly CatalogEntry[], history?: CatalogHistory): readonly T[] | undefined;
 /**
  * The shadow `skill` tool.
  *

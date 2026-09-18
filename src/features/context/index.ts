@@ -24,8 +24,8 @@ export type {
   export type { AgentLike } from './tools.ts'
   export {
     CATALOG_KIND, attachSmcCatalog, buildShadowSkillTool, catalogEntriesFor, nextCatalogDecision,
-    renderSmcCatalog, smcDigest,
+    renderSmcCatalog, smcCatalogHistory, smcDigest,
   } from './shadow.ts'
-  export type { CatalogEntry, SmcCatalogSource } from './shadow.ts'
+  export type { CatalogEntry, CatalogHistory, SmcCatalogSource } from './shadow.ts'
   export { contextRoutes } from './routes.ts'
   export type { ContextRouteDeps } from './routes.ts'

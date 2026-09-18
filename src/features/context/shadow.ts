@@ -72,6 +72,54 @@ export function smcDigest(entries: readonly CatalogEntry[]): string {
   return createHash('sha256').update(canonical).digest('hex')
 }
 
+/** What the session history says about our catalog frames (dsh `catalogHistory` twin). */
+export interface CatalogHistory {
+  /** Digest of the most recent frame still visible to the model, if any. */
+  visibleDigest?: string
+  /** True once any frame of ours exists in the session history. */
+  published: boolean
+}
+
+/**
+ * Read our frames out of the session's durable history.
+ *
+ * This is the half the first implementation missed: `decision.messages` only
+ * covers the current step, so "already published?" asked against it is
+ * always no — every turn re-appended a first-publication frame and none was
+ * ever marked as a replacement (BUG-A3). dsh's own catalog walks
+ * `session.eventAt` for the same reason; this is that walk, filtered to our
+ * private kind.
+ */
+export function smcCatalogHistory(agent: AgentLike | undefined): CatalogHistory {
+  const session = (agent as { session?: {
+    seq?: number
+    surface?: { nodes?: Iterable<number> }
+    eventAt?: (index: number) => { type?: string; seq?: number; data?: { source?: { kind?: string; entries?: unknown } } } | undefined
+  } | undefined })?.session
+  if (session === undefined || typeof session.seq !== 'number' || typeof session.eventAt !== 'function') {
+    return { published: false }
+  }
+  const visible = new Set(session.surface?.nodes ?? [])
+  let published = false
+  for (let index = session.seq - 1; index >= 0; index -= 1) {
+    let event: ReturnType<NonNullable<typeof session.eventAt>> | undefined
+    try {
+      event = session.eventAt(index)
+    } catch {
+      continue // an unreadable slot is a hole, not the end of history
+    }
+    if (event === undefined) continue
+    const source = event.data?.source
+    if (event.type !== 'user/message' || source?.kind !== CATALOG_KIND) continue
+    const entries = source.entries
+    if (!Array.isArray(entries)) continue
+    const digest = smcDigest(entries as readonly CatalogEntry[])
+    published = true
+    if (typeof event.seq === 'number' && visible.has(event.seq)) return { visibleDigest: digest, published }
+  }
+  return { published }
+}
+
 /** Same cap dsh applies, so our lines never render longer than its own. */
 function catalogDescription(value: string): string {
   const normalized = value.replaceAll(/\s+/g, ' ').trim()
@@ -129,16 +177,29 @@ export function renderSmcCatalog(entries: readonly CatalogEntry[], update: boole
 /**
  * What this step's message list should look like for `entries`.
  *
- * A message with the same digest already in the list is left alone (the step
- * is a no-op); a different one is replaced in place and announced as an
- * update; none means this is the first publication. Only our own kind is
- * considered — dsh's catalog messages are another plugin's property here.
+ * Three outcomes, mirroring dsh's own catalog listener:
+ *
+ * - The session history already shows these exact entries → nothing to do
+ *   (`undefined`); this is the gate that stops a frame per turn (BUG-A3).
+ * - The current step's message list already carries one of our frames → it is
+ *   replaced **in place**, keeping its id.
+ * - Otherwise a new frame is appended — marked as a replacement when the
+ *   history shows an earlier publication, so the model drops names it saw
+ *   before. A brand-new frame is appended as-is and never touched with a
+ *   fabricated `id`.
+ *
+ * Only our own kind is considered — dsh's catalog messages are another
+ * plugin's property here.
  */
 export function nextCatalogDecision<T extends { id: string; source?: { kind?: string } }>(
   messages: readonly T[],
   entries: readonly CatalogEntry[],
+  history: CatalogHistory = { published: false },
 ): readonly T[] | undefined {
   const digest = smcDigest(entries)
+  // The step's message list does not contain what earlier turns published
+  // (that lives in the session history) — hence the history parameter.
+  if (history.visibleDigest === digest) return undefined
   const existing = messages.find((message) => {
     const source = message.source as { kind?: string; entries?: unknown } | undefined
     if (source?.kind !== CATALOG_KIND || !Array.isArray(source.entries)) return false
@@ -149,11 +210,10 @@ export function nextCatalogDecision<T extends { id: string; source?: { kind?: st
     const source = existing.source as { entries: readonly CatalogEntry[] }
     if (smcDigest(source.entries) === digest) return undefined
   }
-  const published = renderSmcCatalog(entries, existing !== undefined)
-  const publishedWithId = { ...published, id: existing?.id }
-  return existing === undefined
-    ? [...messages, publishedWithId as unknown as T]
-    : messages.map((message) => (message.id === existing.id ? publishedWithId as unknown as T : message))
+  const published = renderSmcCatalog(entries, history.published || existing !== undefined)
+  if (existing === undefined) return [...messages, published as unknown as T]
+  const replacement = { ...published, id: existing.id }
+  return messages.map((message) => (message.id === existing.id ? replacement as unknown as T : message))
 }
 
 const SKILL_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
@@ -267,7 +327,8 @@ export function attachSmcCatalog(ctx: { on(event: string, listener: unknown): un
     if (decision.kind === 'reject') return decision
     try {
       const messages = (decision.messages ?? []) as readonly { id: string; source?: { kind?: string } }[]
-      const nextMessages = nextCatalogDecision(messages, catalogEntriesFor(agent, skills))
+      const history = smcCatalogHistory(agent)
+      const nextMessages = nextCatalogDecision(messages, catalogEntriesFor(agent, skills), history)
       if (nextMessages === undefined) return decision
       return { ...decision, messages: nextMessages }
     } catch {

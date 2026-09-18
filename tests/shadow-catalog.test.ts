@@ -18,7 +18,7 @@ import { catalogEntriesOf } from '../src/features/skills/index.ts'
 import type { AgentLike } from '../src/features/context/index.ts'
 import {
   CATALOG_KIND, buildShadowSkillTool, nextCatalogDecision, renderSmcCatalog,
-  smcDigest, writeSelection,
+  smcCatalogHistory, smcDigest, writeSelection,
 } from '../src/features/context/index.ts'
 
 let home: string
@@ -82,9 +82,15 @@ describe('nextCatalogDecision', () => {
   const entries = [{ name: 'picked', description: 'p' }, { name: 'smc-skill-index', description: 'i' }]
   const asSource = (messages: readonly { id: string; source?: { kind?: string } }[]) => messages
 
-  it('appends the frame on the first publication', () => {
+  it('appends the frame on the first publication, keeping the message whole', () => {
     const next = nextCatalogDecision(asSource([]), entries)
     expect(next).toHaveLength(1)
+    // A brand-new frame is appended exactly as createUserMessage produced it —
+    // including its generated id. The old code spread `id: existing?.id` over
+    // it, writing an undefined id onto a fresh frame.
+    const appended = next![0] as { id?: unknown }
+    expect(typeof appended.id).toBe('string')
+    expect((appended.id as string).length).toBeGreaterThan(0)
   })
 
   it('leaves the list alone when the digest is unchanged', () => {
@@ -159,5 +165,69 @@ describe('shadow skill tool', () => {
 
     expect(result.name).toBe('smc-skill-index')
     expect(existsSync(home)).toBe(true)
+  })
+})
+
+/**
+ * BUG-A3, pinned: the first implementation asked "already published?" against
+ * the step's message list alone. That list does not carry what earlier turns
+ * published — it lives in the session history — so every turn re-appended a
+ * first-publication frame (32 frames in one session) and none was ever marked
+ * as a replacement. The history parameter is the fix, mirroring dsh's own
+ * `catalogHistory` walk.
+ */
+describe('nextCatalogDecision against session history (BUG-A3)', () => {
+  const entries = [{ name: 'picked', description: 'p' }, { name: 'smc-skill-index', description: 'i' }]
+  const asSource = (messages: readonly { id: string; source?: { kind?: string } }[]) => messages
+
+  /** A session whose history holds the given frames, as dsh's eventAt exposes them. */
+  function sessionWith(frames: { seq: number; entries: readonly { name: string; description: string }[] }, visibleSeqs: number[] = []) {
+    const events = frames.map((f) => ({
+      type: 'user/message', seq: f.seq,
+      data: { source: { kind: CATALOG_KIND, form: 'catalog', entries: f.entries } },
+    }))
+    const agent = {
+      session: {
+        seq: frames.length + 10,
+        surface: { nodes: visibleSeqs },
+        eventAt: (index: number) => events.find((e) => e.seq === index),
+      },
+    }
+    return agent as unknown as AgentLike
+  }
+
+  it('same entries already visible → no frame at all (the per-turn flood gate)', () => {
+    const agent = sessionWith([{ seq: 1, entries }], [1])
+    const history = smcCatalogHistory(agent)
+    expect(history.visibleDigest).toBe(smcDigest(entries))
+    expect(nextCatalogDecision(asSource([]), entries, history)).toBeUndefined()
+  })
+
+  it('an earlier publication exists → the frame is a replacement (update: true)', () => {
+    const agent = sessionWith([{ seq: 1, entries }], [99]) // published, but scrolled out of view
+    const history = smcCatalogHistory(agent)
+    expect(history.published).toBe(true)
+
+    const nextEntries = [{ name: 'other', description: 'o' }, { name: 'smc-skill-index', description: 'i' }]
+    const next = nextCatalogDecision(asSource([]), nextEntries, history)
+    expect(next).toHaveLength(1)
+    const source = (next![0] as { source?: { update?: boolean } }).source
+    expect(source?.update).toBe(true)
+  })
+
+  it('a session with none of our frames is a genuine first publication', () => {
+    const history = smcCatalogHistory(undefined)
+    expect(history).toEqual({ published: false })
+    const next = nextCatalogDecision(asSource([]), entries, history)
+    expect(next).toHaveLength(1)
+    const source = (next![0] as { source?: { update?: boolean } }).source
+    expect(source?.update).toBeUndefined()
+  })
+
+  it('unreadable history never fails the step', () => {
+    const agent = {
+      session: { seq: 3, surface: { nodes: [] }, eventAt: () => { throw new Error('seq gone') } },
+    } as unknown as AgentLike
+    expect(smcCatalogHistory(agent)).toEqual({ published: false })
   })
 })
