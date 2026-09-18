@@ -35,6 +35,7 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
+import type { ToolDefinition } from '@deepseek-ai/dsh-tools'
 import type { SkillRegistration } from '@deepseek-ai/dsh-skill'
 
 /**
@@ -99,6 +100,19 @@ function sameNames(left: string[], right: string[]): boolean {
  * state would leak between tests and between plugin reloads.
  */
 export class SkillBindings {
+  /**
+   * The shadow `skill` tool, when the takeover is on: installed inside the
+   * same injected fiber as the registrations, so installing and uninstalling
+   * a set also installs and uninstalls the tool. Its agent-scoped same-name
+   * registration is what turns dsh's own catalog off (definition identity,
+   * see `features/context/shadow.ts`).
+   */
+  private readonly shadowTool: ToolDefinition | undefined
+
+  constructor(options: { shadowTool?: ToolDefinition } = {}) {
+    this.shadowTool = options.shadowTool
+  }
+
   /** One binding per agent identity; only ever grows until it is released. */
   private readonly live = new Map<object, Binding>()
   /** Tail of the per-agent job queue, so two flips never interleave. */
@@ -164,16 +178,27 @@ export class SkillBindings {
       }
       // Nothing to publish is a successful apply: the conversation simply sees
       // no engine-managed skill, and any previous set has just been removed.
-      if (registrations.length === 0) return { applied: true, registered: [], missing }
+      // The shadow tool, though, is not part of the set — it must survive this
+      // branch, or an empty selection would hand the catalog back to dsh.
+      if (registrations.length === 0 && this.shadowTool === undefined) {
+        return { applied: true, registered: [], missing }
+      }
 
       // The holder is created *before* `inject`: when the dependency is already
       // available the callback can run synchronously inside that call.
       const binding: Binding = { fiber: undefined as never, wanted }
-      binding.fiber = agentCtx.inject(['skills'], (scope) => {
-        for (const registration of registrations) scope.skills.register(registration)
-        // The one line that makes `applied` honest.
-        binding.done = [...wanted]
-      })
+      binding.fiber = agentCtx.inject(
+        this.shadowTool === undefined ? ['skills'] : ['skills', 'tools'],
+        (scope) => {
+          for (const registration of registrations) scope.skills.register(registration)
+          // Same fiber, same undo: disposing the set disposes the shadow, and
+          // the agent-scoped same-name registration is what silences dsh's
+          // own catalog.
+          if (this.shadowTool !== undefined) scope.tools.register(this.shadowTool)
+          // The one line that makes `applied` honest.
+          binding.done = [...wanted]
+        },
+      )
       // Register the handle *before* awaiting: a handle dropped on a failure
       // would let the next call inject a second fiber for the same agent, and
       // its registration would be swallowed as a duplicate.

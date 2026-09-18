@@ -34,6 +34,7 @@
  * @module
  */
 import type { Context } from '@deepseek-ai/cordis';
+import type { ToolDefinition } from '@deepseek-ai/dsh-tools';
 import type { SkillRegistration } from '@deepseek-ai/dsh-skill';
 /** Outcome of one apply, exactly as the routes and the tool report it. */
 export interface ApplyOutcome {
@@ -53,6 +54,17 @@ export interface ApplyOutcome {
  * state would leak between tests and between plugin reloads.
  */
 export declare class SkillBindings {
+    /**
+     * The shadow `skill` tool, when the takeover is on: installed inside the
+     * same injected fiber as the registrations, so installing and uninstalling
+     * a set also installs and uninstalls the tool. Its agent-scoped same-name
+     * registration is what turns dsh's own catalog off (definition identity,
+     * see `features/context/shadow.ts`).
+     */
+    private readonly shadowTool;
+    constructor(options?: {
+        shadowTool?: ToolDefinition;
+    });
     /** One binding per agent identity; only ever grows until it is released. */
     private readonly live;
     /** Tail of the per-agent job queue, so two flips never interleave. */

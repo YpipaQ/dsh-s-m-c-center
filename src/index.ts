@@ -25,8 +25,8 @@ import type {} from '@deepseek-ai/dsh-tools'
 import type { AgentLike } from './features/context/index.ts'
 import { CliManager } from './features/cli/index.ts'
 import {
-  SkillBindings, applyToAgent, buildSkillQueryTool, buildSkillSelectTool, importLegacyContexts,
-  legacyContextCandidates,
+  SkillBindings, applyToAgent, attachSmcCatalog, buildShadowSkillTool, buildSkillQueryTool,
+  buildSkillSelectTool, importLegacyContexts, legacyContextCandidates,
 } from './features/context/index.ts'
 import { McpManager } from './features/mcp/index.ts'
 import { SkillsManager } from './features/skills/index.ts'
@@ -76,9 +76,15 @@ export function apply(ctx: Context, config?: ConfigShape): void {
   const skills = new SkillsManager()
   const cli = new CliManager(skills)
   const mcp = new McpManager(ctx)
-  // Which skills each conversation currently sees. Held here, not at module
-  // scope: a plugin reload must not inherit another mount's registrations.
-  const bindings = new SkillBindings()
+// Which skills each conversation currently sees. Held here, not at module
+// scope: a plugin reload must not inherit another mount's registrations.
+// The shadow `skill` tool rides the same fiber: its agent-scoped same-name
+// registration is what turns dsh's own machine-wide catalog off, and our
+// own publication (below) replaces it with the conversation's picks.
+const bindings = new SkillBindings({ shadowTool: buildShadowSkillTool(skills) })
+// Our catalog publisher: one <available_skills> frame with exactly what this
+// conversation publishes — the selection plus the index skill, nothing else.
+attachSmcCatalog(ctx, skills)
 
   // One-shot adoption: the canonical copy of every user-level skill moves into
   // the store, and each root gets a link back. Best effort by design — a

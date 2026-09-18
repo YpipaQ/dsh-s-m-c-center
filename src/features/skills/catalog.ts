@@ -40,7 +40,9 @@ const INDEX_DESCRIPTION =
  */
 function oneLine(description: string): string {
   const flat = description.replace(/\s+/g, ' ').trim()
-  return flat.length > 500 ? flat.slice(0, 497) + '…' : flat
+  // Same cap and same ellipsis style as dsh's own catalog lines, so a row we
+  // publish is never longer than one of its own.
+  return flat.length > 500 ? flat.slice(0, 497) + '...' : flat
 }
 
 /** State of one row, in the fewest words that still let the model act on it. */
@@ -88,4 +90,27 @@ export function buildIndexSkill(rows: SkillSummary[], selected: string[]): Skill
     // Must be model-invocable, or dsh filters the line out of the catalog.
     invocation: { modelInvocable: true, userInvocable: true },
   }
+}
+
+/**
+ * The catalog rows for **our own** catalog frame (the shadow takeover, see
+ * `features/context/shadow.ts`): exactly the enabled selection plus the index,
+ * in dsh's line shape. Unenabled names are absent by construction — that is
+ * the whole point of publishing the catalog ourselves.
+ *
+ * @param rows - every skill the manager knows (linked or not, selected or not).
+ * @param selected - the slugs enabled in this conversation.
+ */
+export function catalogEntriesOf(
+  rows: SkillSummary[],
+  selected: string[],
+): { name: string; description: string }[] {
+  const chosen = new Set(selected)
+  const entries: { name: string; description: string }[] = []
+  for (const skill of [...rows].sort((a, b) => a.name.localeCompare(b.name))) {
+    if (skill.slug === undefined || skill.slug === '' || !chosen.has(skill.slug)) continue
+    entries.push({ name: skill.name, description: oneLine(skill.description || skill.name) })
+  }
+  entries.push({ name: INDEX_NAME, description: oneLine(INDEX_DESCRIPTION) })
+  return entries
 }

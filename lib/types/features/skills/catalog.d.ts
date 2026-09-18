@@ -27,4 +27,17 @@ export declare const INDEX_NAME = "smc-skill-index";
  * @param selected - the slugs enabled in this conversation.
  */
 export declare function buildIndexSkill(rows: SkillSummary[], selected: string[]): SkillRegistration;
+/**
+ * The catalog rows for **our own** catalog frame (the shadow takeover, see
+ * `features/context/shadow.ts`): exactly the enabled selection plus the index,
+ * in dsh's line shape. Unenabled names are absent by construction — that is
+ * the whole point of publishing the catalog ourselves.
+ *
+ * @param rows - every skill the manager knows (linked or not, selected or not).
+ * @param selected - the slugs enabled in this conversation.
+ */
+export declare function catalogEntriesOf(rows: SkillSummary[], selected: string[]): {
+    name: string;
+    description: string;
+}[];
 //# sourceMappingURL=catalog.d.ts.map
