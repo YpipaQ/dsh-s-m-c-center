@@ -6,6 +6,13 @@
  * *not* here — that belongs to the link ledger, and keeping them apart is what
  * lets a link be rebuilt without touching the manifest.
  *
+ * A row is written in exactly one shape ({@link ENTRY_KEYS}). An earlier
+ * version also kept a per-skill 公告 flag, a 启用 flag, a link flag and a
+ * source id on every row; by the end none of them controlled anything (the 公告
+ * switch was removed for precisely that reason), but a stale key in a
+ * user-visible file reads as a live one — so every write drops them, and
+ * {@link compactStoreIndex} converges a file that already carries them.
+ *
  * Reads are defensive: a missing file rebuilds the manifest from whatever
  * bundles exist on disk, and a corrupt file is preserved as
  * `index.corrupt.json` before that rebuild, so a bad write never loses the
@@ -23,6 +30,12 @@ import { storeSkillsDir } from '../../shared/paths.ts'
 
 /** File name of the manifest inside the skills directory. */
 export const STORE_INDEX_NAME = 'index.json'
+
+/** The only keys one manifest row may carry. */
+export const ENTRY_KEYS: readonly string[] = ['slug', 'name', 'origin', 'adoptedAt']
+
+/** The only top-level keys the manifest may carry. */
+const TOP_LEVEL_KEYS: readonly string[] = ['version', 'entries', 'migratedAt', 'failures']
 
 /** Path of the store manifest. */
 export function storeIndexPath(): string {
@@ -74,7 +87,7 @@ export function readStoreIndex(): StoreIndex {
     if (typeof parsed !== 'object' || parsed === null || !Array.isArray((parsed as StoreIndex).entries)) {
       throw new Error('malformed store index')
     }
-    return parsed as StoreIndex
+    return canonicalIndex(parsed as StoreIndex)
   } catch {
     try { copyFileSync(file, join(dir, 'index.corrupt.json')) } catch { /* best effort */ }
     const recovered = recoverIndex()
@@ -83,14 +96,90 @@ export function readStoreIndex(): StoreIndex {
   }
 }
 
-/** Write the manifest atomically (temp file + rename). */
+/** One row reduced to the fields this version owns; undefined when unusable. */
+function canonicalEntry(raw: unknown): StoreEntry | undefined {
+  if (typeof raw !== 'object' || raw === null) return undefined
+  const row = raw as Record<string, unknown>
+  const slug = typeof row.slug === 'string' ? row.slug.trim() : ''
+  if (slug === '') return undefined
+  return {
+    slug,
+    name: typeof row.name === 'string' && row.name !== '' ? row.name : slug,
+    origin: typeof row.origin === 'string' ? row.origin : '',
+    adoptedAt: typeof row.adoptedAt === 'string' ? row.adoptedAt : '',
+  }
+}
+
+/**
+ * The manifest reduced to the shape this version writes: the top-level keys it
+ * owns, and rows that carry nothing else. Idempotent by construction — feeding
+ * its own output back returns an equal object.
+ */
+export function canonicalIndex(index: StoreIndex): StoreIndex {
+  const next: StoreIndex = { version: 1, entries: [] }
+  for (const row of Array.isArray(index.entries) ? index.entries : []) {
+    const entry = canonicalEntry(row)
+    if (entry !== undefined) next.entries.push(entry)
+  }
+  if (typeof index.migratedAt === 'string' && index.migratedAt !== '') next.migratedAt = index.migratedAt
+  if (Array.isArray(index.failures) && index.failures.length > 0) {
+    next.failures = index.failures.map((f) => ({
+      path: typeof f?.path === 'string' ? f.path : '',
+      reason: typeof f?.reason === 'string' ? f.reason : '',
+    }))
+  }
+  return next
+}
+
+/** Every key the file carries that this version does not own. */
+function staleKeys(raw: StoreIndex): string[] {
+  const found = new Set<string>()
+  for (const key of Object.keys(raw)) {
+    if (!TOP_LEVEL_KEYS.includes(key)) found.add(key)
+  }
+  for (const row of Array.isArray(raw.entries) ? raw.entries : []) {
+    if (typeof row !== 'object' || row === null) continue
+    for (const key of Object.keys(row)) {
+      if (!ENTRY_KEYS.includes(key)) found.add(key)
+    }
+  }
+  return [...found]
+}
+
+/** Write the manifest atomically (temp file + rename), in canonical shape. */
 export function writeStoreIndex(index: StoreIndex): void {
   const dir = storeSkillsDir()
   mkdirSync(dir, { recursive: true })
   const file = storeIndexPath()
   const tmp = file + '.tmp'
-  writeFileSync(tmp, JSON.stringify(index, null, 2), 'utf8')
+  writeFileSync(tmp, JSON.stringify(canonicalIndex(index), null, 2), 'utf8')
   renameSync(tmp, file)
+}
+
+/**
+ * Converge the manifest on disk onto the canonical shape, dropping keys an
+ * older version left behind.
+ *
+ * Called once on mount: a write only ever touches one row, so a row that is
+ * never adopted again would keep its dead keys forever. Idempotent — a file
+ * that is already canonical is left alone, so this is free on every later boot.
+ *
+ * @returns whether the file changed, and the key names that were dropped.
+ */
+export function compactStoreIndex(): { changed: boolean; dropped: string[] } {
+  const file = storeIndexPath()
+  if (!existsSync(file)) return { changed: false, dropped: [] }
+  let raw: unknown
+  try { raw = JSON.parse(readFileSync(file, 'utf8')) } catch {
+    // readStoreIndex() owns corrupt-file recovery; leave this one to it.
+    return { changed: false, dropped: [] }
+  }
+  if (typeof raw !== 'object' || raw === null) return { changed: false, dropped: [] }
+  const current = raw as StoreIndex
+  const next = canonicalIndex(current)
+  if (JSON.stringify(current) === JSON.stringify(next)) return { changed: false, dropped: [] }
+  writeStoreIndex(next)
+  return { changed: true, dropped: staleKeys(current) }
 }
 
 /** Replace (or insert) one manifest entry. */

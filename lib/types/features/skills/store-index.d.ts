@@ -6,6 +6,13 @@
  * *not* here — that belongs to the link ledger, and keeping them apart is what
  * lets a link be rebuilt without touching the manifest.
  *
+ * A row is written in exactly one shape ({@link ENTRY_KEYS}). An earlier
+ * version also kept a per-skill 公告 flag, a 启用 flag, a link flag and a
+ * source id on every row; by the end none of them controlled anything (the 公告
+ * switch was removed for precisely that reason), but a stale key in a
+ * user-visible file reads as a live one — so every write drops them, and
+ * {@link compactStoreIndex} converges a file that already carries them.
+ *
  * Reads are defensive: a missing file rebuilds the manifest from whatever
  * bundles exist on disk, and a corrupt file is preserved as
  * `index.corrupt.json` before that rebuild, so a bad write never loses the
@@ -15,6 +22,8 @@
 import type { StoreEntry, StoreIndex } from '../../shared/protocol/index.ts';
 /** File name of the manifest inside the skills directory. */
 export declare const STORE_INDEX_NAME = "index.json";
+/** The only keys one manifest row may carry. */
+export declare const ENTRY_KEYS: readonly string[];
 /** Path of the store manifest. */
 export declare function storeIndexPath(): string;
 /** An empty manifest. */
@@ -32,8 +41,28 @@ export declare function recoverIndex(): StoreIndex;
  * A corrupt file is kept as `index.corrupt.json` rather than deleted.
  */
 export declare function readStoreIndex(): StoreIndex;
-/** Write the manifest atomically (temp file + rename). */
+/**
+ * The manifest reduced to the shape this version writes: the top-level keys it
+ * owns, and rows that carry nothing else. Idempotent by construction — feeding
+ * its own output back returns an equal object.
+ */
+export declare function canonicalIndex(index: StoreIndex): StoreIndex;
+/** Write the manifest atomically (temp file + rename), in canonical shape. */
 export declare function writeStoreIndex(index: StoreIndex): void;
+/**
+ * Converge the manifest on disk onto the canonical shape, dropping keys an
+ * older version left behind.
+ *
+ * Called once on mount: a write only ever touches one row, so a row that is
+ * never adopted again would keep its dead keys forever. Idempotent — a file
+ * that is already canonical is left alone, so this is free on every later boot.
+ *
+ * @returns whether the file changed, and the key names that were dropped.
+ */
+export declare function compactStoreIndex(): {
+    changed: boolean;
+    dropped: string[];
+};
 /** Replace (or insert) one manifest entry. */
 export declare function upsertEntry(entry: StoreEntry): void;
 /** Drop one manifest entry. */

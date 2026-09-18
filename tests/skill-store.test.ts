@@ -18,6 +18,8 @@ import { join, dirname } from 'node:path'
 import { tmpdir } from 'node:os'
 import { SkillsManager } from '../src/features/skills/index.ts'
 import { storeSkillsDir } from '../src/shared/paths.ts'
+import { compactStoreIndex, writeStoreIndex } from '../src/features/skills/store-index.ts'
+import type { StoreEntry } from '../src/shared/protocol/index.ts'
 
 let home: string
 let agents: string
@@ -461,5 +463,77 @@ describe('manifest recovery', () => {
     const index = skills.readStoreIndex()
     expect(index.entries.map((e) => e.slug)).toEqual(['alpha'])
     expect(existsSync(join(store(), 'index.corrupt.json'))).toBe(true)
+  })
+})
+
+/**
+ * The manifest's row shape.
+ *
+ * An earlier version kept a per-skill 公告 flag, a 启用 flag, a link flag and a
+ * source id on every row. By the end none of them controlled anything (the 公告
+ * switch was removed for exactly that reason) — but the file is user-visible,
+ * and a dead key sitting next to real ones reads as a live one. So writes carry
+ * the canonical shape only, and mount-time compaction cleans up what is already
+ * there. The `linked` flag is the clearest proof they were never maintained: it
+ * said `false` for skills that were linked at the time.
+ */
+describe('manifest shape', () => {
+  /** Add the legacy keys to the first row, as an older version would have. */
+  function dirty(): { migratedAt?: string; entries: Array<Record<string, unknown>> } {
+    const file = join(store(), 'index.json')
+    const raw = JSON.parse(readFileSync(file, 'utf8')) as {
+      migratedAt?: string
+      entries: Array<Record<string, unknown>>
+    }
+    Object.assign(raw.entries[0], {
+      source: 'user-dsh', enabled: false, linked: false, announce: true,
+    })
+    writeFileSync(file, JSON.stringify(raw, null, 2), 'utf8')
+    return raw
+  }
+
+  it('drops the keys an older version wrote, keeping the fields that matter', () => {
+    const skills = new SkillsManager()
+    bundle(userSkills(), 'alpha', 'alpha')
+    skills.migrate()
+    const before = dirty()
+
+    const result = compactStoreIndex()
+
+    expect(result.changed).toBe(true)
+    expect(result.dropped.sort()).toEqual(['announce', 'enabled', 'linked', 'source'])
+    const after = JSON.parse(readFileSync(join(store(), 'index.json'), 'utf8'))
+    expect(Object.keys(after.entries[0]).sort()).toEqual(['adoptedAt', 'name', 'origin', 'slug'])
+    expect(after.entries[0].slug).toBe('alpha')
+    expect(after.entries[0].origin).toBe(before.entries[0].origin)
+    // The one-shot migration marker gates migrate(), so it must survive.
+    expect(after.migratedAt).toBe(before.migratedAt)
+  })
+
+  it('is a no-op once the file is canonical', () => {
+    const skills = new SkillsManager()
+    bundle(userSkills(), 'alpha', 'alpha')
+    skills.migrate()
+    dirty()
+    expect(compactStoreIndex().changed).toBe(true)
+
+    expect(compactStoreIndex()).toEqual({ changed: false, dropped: [] })
+  })
+
+  it('never writes those keys back', () => {
+    const skills = new SkillsManager()
+    bundle(userSkills(), 'alpha', 'alpha')
+    skills.migrate()
+
+    writeStoreIndex({
+      version: 1,
+      entries: [{
+        slug: 'alpha', name: 'alpha', origin: 'x', adoptedAt: 'now',
+        announce: true, linked: true,
+      } as unknown as StoreEntry],
+    })
+
+    const row = JSON.parse(readFileSync(join(store(), 'index.json'), 'utf8')).entries[0]
+    expect(Object.keys(row).sort()).toEqual(['adoptedAt', 'name', 'origin', 'slug'])
   })
 })

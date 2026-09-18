@@ -90,6 +90,14 @@ export function apply(ctx: Context, config?: ConfigShape): void {
     // (and leave every link pointing at a directory that is about to move).
     migrateStoreRoot(skills)
     skills.migrate()
+    // A row is rewritten only when it is adopted again, so an older version's
+    // dead keys (a per-skill 公告 / 启用 / 链接 / 来源 set) would otherwise sit
+    // in a user-visible manifest forever. Converge on mount — free afterwards,
+    // and it says in the log what it removed.
+    const compacted = skills.compactIndex()
+    if (compacted.dropped.length > 0) {
+      console.log('[dsh-s-m-c-center] 技能清单已规范化，清除遗留字段：' + compacted.dropped.join(', '))
+    }
     // Same idea for MCP: a definition that is not active belongs in the
     // archive, not in the active document with a flag on it.
     mcp.migrateArchive()

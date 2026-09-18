@@ -65,6 +65,15 @@ export declare class SkillsManager {
         name: string;
         exists: boolean;
     }[];
+    /**
+     * Converge the store manifest on the canonical row shape, dropping keys an
+     * older version wrote (a per-skill 公告 / 启用 / 链接 / 来源 set that nothing
+     * reads any more). Idempotent, so it is safe on every mount.
+     */
+    compactIndex(): {
+        changed: boolean;
+        dropped: string[];
+    };
     /** List every skill across the four groups. */
     listSkills(cwd?: string): SkillSummary[];
     /** Read one skill document (body included). */

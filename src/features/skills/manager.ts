@@ -22,7 +22,7 @@ import type {
   SkillLinks, SkillsRegistry, StoreIndex, StoreOperation, StoreStatus, VerifyResult,
 } from '../../shared/protocol/index.ts'
 import { enableBlocker, listSkills, readSkill, resolveRegistration, scanSkills } from './scanner.ts'
-import { readStoreIndex, recoverIndex, writeStoreIndex } from './store-index.ts'
+import { compactStoreIndex, readStoreIndex, recoverIndex, writeStoreIndex } from './store-index.ts'
 import { readLinks } from './links.ts'
 import { readRegistry } from './registry.ts'
 import {
@@ -132,6 +132,15 @@ export class SkillsManager {
   /** Traceability pass: does every registered canonical path still exist? */
   refreshRegistry() {
     return refreshRegistry()
+  }
+
+  /**
+   * Converge the store manifest on the canonical row shape, dropping keys an
+   * older version wrote (a per-skill 公告 / 启用 / 链接 / 来源 set that nothing
+   * reads any more). Idempotent, so it is safe on every mount.
+   */
+  compactIndex(): { changed: boolean; dropped: string[] } {
+    return compactStoreIndex()
   }
 
   // ── scanning / listing ───────────────────────────────────────────────────
