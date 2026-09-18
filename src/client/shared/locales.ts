@@ -197,6 +197,9 @@ export type SkillsMcpKey =
   | 'contextDefaultItem'
   | 'contextCount'
   | 'contextNoCandidates'
+  | 'injectOn'
+  | 'injectOff'
+  | 'contextLinkedNote'
   | 'msgContextApplied'
   | 'msgContextLive'
   | 'msgContextSaved'
@@ -408,12 +411,15 @@ export const zh: Record<SkillsMcpKey, string> = {
   msgRefreshOk: '溯源刷新完成：{n} 条记录均存在',
   msgRefreshMissing: '溯源刷新：{n} 条记录的目录已不存在 → ',
 
-  contextTitle: '会话技能（上下文级）',
-  contextNote: '「默认配置」是新会话的起始技能：在这里勾选的技能会自动注入每个尚未单独配置的对话；对话里的 agent 也可以自己开关（写入该会话自己的配置）。',
-  contextDefaultItem: '默认配置（新会话的技能）',
-  contextCount: '已选 {n} 项',
-  contextNoCandidates: '没有可勾选的技能（先在下方登记或迁移入库）',
-  msgContextApplied: '已保存，本会话共选 {n} 个技能（{state}）',
+  contextTitle: '会话默认',
+  contextNote: '「会话默认」是新会话的起始技能：注入（开）的技能会自动进入每个尚未单独配置的对话；对话里的 agent 也能自己开关（写入该会话自己的配置）。',
+  contextDefaultItem: '新会话的起始技能',
+  contextCount: '已注入 {n} 项',
+  contextNoCandidates: '没有可注入的技能（先在下方登记或迁移入库）',
+  injectOn: '注入',
+  injectOff: '隐藏',
+  contextLinkedNote: '⚠️ 已「联接」的技能由 dsh 自己列进每个会话的目录，与本开关无关；要让它默认不出现，请先断开联接。',
+  msgContextApplied: '已保存，本会话共注入 {n} 个技能（{state}）',
   msgContextLive: '已即时生效',
   msgContextSaved: '会话未运行，下次启动生效',
 
@@ -621,12 +627,15 @@ export const en: Record<SkillsMcpKey, string> = {
   msgRefreshOk: 'Traceability refresh done: all {n} records exist',
   msgRefreshMissing: 'Traceability refresh: {n} record(s) missing → ',
 
-  contextTitle: 'Conversation skills (context level)',
-  contextNote: 'The default selection sets the skills every conversation without one of its own starts with; the agent can also flip its own skills in-conversation (written to that conversation\'s config).',
-  contextDefaultItem: 'Default selection (new conversations)',
-  contextCount: '{n} selected',
-  contextNoCandidates: 'Nothing to tick (register or migrate skills first)',
-  msgContextApplied: 'Saved; {n} skill(s) selected for this conversation ({state})',
+  contextTitle: 'Session default',
+  contextNote: 'The session default is what every conversation without a selection of its own starts with: anything injected here reaches each such conversation, and the agent can flip its own skills in-conversation (written to that conversation\'s config).',
+  contextDefaultItem: 'Starting skills for new conversations',
+  contextCount: '{n} injected',
+  contextNoCandidates: 'Nothing to inject (register or migrate skills first)',
+  injectOn: 'Injected',
+  injectOff: 'Hidden',
+  contextLinkedNote: '⚠️ A linked skill is listed by dsh itself in every conversation\'s catalog, whatever this switch says; unlink it to keep it out by default.',
+  msgContextApplied: 'Saved; {n} skill(s) injected for this conversation ({state})',
   msgContextLive: 'applied live',
   msgContextSaved: 'session idle; takes effect on next start',
 

@@ -1,5 +1,5 @@
 /**
- * Conversation-context state for the default selection: the skills every
+ * Conversation-context state for the session default: the skills every
  * conversation without its own file inherits.
  *
  * The engine still keeps one selection document per conversation (`contexts/

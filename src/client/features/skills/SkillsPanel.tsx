@@ -22,7 +22,7 @@
  * section and never calls the API directly.
  */
 import { useState } from 'react'
-import { Badge, Button, ConfirmButton, EmptyState, ErrorText, Loading } from '../../shared/ui.tsx'
+import { Badge, Button, ConfirmButton, EmptyState, ErrorText, Loading, Switch } from '../../shared/ui.tsx'
 import type { UseSkillsResult } from './useSkills.ts'
 import type { UseContextsResult } from './useContexts.ts'
 import { format } from '../../shared/format.ts'
@@ -111,6 +111,9 @@ function ContextSection({ contexts, t }: { contexts: UseContextsResult; t: Trans
               <div className={css.descWrap}>{t('contextNote')}</div>
             </div>
             <div className={css.inline}>
+              <div className={css.descWrap}>{t('contextLinkedNote')}</div>
+            </div>
+            <div className={css.inline}>
               <span className={css.note}>{t('contextDefaultItem')}</span>
               <Button onClick={contexts.reload}>{t('refresh')}</Button>
             </div>
@@ -118,20 +121,24 @@ function ContextSection({ contexts, t }: { contexts: UseContextsResult; t: Trans
             <div className={css.scanList}>
               {contexts.candidates.length === 0
                 ? <div className={css.note}>{t('contextNoCandidates')}</div>
-                : contexts.candidates.map((skill) => (
-                  <div key={skill.slug ?? skill.path} className={css.row}>
-                    <input
-                      type="checkbox"
-                      disabled={contexts.busySlug === (skill.slug ?? '')}
-                      checked={!!contexts.checked[skill.slug ?? '']}
-                      onChange={() => { contexts.toggle(skill.slug ?? '') }}
-                    />
-                    <div className={css.main}>
-                      <div className={css.name}><span className={css.nameText}>{skill.name}</span></div>
+                : contexts.candidates.map((skill) => {
+                  const slug = skill.slug ?? ''
+                  const on = contexts.checked[slug] === true
+                  return (
+                    <div key={slug || skill.path} className={css.row}>
+                      <Switch
+                        checked={on}
+                        disabled={contexts.busySlug === slug}
+                        onChange={() => { contexts.toggle(slug) }}
+                        label={on ? t('injectOn') : t('injectOff')}
+                      />
+                      <div className={css.main}>
+                        <div className={css.name}><span className={css.nameText}>{skill.name}</span></div>
+                      </div>
+                      <Badge>{t(skill.group === 'stored' ? 'groupStored' : skill.group === 'registered' ? 'groupRegistered' : 'groupNative')}</Badge>
                     </div>
-                    <Badge>{t(skill.group === 'stored' ? 'groupStored' : skill.group === 'registered' ? 'groupRegistered' : 'groupNative')}</Badge>
-                  </div>
-                ))}
+                  )
+                })}
             </div>
           </div>
         )
