@@ -174,7 +174,7 @@ function placeEntry(entry: HTMLElement): boolean {
   return true
 }
 
-interface SkillRow { name: string; description: string; group: string; slug?: string; path: string; kind: 'bundle' | 'file'; level?: string }
+interface SkillRow { name: string; description: string; group: string; slug?: string; path: string; kind: 'bundle' | 'file'; level?: string; linked?: boolean }
 
 /** The conversation the user is looking at, read from the dsh client's own state. */
 function currentConversation(): { id: string | undefined; title: string } {
@@ -455,9 +455,9 @@ const render = (
             'POST', SMC_API.contextsGet, { sessionId },
           ),
       ])
-      // Only rows the context engine can resolve carry a slug
-      // (stored / registered); native rows have nothing to register yet.
-      const rows = skillBody.items.filter((s) => s.level === 'user' && typeof s.slug === 'string' && s.slug !== '')
+      // Same rule as the settings card: **linked** skills only — this panel
+      // manages injection for what actually sits in the skill roots.
+      const rows = skillBody.items.filter((s) => s.level === 'user' && s.linked && typeof s.slug === 'string' && s.slug !== '')
       render(rows, selectionBody.selection, selectionBody.table)
       } catch (e) {
         bodyEl.textContent = ''

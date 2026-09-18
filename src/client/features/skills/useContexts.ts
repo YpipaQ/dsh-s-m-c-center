@@ -80,10 +80,13 @@ export function useContexts(options: UseContextsOptions): UseContextsResult {
     }).catch((e) => { setBusySlug(''); setMessage(errorText(e)) })
   }, [adopt, t])
 
-  // Row candidates: rows the engine can resolve into a registration — a
-  // registration needs a slug, which only stored / registered rows carry.
+  // Row candidates: **linked** skills only. This panel manages whether the
+  // skills actually present in the real skill roots get injected into a
+  // conversation — an unlinked store row is invisible by default under the
+  // shadow catalog, so offering it here would promise a switch that has no
+  // visible effect.
   const candidates = useMemo(
-    () => skills.filter((s) => s.level === 'user' && typeof s.slug === 'string' && s.slug !== ''),
+    () => skills.filter((s) => s.level === 'user' && s.linked && typeof s.slug === 'string' && s.slug !== ''),
     [skills],
   )
 
