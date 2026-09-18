@@ -46,7 +46,16 @@ export declare function linkTarget(path: string): string | undefined;
 export declare function entryKind(fullPath: string, entry: Dirent): 'directory' | 'file' | undefined;
 /** Resolve (and materialize) the user-level skill roots plus the store. */
 export declare function getRoots(): SkillRoots;
-/** Walk up from cwd to the nearest .git directory (the project root). */
+/**
+ * Walk up from cwd to the nearest `.git` directory (the project root).
+ *
+ * When no marker exists anywhere above — the usual case for a plain folder of
+ * notes or a scratch area — the answer is **the directory we started in**, never
+ * the volume root. Climbing past it put every such conversation's data in one
+ * bucket at `G:\`/`C:\`: unrelated projects shared a single selection, the
+ * files sat where nobody would think to look, and the workspace that owns them
+ * appeared to have none at all.
+ */
 export declare function findProjectRoot(cwd?: string): string;
 /** Project-level sources are the ones that belong to a workspace. */
 export declare function levelOf(source: SkillSource): 'project' | 'user';

@@ -106,17 +106,27 @@ const MAX_ROOT_HOPS = 100
 /** Marker whose presence means "this directory is a project root". */
 const PROJECT_MARKER = '.git'
 
-/** Walk up from cwd to the nearest .git directory (the project root). */
+/**
+ * Walk up from cwd to the nearest `.git` directory (the project root).
+ *
+ * When no marker exists anywhere above — the usual case for a plain folder of
+ * notes or a scratch area — the answer is **the directory we started in**, never
+ * the volume root. Climbing past it put every such conversation's data in one
+ * bucket at `G:\`/`C:\`: unrelated projects shared a single selection, the
+ * files sat where nobody would think to look, and the workspace that owns them
+ * appeared to have none at all.
+ */
 export function findProjectRoot(cwd?: string): string {
-  let current = resolve(cwd ?? process.cwd())
+  const start = resolve(cwd ?? process.cwd())
+  let current = start
   let hops = 0
   while (hops++ < MAX_ROOT_HOPS) {
     if (existsSync(join(current, PROJECT_MARKER))) return current
     const parent = dirname(current)
-    if (parent === current) break // reached the volume root
+    if (parent === current) break // volume root: no project marker anywhere
     current = parent
   }
-  return current
+  return start
 }
 
 /** Project-level sources are the ones that belong to a workspace. */
