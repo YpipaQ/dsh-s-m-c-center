@@ -19,6 +19,7 @@ import { tmpdir } from 'node:os'
 import { SkillsManager } from '../src/features/skills/index.ts'
 import { storeSkillsDir } from '../src/shared/paths.ts'
 import { compactStoreIndex, writeStoreIndex } from '../src/features/skills/store-index.ts'
+import { enableBlocker } from '../src/features/skills/scanner.ts'
 import type { StoreEntry } from '../src/shared/protocol/index.ts'
 
 let home: string
@@ -535,5 +536,49 @@ describe('manifest shape', () => {
 
     const row = JSON.parse(readFileSync(join(store(), 'index.json'), 'utf8')).entries[0]
     expect(Object.keys(row).sort()).toEqual(['adoptedAt', 'name', 'origin', 'slug'])
+  })
+})
+
+/**
+ * Container detection, measured against real files.
+ *
+ * `enableBlocker` exists so a flip on a container directory — one admitted by
+ * DESCRIPTION.md alone, with no body to load — is refused instead of putting a
+ * dead line in the model's catalog. Its only previous coverage stubbed the
+ * function itself, so a case-mismatch in the scanner (uppercasing a file name
+ * before comparing it to `DESCRIPTION.md`, which can never match) went
+ * unnoticed and the refusal never fired once.
+ */
+describe('container detection', () => {
+  /** A directory that admits by DESCRIPTION.md alone. */
+  function container(root: string, dir: string, name: string): string {
+    const path = join(root, dir)
+    mkdirSync(path, { recursive: true })
+    writeFileSync(join(path, 'DESCRIPTION.md'), [
+      '---', `name: ${name}`, 'description: a container row', '---', '', 'children live one level down',
+    ].join('\n'), 'utf8')
+    return path
+  }
+
+  it('refuses a container and lets a real skill through', () => {
+    const skills = new SkillsManager()
+    bundle(userSkills(), 'alpha', 'alpha')
+    container(userSkills(), 'apple', 'apple')
+    skills.migrate()
+
+    expect(enableBlocker('apple')).toContain('容器目录')
+    expect(enableBlocker('alpha')).toBeUndefined()
+    // An unknown slug is not a blocker: the route's own identity checks own that.
+    expect(enableBlocker('nope')).toBeUndefined()
+  })
+
+  it('still resolves a container as a registration — listing and loading differ', () => {
+    const skills = new SkillsManager()
+    container(userSkills(), 'apple', 'apple')
+    skills.migrate()
+
+    // Refusing the *flip* must not make the row unresolvable: the panel lists
+    // it, and its description is what tells a reader where the real skills are.
+    expect(skills.resolveRegistration('apple')?.description).toBe('a container row')
   })
 })

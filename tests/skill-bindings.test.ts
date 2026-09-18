@@ -25,6 +25,7 @@ import {
 
 import type { AgentLike } from '../src/features/context/index.ts'
 import type { SkillsManager } from '../src/features/skills/index.ts'
+import { INDEX_NAME } from '../src/features/skills/index.ts'
 import type { SkillSummary } from '../src/shared/protocol/index.ts'
 import { mkdirSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
@@ -216,7 +217,9 @@ describe('applyToAgent selection source', () => {
     })
 
     // The *handed* selection is what gets published, not the file's.
-    expect(captured[0].map((r) => r.name)).toEqual(['planned'])
+    // The index rides along with every publish; what is under test is the
+    // selection that gets installed alongside it.
+    expect(captured[0].map((r) => r.name)).toEqual(['planned', INDEX_NAME])
   })
 
   it('falls back to the file when nothing is handed over (lifecycle hook)', async () => {
@@ -230,7 +233,7 @@ describe('applyToAgent selection source', () => {
 
     await applyToAgent(spyManager(), spyBindings(captured), agent)
 
-    expect(captured[0].map((r) => r.name)).toEqual(['from-file'])
+    expect(captured[0].map((r) => r.name)).toEqual(['from-file', INDEX_NAME])
     rmSync(workspace, { recursive: true, force: true })
   })
 
@@ -318,7 +321,9 @@ describe('skill_select', () => {
 
     await tool.execute({ slug: 'planned', selected: true }, { agent } as never)
 
-    expect(captured[0].map((r) => r.name)).toEqual(['planned'])
+    // The index rides along with every publish; what is under test is the
+    // selection that gets installed alongside it.
+    expect(captured[0].map((r) => r.name)).toEqual(['planned', INDEX_NAME])
     rmSync(workspace, { recursive: true, force: true })
   })
 
@@ -345,5 +350,70 @@ describe('skill_select', () => {
     expect(result.error).toContain('容器')
     // Never even attempted an install.
     expect(captured.length).toBe(0)
+  })
+})
+
+/**
+ * The catalog index skill.
+ *
+ * dsh's catalog only ever lists what the skill roots hold (plus what the
+ * conversation's own layer registers), so a stored-but-unlinked skill is
+ * invisible until enabled — and the model has no way to ask what exists. The
+ * index rides along with every publish, selected or not, and carries the whole
+ * list in the catalog's own shape: one line of standing cost, the full list
+ * paid for only when the model loads it.
+ */
+describe('catalog index skill', () => {
+  it('rides along even when nothing is selected', async () => {
+    const captured: SkillRegistration[][] = []
+    const agent = { id: 'session-1' } as unknown as AgentLike
+
+    await applyToAgent(spyManager(), spyBindings(captured), agent, {
+      sessionId: 'session-1', selected: [], updatedAt: '',
+    })
+
+    // Nothing selected → the index is the only thing published, which is what
+    // makes the catalog non-empty for a conversation that has picked nothing.
+    expect(captured[0].map((r) => r.name)).toEqual([INDEX_NAME])
+  })
+
+  it('carries the whole list with both state bits, in the catalog\'s own shape', async () => {
+    const captured: SkillRegistration[][] = []
+    const agent = { id: 'session-1' } as unknown as AgentLike
+
+    await applyToAgent(spyManager(), spyBindings(captured), agent, {
+      sessionId: 'session-1', selected: ['planned'], updatedAt: '',
+    })
+
+    const index = captured[0].find((r) => r.name === INDEX_NAME)
+    expect(index).toBeDefined()
+    // Same shape as dsh's own catalog lines.
+    expect(index?.content).toContain('- `planned`: resolvable 【已联接·本会话已启用】')
+    expect(index?.content).toContain('- `ghost`: unresolvable 【未联接·本会话未启用】')
+    // An index has no files of its own, and must be model-invocable or dsh
+    // filters the line out of the catalog entirely.
+    expect(index?.resourceBase?.kind).toBe('opaque')
+    expect(index?.invocation).toEqual({ modelInvocable: true, userInvocable: true })
+  })
+
+  it('folds a multi-line description onto one line, so the list cannot be torn apart', async () => {
+    const captured: SkillRegistration[][] = []
+    const multiline: SkillsManager = {
+      resolveRegistration: () => undefined,
+      enableBlocker: () => undefined,
+      listSkills: () => ([{
+        name: 'verbatim', description: '第一行\n\n第二行', group: 'stored', linked: false,
+        source: 'user-dsh', level: 'user', kind: 'bundle', path: 'x', slug: 'verbatim',
+      }] satisfies SkillSummary[]),
+    } as unknown as SkillsManager
+    const agent = { id: 'session-1' } as unknown as AgentLike
+
+    await applyToAgent(multiline, spyBindings(captured), agent, {
+      sessionId: 'session-1', selected: [], updatedAt: '',
+    })
+
+    const index = captured[0].find((r) => r.name === INDEX_NAME)
+    expect(index?.content).toContain('- `verbatim`: 第一行 第二行 【')
+    expect(index?.content).not.toContain('第一行\n')
   })
 })

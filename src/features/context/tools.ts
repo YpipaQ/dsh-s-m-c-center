@@ -22,6 +22,7 @@ import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { Context } from '@deepseek-ai/cordis'
 import type { SkillRegistration } from '@deepseek-ai/dsh-skill'
 import type { SkillsManager } from '../skills/index.ts'
+import { buildIndexSkill } from '../skills/index.ts'
 import type { ApplyOutcome, SkillBindings } from './apply.ts'
 import type { ContextSelection } from './engine.ts'
 import { commitSelection, planSelection, readSelection, workspaceOf } from './engine.ts'
@@ -83,6 +84,24 @@ export function missingSlugs(skills: SkillsManager, selection: ContextSelection)
  * Never throws: the callers are on the session-creation path, where an
  * exception would veto the conversation itself.
  */
+/**
+ * What one conversation publishes: its resolved selection **plus the index**.
+ *
+ * Everything that installs registrations goes through here — the lifecycle hook
+ * and the panel via {@link applyToAgent}, the model via `skill_select`. Sharing
+ * it is what keeps the index in the model's catalog: an install replaces the
+ * whole set, so a path that forgot the index would quietly drop it the first
+ * time the model enabled a skill by itself.
+ */
+function publishSet(
+  skills: SkillsManager,
+  workspace: string,
+  registrations: SkillRegistration[],
+  selected: string[],
+): SkillRegistration[] {
+  return [...registrations, buildIndexSkill(skills.listSkills(workspace), selected)]
+}
+
 export async function applyToAgent(
   skills: SkillsManager,
   bindings: SkillBindings,
@@ -92,7 +111,8 @@ export async function applyToAgent(
   const workspace = workspaceOfAgent(agent)
   const chosen = selection ?? readSelection(workspace, agent.id)
   const { registrations, missing } = registrationsFor(skills, chosen)
-  return bindings.ensureAgent(agent, agent.ctx, registrations, missing)
+  const publish = publishSet(skills, workspace, registrations, chosen.selected)
+  return bindings.ensureAgent(agent, agent.ctx, publish, missing)
 }
 
 /**
@@ -184,7 +204,9 @@ export function buildSkillSelectTool(skills: SkillsManager, bindings: SkillBindi
       const planned = planSelection(workspace, agent.id, args.slug, args.selected)
       const { registrations, missing } = registrationsFor(skills, planned)
       try {
-        const outcome = await bindings.ensureAgent(agent, agent.ctx, registrations, missing)
+        const outcome = await bindings.ensureAgent(
+          agent, agent.ctx, publishSet(skills, workspace, registrations, planned.selected), missing,
+        )
         // Persist what can actually be resolved: the file is the panel's and
         // the next session's source of truth, so a slug whose copy is gone must
         // not be written into it.

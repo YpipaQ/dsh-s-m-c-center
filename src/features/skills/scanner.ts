@@ -275,7 +275,11 @@ function resolveCandidate(slug: string): ResolvedCandidate | undefined {
           // itself the moment it is enabled.
           resourceBase: { kind: 'directory', path: candidate.path },
         },
-        admission: basename(found.doc).toUpperCase() === 'DESCRIPTION.md' ? 'DESCRIPTION.md' : 'SKILL.md',
+        // Case-insensitive on purpose: the value is a file name off disk, and
+        // upper-casing it before the comparison (as this line once did) can
+        // never equal `DESCRIPTION.md` — which silently turned every container
+        // into a "real skill" and made `enableBlocker` a no-op.
+        admission: basename(found.doc).toLowerCase() === 'description.md' ? 'DESCRIPTION.md' : 'SKILL.md',
       }
     }
     if (!existsSync(candidate.path)) continue
