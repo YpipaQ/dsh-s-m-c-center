@@ -24,7 +24,7 @@ import type {} from '@deepseek-ai/dsh-system-prompt'
 import type {} from '@deepseek-ai/dsh-tools'
 import type { AgentLike } from './features/context/index.ts'
 import { CliManager } from './features/cli/index.ts'
-import { SkillBindings, applyToAgent, buildSkillSelectTool } from './features/context/index.ts'
+import { SkillBindings, applyToAgent, buildSkillQueryTool, buildSkillSelectTool } from './features/context/index.ts'
 import { McpManager } from './features/mcp/index.ts'
 import { SkillsManager } from './features/skills/index.ts'
 import { migrateStoreRoot } from './features/skills/store-migration.ts'
@@ -177,6 +177,7 @@ export function apply(ctx: Context, config?: ConfigShape): void {
   // skill for its own conversation (writes the per-conversation JSON and
   // re-applies through its own context; the catalog republishes on its own).
   ctx.tools.register(buildSkillSelectTool(skills, bindings))
+  ctx.tools.register(buildSkillQueryTool(skills))
 
   // Register (or drop) the system-prompt announcement to match the source.
   // Split out from `sync` so a settings write can refresh just this surface

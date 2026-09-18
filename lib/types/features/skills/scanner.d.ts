@@ -33,6 +33,16 @@ export declare function readSkill(path: string): SkillDetail | null;
  */
 export declare function resolveRegistration(slug: string): SkillRegistration | undefined;
 /**
+ * Why the model may not enable `slug`, or undefined when it may.
+ *
+ * A directory admitted by `DESCRIPTION.md` alone is a *container*: it lists in
+ * the panel and migrates into the store, but it has no body to load and its
+ * real skills live one level down — where dsh's own scanner never looks. Letting
+ * a flip accept it produced a dead line in the model's catalog while the actual
+ * skills stayed unreachable from both sides.
+ */
+export declare function enableBlocker(slug: string): string | undefined;
+/**
  * Scan an arbitrary directory for importable skills: the root plus two
  * levels of sub-directories, skipping anything bigger than the cap. Every hit
  * is a *registration* candidate — the canonical copy stays in place.

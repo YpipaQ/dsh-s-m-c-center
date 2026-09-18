@@ -78,6 +78,11 @@ export declare class SkillsManager {
      * the slug is not a bare name or the store holds no such skill.
      */
     deleteStored(slug: string): string;
+    /**
+     * Why the model may not enable `slug` (a container directory has no body to
+     * load), or undefined when the flip may proceed.
+     */
+    enableBlocker(slug: string): string | undefined;
     /** One-shot adoption of user-level native skills into the store. */
     migrate(): StoreOperation;
     /** Undo {@link migrate}: restore every stored skill to its original path. */

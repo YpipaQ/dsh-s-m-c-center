@@ -21,7 +21,7 @@ import type {
   ScannedSkill, SkillDetail, SkillGroup, SkillSource, SkillSummary,
   SkillLinks, SkillsRegistry, StoreIndex, StoreOperation, StoreStatus, VerifyResult,
 } from '../../shared/protocol/index.ts'
-import { listSkills, readSkill, resolveRegistration, scanSkills } from './scanner.ts'
+import { enableBlocker, listSkills, readSkill, resolveRegistration, scanSkills } from './scanner.ts'
 import { readStoreIndex, recoverIndex, writeStoreIndex } from './store-index.ts'
 import { readLinks } from './links.ts'
 import { readRegistry } from './registry.ts'
@@ -164,6 +164,14 @@ export class SkillsManager {
    */
   deleteStored(slug: string): string {
     return deleteStored(slug)
+  }
+
+  /**
+   * Why the model may not enable `slug` (a container directory has no body to
+   * load), or undefined when the flip may proceed.
+   */
+  enableBlocker(slug: string): string | undefined {
+    return enableBlocker(slug)
   }
 
   // ── one-shot migration ───────────────────────────────────────────────────

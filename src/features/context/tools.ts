@@ -22,7 +22,6 @@ import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { Context } from '@deepseek-ai/cordis'
 import type { SkillRegistration } from '@deepseek-ai/dsh-skill'
 import type { SkillsManager } from '../skills/index.ts'
-import { buildIndexSkill } from '../skills/catalog.ts'
 import type { ApplyOutcome, SkillBindings } from './apply.ts'
 import type { ContextSelection } from './engine.ts'
 import { commitSelection, planSelection, readSelection, workspaceOf } from './engine.ts'
@@ -84,24 +83,6 @@ export function missingSlugs(skills: SkillsManager, selection: ContextSelection)
  * Never throws: the callers are on the session-creation path, where an
  * exception would veto the conversation itself.
  */
-/**
- * What one conversation publishes: its resolved selection **plus the index**.
- *
- * Everything that installs registrations goes through here — the lifecycle
- * hook and the panel via {@link applyToAgent}, the model via `skill_select`.
- * Sharing it is what keeps the index in the model's catalog: an install
- * replaces the whole set, so a path that forgot the index would quietly drop it
- * the first time the model enabled a skill by itself.
- */
-function publishSet(
-  skills: SkillsManager,
-  workspace: string,
-  registrations: SkillRegistration[],
-  selected: string[],
-): SkillRegistration[] {
-  return [...registrations, buildIndexSkill(skills.listSkills(workspace), selected)]
-}
-
 export async function applyToAgent(
   skills: SkillsManager,
   bindings: SkillBindings,
@@ -111,8 +92,7 @@ export async function applyToAgent(
   const workspace = workspaceOfAgent(agent)
   const chosen = selection ?? readSelection(workspace, agent.id)
   const { registrations, missing } = registrationsFor(skills, chosen)
-  const publish = publishSet(skills, workspace, registrations, chosen.selected)
-  return bindings.ensureAgent(agent, agent.ctx, publish, missing)
+  return bindings.ensureAgent(agent, agent.ctx, registrations, missing)
 }
 
 /**
@@ -186,27 +166,25 @@ export function buildSkillSelectTool(skills: SkillsManager, bindings: SkillBindi
       const agent = exec.agent as AgentLike | undefined
       if (agent === undefined) throw new Error('skill_select 只能在会话内调用')
       const workspace = workspaceOfAgent(agent)
-      // Hard boundary: the author took this skill away from the model. Letting
-      // `skill_select` enable it would let the model undo that by asking —
-      // especially since a registration here is what puts a skill back in the
-      // catalog.
-      const target = skills.resolveRegistration(args.slug)
-      if (target?.invocation?.modelInvocable === false) {
+      // Container rows (a directory with only DESCRIPTION.md) list fine and
+      // migrate fine, but they have no body to load: enabling one used to put a
+      // dead line in the catalog while the real skills under it stayed
+      // unreachable. Say so instead of accepting the flip.
+      const blocker = skills.enableBlocker(args.slug)
+      if (blocker !== undefined) {
         return {
           slug: args.slug,
           selected: false,
           selectedAll: readSelection(workspace, agent.id).selected,
           applied: false,
           missing: [],
-          error: '作者禁止模型调用该技能（disable-model-invocation），不会为任何会话启用它',
+          error: blocker,
         }
       }
       const planned = planSelection(workspace, agent.id, args.slug, args.selected)
       const { registrations, missing } = registrationsFor(skills, planned)
       try {
-        const outcome = await bindings.ensureAgent(
-          agent, agent.ctx, publishSet(skills, workspace, registrations, planned.selected), missing,
-        )
+        const outcome = await bindings.ensureAgent(agent, agent.ctx, registrations, missing)
         // Persist what can actually be resolved: the file is the panel's and
         // the next session's source of truth, so a slug whose copy is gone must
         // not be written into it.
@@ -233,6 +211,152 @@ export function buildSkillSelectTool(skills: SkillsManager, bindings: SkillBindi
           error: String((error as Error)?.message ?? error),
         }
       }
+    },
+  })
+}
+
+/** One row of `skill_query`'s answer. */
+interface QueryRow {
+  name: string
+  description: string
+  group: 'native' | 'stored' | 'registered'
+  level: 'project' | 'user'
+  /** Linked into a skills root → every conversation already sees it. */
+  linked: boolean
+  /** Enabled in *this* conversation. */
+  selected: boolean
+  slug?: string
+  /** Whether a flip / load can actually do something with it. */
+  usable: boolean
+  /** Why not, when not usable. */
+  reason?: string
+}
+
+interface QueryResult {
+  workspace: string
+  total: number
+  skills: QueryRow[]
+}
+
+/** An optional string argument, whatever shape the caller sent. */
+function text(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+/**
+ * One description on one line.
+ *
+ * A description is not always one line: `description: |` keeps its newlines, so
+ * a single entry could otherwise push a blank line through the middle of the
+ * list and break it apart. dsh folds the same way, and caps at 500.
+ */
+function oneLine(description: string): string {
+  const flat = description.replace(/\s+/g, ' ').trim()
+  return flat.length > 500 ? flat.slice(0, 497) + '…' : flat
+}
+
+/**
+ * The discovery channel: everything the manager knows about this workspace,
+ * computed **at call time** — never a baked snapshot.
+ *
+ * It exists because the catalog only lists what is linked, so a stored-but-
+ * unlinked skill is invisible to the model until enabled, and the model had no
+ * way to ask. The answer is plain JSON: the previous attempt shipped the list
+ * as a loadable pseudo-skill instead, which made the model run a command and
+ * handed it a stale, workspace-scoped copy that went stale the moment a
+ * selection changed.
+ */
+export function buildSkillQueryTool(skills: SkillsManager) {
+  return defineTool({
+    name: 'skill_query',
+    description:
+      '查询本工作区可见的技能清单（只读，动态计算）。返回全部技能：描述、分组、是否已联接（全局可见）、' +
+      '本会话是否已启用，以及未启用原因。要找的技能不在目录里时先查这里。',
+    parameters: {
+      // Absent `required` is what makes a parameter optional.
+      query: { type: 'string', description: '按名称或描述的关键词过滤（不区分大小写）' },
+      group: { type: 'string', description: '按分组过滤：native / stored / registered' },
+    },
+    output: {
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          workspace: { type: 'string' },
+          total: { type: 'number' },
+          skills: {
+            type: 'array',
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                name: { type: 'string' },
+                description: { type: 'string' },
+                group: { type: 'string' },
+                level: { type: 'string' },
+                linked: { type: 'boolean' },
+                selected: { type: 'boolean' },
+                slug: { type: 'string' },
+                usable: { type: 'boolean' },
+                reason: { type: 'string' },
+              },
+            },
+          },
+        },
+      },
+      render: (_args, value) => {
+        const v = value as Partial<QueryResult> | null
+        if (v === null || typeof v !== 'object' || !Array.isArray(v.skills)) {
+          return [{ type: 'text', text: 'skill_query 完成' }]
+        }
+        const lines = v.skills.map((s) => {
+          const state = [
+            s.linked ? '已联接' : '未联接',
+            s.selected ? '本会话已启用' : '本会话未启用',
+            ...(s.reason ? [s.reason] : []),
+          ].join('·')
+          return `- \`${s.name}\`: ${oneLine(s.description || s.name)} 【${state}】`
+        })
+        return [{
+          type: 'text',
+          text: [`本工作区可见技能共 ${v.total ?? v.skills.length} 条（本次查询动态计算）。`, ...lines,
+            '未启用但需要：用 skill_select 启用，或请用户在「会话技能」小窗勾选。'].join('\n'),
+        }]
+      },
+    },
+    execute: async (args, exec) => {
+      const agent = exec.agent as AgentLike | undefined
+      if (agent === undefined) throw new Error('skill_query 只能在会话内调用')
+      const workspace = workspaceOfAgent(agent)
+      const selected = new Set(readSelection(workspace, agent.id).selected)
+      const keyword = text(args.query).toLowerCase()
+      const group = text(args.group).toLowerCase()
+      const rows = skills
+        .listSkills(workspace)
+        .filter((it) => (group === '' || it.group === group))
+        .filter((it) => (
+          keyword === ''
+          || it.name.toLowerCase().includes(keyword)
+          || it.description.toLowerCase().includes(keyword)
+        ))
+        .map((it): QueryRow => {
+          const blocker = it.slug === undefined || it.slug === ''
+            ? undefined
+            : skills.enableBlocker(it.slug)
+          const chosen = it.slug !== undefined && selected.has(it.slug)
+          return {
+            name: it.name,
+            description: it.description,
+            group: it.group,
+            level: it.level,
+            linked: it.linked,
+            selected: chosen,
+            slug: it.slug,
+            usable: blocker === undefined,
+            ...(blocker !== undefined ? { reason: blocker } : {}),
+          }
+        })
+      return { workspace, total: rows.length, skills: rows }
     },
   })
 }

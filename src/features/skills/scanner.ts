@@ -245,6 +245,58 @@ export function readSkill(path: string): SkillDetail | null {
 }
 
 /**
+ * What one slug resolves to, plus the admission document that admitted it —
+ * the document decides whether the thing is a real skill or a container.
+ */
+interface ResolvedCandidate {
+  registration: SkillRegistration
+  /** `SKILL.md` / `DESCRIPTION.md` for bundles, `file` for a flat document. */
+  admission: 'SKILL.md' | 'DESCRIPTION.md' | 'file'
+}
+
+function resolveCandidate(slug: string): ResolvedCandidate | undefined {
+  const candidates: Array<{ path: string; bundle: boolean }> = []
+  if (entryOf(slug) !== undefined) candidates.push({ path: join(storeSkillsDir(), slug), bundle: true })
+  const registered = registryEntryOf(slug)
+  if (registered !== undefined) candidates.push({ path: registered.path, bundle: registered.kind === 'bundle' })
+  for (const candidate of candidates) {
+    if (candidate.bundle) {
+      const found = parseBundleDocs(candidate.path)
+      if (found === undefined) continue
+      return {
+        registration: {
+          name: found.parsed.name,
+          description: found.parsed.description || found.parsed.name,
+          content: found.parsed.content,
+          source: 'runtime',
+          // Where the skill's own files live. Without it dsh tells the model
+          // that resources are "managed by provider" and gives it no path, so a
+          // skill whose real content sits in `references/` loses that half of
+          // itself the moment it is enabled.
+          resourceBase: { kind: 'directory', path: candidate.path },
+        },
+        admission: basename(found.doc).toUpperCase() === 'DESCRIPTION.md' ? 'DESCRIPTION.md' : 'SKILL.md',
+      }
+    }
+    if (!existsSync(candidate.path)) continue
+    const parsed = parseFlatDoc(candidate.path)
+    if (parsed === null) continue
+    return {
+      registration: {
+        name: parsed.name,
+        description: parsed.description || parsed.name,
+        content: parsed.content,
+        source: 'runtime',
+        // A flat file's siblings (if any) sit beside it, not at the file.
+        resourceBase: { kind: 'directory', path: dirname(candidate.path) },
+      },
+      admission: 'file',
+    }
+  }
+  return undefined
+}
+
+/**
  * Resolve a slug to a runtime `SkillRegistration` for the context engine:
  * looks in the store first, then the external registry, and reads the
  * admission document (SKILL.md or DESCRIPTION.md) body verbatim (no
@@ -252,34 +304,23 @@ export function readSkill(path: string): SkillDetail | null {
  * @returns undefined when the slug is unknown or its copy is gone.
  */
 export function resolveRegistration(slug: string): SkillRegistration | undefined {
-  const candidates: Array<{ path: string; bundle: boolean }> = []
-  if (entryOf(slug) !== undefined) candidates.push({ path: join(storeSkillsDir(), slug), bundle: true })
-  const registered = registryEntryOf(slug)
-  if (registered !== undefined) candidates.push({ path: registered.path, bundle: registered.kind === 'bundle' })
-  for (const candidate of candidates) {
-    const parsed = candidate.bundle
-      ? parseBundleDocs(candidate.path)?.parsed ?? null
-      : (existsSync(candidate.path) ? parseFlatDoc(candidate.path) : null)
-    if (parsed === null) continue
-    return {
-      name: parsed.name,
-      description: parsed.description || parsed.name,
-      content: parsed.content,
-      source: 'runtime',
-      // Where the skill's own files live. Without it dsh tells the model that
-      // resources are "managed by provider" and gives it no path, so a skill
-      // whose real content sits in `references/` loses that half of itself the
-      // moment it is enabled — the plugin would make the skill worse by
-      // registering it.
-      resourceBase: {
-        kind: 'directory',
-        path: candidate.bundle ? candidate.path : dirname(candidate.path),
-      },
-      // Carry the author's call policy through. Omitting it made every
-      // engine-registered skill model-invocable, quietly undoing the author's
-      // `disable-model-invocation`.
-      invocation: parsed.invocation,
-    }
+  return resolveCandidate(slug)?.registration
+}
+
+/**
+ * Why the model may not enable `slug`, or undefined when it may.
+ *
+ * A directory admitted by `DESCRIPTION.md` alone is a *container*: it lists in
+ * the panel and migrates into the store, but it has no body to load and its
+ * real skills live one level down — where dsh's own scanner never looks. Letting
+ * a flip accept it produced a dead line in the model's catalog while the actual
+ * skills stayed unreachable from both sides.
+ */
+export function enableBlocker(slug: string): string | undefined {
+  const found = resolveCandidate(slug)
+  if (found === undefined) return undefined
+  if (found.admission === 'DESCRIPTION.md') {
+    return '该条目是容器目录（只有 DESCRIPTION.md，没有可加载的正文）；请启用它下面的具体技能'
   }
   return undefined
 }

@@ -19,9 +19,10 @@ import { Context } from '@deepseek-ai/cordis'
 import { createScope } from '@deepseek-ai/dsh-scope'
 import SkillRegistry from '@deepseek-ai/dsh-skill'
 import type { SkillRegistration } from '@deepseek-ai/dsh-skill'
-import { applyToAgent, SkillBindings, withoutMissing, writeSelection } from '../src/features/context/index.ts'
-import { INDEX_NAME } from '../src/features/skills/catalog.ts'
-import { buildSkillSelectTool } from '../src/features/context/index.ts'
+import {
+  applyToAgent, buildSkillQueryTool, buildSkillSelectTool, SkillBindings, withoutMissing, writeSelection,
+} from '../src/features/context/index.ts'
+
 import type { AgentLike } from '../src/features/context/index.ts'
 import type { SkillsManager } from '../src/features/skills/index.ts'
 import type { SkillSummary } from '../src/shared/protocol/index.ts'
@@ -190,11 +191,19 @@ function spyManager(): SkillsManager {
     resolveRegistration(slug: string) {
       return slug === 'ghost' ? undefined : registration(slug)
     },
+    enableBlocker: () => undefined,
     listSkills: () => ([
       { name: 'ghost', description: 'unresolvable', group: 'native', linked: false, source: 'user-dsh', level: 'user', kind: 'bundle', path: 'x' },
       { name: 'planned', description: 'resolvable', group: 'stored', linked: true, source: 'user-dsh', level: 'user', kind: 'bundle', path: 'y', slug: 'planned' },
     ] satisfies SkillSummary[]),
   } as unknown as SkillsManager
+}
+
+/** A workspace of its own, so a persisted selection never lands in the repo. */
+function tempWorkspace(): string {
+  const dir = join(tmpdir(), 'dsh-tool-test-' + Math.random().toString(36).slice(2))
+  mkdirSync(join(dir, '.git'), { recursive: true })
+  return dir
 }
 
 describe('applyToAgent selection source', () => {
@@ -206,9 +215,8 @@ describe('applyToAgent selection source', () => {
       sessionId: 'session-1', selected: ['planned'], updatedAt: '',
     })
 
-    // The index rides along with every apply; the point is that the *handed*
-    // selection is what gets published, not the file's.
-    expect(captured[0].map((r) => r.name)).toEqual(['planned', INDEX_NAME])
+    // The *handed* selection is what gets published, not the file's.
+    expect(captured[0].map((r) => r.name)).toEqual(['planned'])
   })
 
   it('falls back to the file when nothing is handed over (lifecycle hook)', async () => {
@@ -222,7 +230,7 @@ describe('applyToAgent selection source', () => {
 
     await applyToAgent(spyManager(), spyBindings(captured), agent)
 
-    expect(captured[0].map((r) => r.name)).toEqual(['from-file', INDEX_NAME])
+    expect(captured[0].map((r) => r.name)).toEqual(['from-file'])
     rmSync(workspace, { recursive: true, force: true })
   })
 
@@ -235,64 +243,74 @@ describe('applyToAgent selection source', () => {
   })
 })
 
+/** The slice of `skill_query`'s answer these tests read. */
+interface QueryAnswer {
+  workspace: string
+  total: number
+  skills: Array<{ name: string; linked: boolean; selected: boolean; usable: boolean; reason?: string }>
+}
+
 /**
- * The catalog hijack.
+ * The discovery channel: `skill_query`.
  *
- * dsh's own catalog only ever lists what is linked into the skill roots, so a
- * stored-but-unlinked skill is invisible to the model until it is enabled — and
- * the model has no way to ask what exists. The index skill rides along with
- * every apply (selected or not) and carries the complete list in the catalog's
- * own shape, one line of standing cost.
+ * The catalog only lists what is linked, so a stored-but-unlinked skill is
+ * invisible to the model until it is enabled — and the model had no way to ask.
+ * The answer is computed **at call time** and returned as plain JSON, rather
+ * than shipped as a loadable pseudo-skill the model has to run a command for.
  */
-describe('catalog index skill', () => {
-  it('rides along even when nothing is selected, and lists in the catalog shape', async () => {
-    const captured: SkillRegistration[][] = []
-    const agent = { id: 'session-1' } as unknown as AgentLike
+describe('skill_query', () => {
+  /** Two rows: one enableable, one container that has no body to load. */
+  function queryManager(): SkillsManager {
+    return {
+      listSkills: () => ([
+        { name: 'planned', description: 'resolvable', group: 'stored', linked: true, source: 'user-dsh', level: 'user', kind: 'bundle', path: 'y', slug: 'planned' },
+        { name: 'apple', description: 'a container', group: 'native', linked: true, source: 'user-dsh', level: 'user', kind: 'bundle', path: 'z', slug: 'apple' },
+      ] satisfies SkillSummary[]),
+      enableBlocker: (slug: string) => (
+        slug === 'apple' ? '该条目是容器目录（只有 DESCRIPTION.md，没有可加载的正文）' : undefined
+      ),
+    } as unknown as SkillsManager
+  }
 
-    await applyToAgent(spyManager(), spyBindings(captured), agent, {
-      sessionId: 'session-1', selected: [], updatedAt: '',
+  it('answers with live state: linked, selected, and why a row is unusable', async () => {
+    const workspace = tempWorkspace()
+    writeSelection(workspace, { sessionId: 'session-1', selected: ['planned'], updatedAt: '' })
+    const tool = buildSkillQueryTool(queryManager())
+    const agent = { id: 'session-1', session: { header: { cwd: workspace } } } as unknown as AgentLike
+
+    const answer = await tool.execute({}, { agent } as never) as QueryAnswer
+
+    expect(answer.workspace).toBe(workspace)
+    expect(answer.total).toBe(2)
+    expect(answer.skills.find((s) => s.name === 'planned')).toMatchObject({
+      linked: true, selected: true, usable: true,
     })
-
-    const names = captured[0].map((r) => r.name)
-    expect(names).toContain(INDEX_NAME)
-    // Nothing selected → only the index is published.
-    expect(names).toEqual([INDEX_NAME])
+    const container = answer.skills.find((s) => s.name === 'apple')
+    expect(container?.selected).toBe(false)
+    expect(container?.usable).toBe(false)
+    expect(container?.reason).toContain('容器')
+    rmSync(workspace, { recursive: true, force: true })
   })
 
-  it('carries the whole list with both state bits, in the catalog\'s own shape', async () => {
-    const captured: SkillRegistration[][] = []
-    const agent = { id: 'session-1' } as unknown as AgentLike
+  it('filters by keyword and by group', async () => {
+    const workspace = tempWorkspace()
+    const tool = buildSkillQueryTool(queryManager())
+    const agent = { id: 'session-1', session: { header: { cwd: workspace } } } as unknown as AgentLike
 
-    await applyToAgent(spyManager(), spyBindings(captured), agent, {
-      sessionId: 'session-1', selected: ['planned'], updatedAt: '',
-    })
-
-    const index = captured[0].find((r) => r.name === INDEX_NAME)
-    expect(index).toBeDefined()
-    // Same shape as dsh's own catalog lines.
-    expect(index?.content).toContain('- `planned`: resolvable 【已联接·本会话已启用】')
-    expect(index?.content).toContain('- `ghost`: unresolvable 【未联接·本会话未启用】')
-    // An index has no files of its own, and must be model-invocable or it never
-    // reaches the catalog at all.
-    expect(index?.resourceBase?.kind).toBe('opaque')
-    expect(index?.invocation).toEqual({ modelInvocable: true, userInvocable: true })
+    const byKeyword = await tool.execute({ query: 'CONTAINER' }, { agent } as never) as QueryAnswer
+    expect(byKeyword.skills.map((s) => s.name)).toEqual(['apple'])
+    const byGroup = await tool.execute({ group: 'stored' }, { agent } as never) as QueryAnswer
+    expect(byGroup.skills.map((s) => s.name)).toEqual(['planned'])
+    rmSync(workspace, { recursive: true, force: true })
   })
 })
 
 /**
- * The model's own path: `skill_select`. It installs through the same helper, so
- * the index has to survive it — an install replaces the whole set, and a path
- * that forgot the index would drop it the first time the model helped itself.
+ * The model's own path: `skill_select` — the flip, and the one row type that
+ * cannot be flipped usefully.
  */
 describe('skill_select', () => {
-  /** A workspace of its own, so a persisted selection never lands in the repo. */
-  function tempWorkspace(): string {
-    const dir = join(tmpdir(), 'dsh-tool-test-' + Math.random().toString(36).slice(2))
-    mkdirSync(join(dir, '.git'), { recursive: true })
-    return dir
-  }
-
-  it('keeps the index in the catalog when the model enables a skill itself', async () => {
+  it('publishes exactly the selection the model asked for', async () => {
     const captured: SkillRegistration[][] = []
     const workspace = tempWorkspace()
     const tool = buildSkillSelectTool(spyManager(), spyBindings(captured))
@@ -300,28 +318,31 @@ describe('skill_select', () => {
 
     await tool.execute({ slug: 'planned', selected: true }, { agent } as never)
 
-    expect(captured[0].map((r) => r.name)).toContain(INDEX_NAME)
+    expect(captured[0].map((r) => r.name)).toEqual(['planned'])
     rmSync(workspace, { recursive: true, force: true })
   })
 
-  it('refuses a skill the author took away from the model', async () => {
+  it('refuses a container row and says where the real skills are', async () => {
     const captured: SkillRegistration[][] = []
-    const guarded: SkillsManager = {
-      resolveRegistration: (slug: string) => (
-        slug === 'guarded' ? { ...registration('guarded'), invocation: { modelInvocable: false, userInvocable: true } } : undefined
-      ),
+    // A container admits by DESCRIPTION.md alone: it has a description to list
+    // and nothing to load, and its real skills live one level below where dsh
+    // never scans. Accepting the flip produced a dead catalog line while those
+    // skills stayed unreachable.
+    const container: SkillsManager = {
+      resolveRegistration: (slug: string) => (slug === 'apple' ? registration('apple') : undefined),
+      enableBlocker: (slug: string) => (slug === 'apple' ? '该条目是容器目录（只有 DESCRIPTION.md，没有可加载的正文）' : undefined),
       listSkills: () => [],
     } as unknown as SkillsManager
-    const tool = buildSkillSelectTool(guarded, spyBindings(captured))
+    const tool = buildSkillSelectTool(container, spyBindings(captured))
     const agent = { id: 'session-1' } as unknown as AgentLike
 
-    const result = await tool.execute({ slug: 'guarded', selected: true }, { agent } as never) as {
+    const result = await tool.execute({ slug: 'apple', selected: true }, { agent } as never) as {
       applied: boolean
       error: string
     }
 
     expect(result.applied).toBe(false)
-    expect(result.error).toContain('disable-model-invocation')
+    expect(result.error).toContain('容器')
     // Never even attempted an install.
     expect(captured.length).toBe(0)
   })

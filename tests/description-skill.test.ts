@@ -271,7 +271,7 @@ describe('invocation policy', () => {
 })
 
 describe('registration payload', () => {
-  it('carries the bundle directory and the author\'s policy into the registration', () => {
+  it('carries the bundle directory into the registration', () => {
     const skills = new SkillsManager()
     const dir = join(userSkills(), 'guarded')
     mkdirSync(dir, { recursive: true })
@@ -290,7 +290,10 @@ describe('registration payload', () => {
     // Without the base directory the model is told resources are "managed by
     // provider" and gets no path, so `references/` becomes unreachable.
     expect(registration?.resourceBase).toEqual({ kind: 'directory', path: join(store(), 'guarded') })
-    expect(registration?.invocation).toEqual({ modelInvocable: false, userInvocable: true })
+    // The author's call policy is parsed (see 'invocation policy') but is *not*
+    // pushed into the registration: a skill the user enables must actually
+    // become usable, and dsh's default for a missing policy is "allowed".
+    expect(registration?.invocation).toBeUndefined()
   })
 
   it('points a flat skill at the directory holding it, not at the file', () => {

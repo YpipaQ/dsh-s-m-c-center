@@ -38,6 +38,24 @@ export interface AgentLike {
 export declare function workspaceOfAgent(agent: AgentLike): string;
 /** The slugs in `selection` whose canonical copy cannot be resolved. */
 export declare function missingSlugs(skills: SkillsManager, selection: ContextSelection): string[];
+/**
+ * Bring one conversation's agent in line with a selection.
+ *
+ * The lifecycle hook (a new or resumed conversation), the panel and the tool
+ * all call this; it is idempotent, so calling it again with the same selection
+ * costs nothing and never disturbs a working binding.
+ *
+ * `selection` exists because the caller has usually *just computed* the new
+ * selection and the file still holds the old one. Re-reading the file here made
+ * the panel apply one flip behind — it installed the previous set, answered
+ * `applied: true` (the names had not changed, so the idempotent short-circuit
+ * fired) and only then wrote the new file. The lifecycle hook passes nothing
+ * and keeps reading the file, which is what "apply what this conversation
+ * asked for" means at creation time.
+ *
+ * Never throws: the callers are on the session-creation path, where an
+ * exception would veto the conversation itself.
+ */
 export declare function applyToAgent(skills: SkillsManager, bindings: SkillBindings, agent: AgentLike, selection?: ContextSelection): Promise<ApplyOutcome>;
 /**
  * Drop the slugs nothing could resolve, so a phantom name never reaches the
@@ -50,4 +68,16 @@ export declare function withoutMissing(selection: ContextSelection, missing: str
  * calling agent's own context, and persists only once that worked.
  */
 export declare function buildSkillSelectTool(skills: SkillsManager, bindings: SkillBindings): import("@deepseek-ai/dsh-tools").ToolDefinition;
+/**
+ * The discovery channel: everything the manager knows about this workspace,
+ * computed **at call time** — never a baked snapshot.
+ *
+ * It exists because the catalog only lists what is linked, so a stored-but-
+ * unlinked skill is invisible to the model until enabled, and the model had no
+ * way to ask. The answer is plain JSON: the previous attempt shipped the list
+ * as a loadable pseudo-skill instead, which made the model run a command and
+ * handed it a stale, workspace-scoped copy that went stale the moment a
+ * selection changed.
+ */
+export declare function buildSkillQueryTool(skills: SkillsManager): import("@deepseek-ai/dsh-tools").ToolDefinition;
 //# sourceMappingURL=tools.d.ts.map

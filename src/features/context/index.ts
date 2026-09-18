@@ -12,7 +12,8 @@ export type { ContextSelection, IgnoredSelection, SelectionRow } from './engine.
 export { SkillBindings } from './apply.ts'
 export type { ApplyOutcome } from './apply.ts'
 export {
-  applyToAgent, buildSkillSelectTool, missingSlugs, withoutMissing, workspaceOfAgent,
+  applyToAgent, buildSkillQueryTool, buildSkillSelectTool, missingSlugs, withoutMissing,
+  workspaceOfAgent,
 } from './tools.ts'
 export type { AgentLike } from './tools.ts'
 export { contextRoutes } from './routes.ts'
