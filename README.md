@@ -14,12 +14,8 @@
   <a href="./package.json"><img alt="node" src="https://img.shields.io/node/v/dsh-s-m-c-center?style=flat-square&amp;labelColor=555" /></a>
 </div>
 
-> [!WARNING]
-> **This release (0.1.1) still has known issues.** Read these three before relying on it.
->
-> - **A linked skill appears in every conversation's skill catalog**, and the session-default switch does not control it: the catalog's membership comes from dsh scanning the skill roots — a plugin can only override the *content* of a same-named line, never remove one. To keep a skill out by default, unlink it on the skills page (the canonical copy stays in the store and can be re-enabled at any time).
-> - The fix is identified (shadow entries / taking over the catalog), but both are breaking changes and **not shipped yet**.
-> - See [Issues](https://github.com/YpipaQ/dsh-s-m-c-center/issues) for the rest.
+> [!NOTE]
+> **As of 0.1.2 the skill catalog is served by this plugin (shadow catalog)**: catalog membership follows the conversation's injection selection exactly; a catalog change publishes one replacement frame instead of re-appending every step; container directories (DESCRIPTION.md only) are injectable and loadable. Verified by a three-round external test run (16/16 pass).
 
 # 三合一工具台 · dsh-s-m-c-center
 
@@ -43,11 +39,11 @@
 ## 💡 Features
 
 - **Skills**: grouped by project / user level and by source (`.dsh/skills`, `.agents/skills`, `~/.dsh/skills`, `~/.agents/skills`). User-level skills are adopted into the **unified store** `~/.dsh/S-M-C/skills`; "enable" injects a directory junction in the skill root, "disable" removes it (`SKILL.md` is never touched). Project-level skills are managed in place through their frontmatter. Deletion is a two-step, physical delete — and it **only ever deletes the store's own canonical copy** (see below). Open a row for details (description / whenToUse / body); import by scanning any directory.
-- **Session default and per-conversation injection**: the session default is what a brand-new conversation starts with; each conversation can also carry its own differences (one skill turned off, another added). The agent can flip its own skills in-conversation (written to that conversation's own file), and a small "conversation skills" panel in the sidebar lets you adjust them by hand at any time. See the next section.
+- **Session default and per-conversation injection**: the session default is what a brand-new conversation starts with; each conversation can also carry its own differences (one skill turned off, another added). The agent can flip its own skills in-conversation (written to that conversation's own file), and a small "conversation skills" panel in the sidebar lets you adjust them by hand at any time — both switches list **linked** skills only. See the next section.
 - **MCP**: two sub-tabs — "manage" gives each server one **activate / archive** switch (plus delete), "create" offers a form or raw JSON with a one-off **connection test** before saving. Activating connects for real and registers `mcp__<server>__<tool>`; archiving disconnects and moves the definition to `S-M-C/mcp-archive.json`, fully preserved. Live status: connecting / running / failed / stopped.
 - **CLI**: discovers skill-wrapped CLIs (`scripts/run-cli.*` / `cli-state.*`) and registers system CLIs (`gh`, `git`, … in `S-M-C/cli.json`). Each entry is probed for installed / version / needs-update / API-key state / subcommands, and the row shows where it came from and where it lives. The **announce / hide** switch only decides whether the CLI is written into the announcement handed to the agent — the plugin cannot start or stop a system-installed CLI, so entries default to hidden.
 - **Guide**: explains all three kinds and holds the pre-uninstall escape hatch. "Undo migration" moves stored skills back to their original paths; when the store is empty and the skill roots still hold skills, the same button turns into a green "Migrate" — **reversible both ways**. "Inject all MCP" moves every archived server back and reconnects. The page also lists the directories and config blocks to remove manually after uninstalling.
-- **Interface**: fully bilingual zh / en (196 keys each; English UI renders no Chinese); destructive actions take two confirmations and reset when you click elsewhere.
+- **Interface**: fully bilingual zh / en (198 keys each; English UI renders no Chinese); destructive actions take two confirmations and reset when you click elsewhere.
 
 ## 🧠 Two channels: linking vs injection
 
@@ -75,10 +71,10 @@
 
 | Tool | What it does |
 |---|---|
-| `skill_select` | Enable or disable one skill for **this conversation**; writes the conversation's own difference and applies immediately. Only rows the engine can resolve are accepted — a container directory is refused and pointed at the real skills beneath it. |
-| `skill_query` | **Read-only** view of the skills visible in this workspace (name / description / group / linked? / injected in this conversation? / why unusable), computed at call time, with keyword and group filters. |
+| `skill_select` | Enable or disable one skill for **this conversation**; writes the conversation's own difference and applies immediately. Accepts every linked row — container directories too (their DESCRIPTION.md is the loadable body). |
+| `skill_query` | **Read-only** view of the skills visible in this workspace (name / description / group / linked? / injected in this conversation?), computed at call time, with keyword and group filters. |
 
-The guide tab can also switch on **announce to agent**, which describes the plugin and the current state of all three tool families in every agent's system prompt. The skill catalog additionally carries one extra line, `smc-skill-index` — an **index skill** whose body is the complete list of this workspace's skills in the catalog's own shape; when something is missing from the catalog, loading it shows everything at once.
+The guide tab can also switch on **announce to agent**, which describes the plugin and the current state of all three tool families in every agent's system prompt. The plugin also **serves the skill catalog itself** (shadow catalog): the catalog the AI sees is generated here and carries one extra line, `smc-skill-index` — an **index skill** whose body is the complete list of this workspace's skills in the catalog's own shape. Skills that are not injected cannot be loaded ("not enabled in this conversation"); the `/skill-name` gesture is unaffected.
 
 ## 🏗️ Architecture
 
@@ -119,7 +115,7 @@ dsh plugin --profile web add dsh-s-m-c-center
 dsh plugin --profile web add <absolute path to this folder>
 
 # Or from a packed tarball
-dsh plugin --profile web add <path>/dsh-s-m-c-center-0.1.1.tgz
+dsh plugin --profile web add <path>/dsh-s-m-c-center-0.1.2.tgz
 
 # Or the one-shot scripts
 bash scripts/install.sh                                        # macOS / Linux / Git Bash
@@ -185,7 +181,7 @@ dsh-s-m-c-center/
 │       ├── shared/         #   api / ui / locales (zh+en) / format / css module
 │       └── features/       #   one panel + hook per tab
 ├── lib/                    # build output (host index.js; client client.js; types/*)
-├── tests/                  # vitest (12 files)
+├── tests/                  # vitest (13 files)
 ├── cordis.patch.yml        # DSH bundle patch (package name must match package.json)
 ├── dsh.plugin.json         # DSH plugin manifest (id / version / main / client.main)
 ├── package.json            # npm package (dsh.bundle.patch + dsh.client + compatibility)
@@ -201,7 +197,7 @@ dsh-s-m-c-center/
 
 ## 🛠️ Development
 
-See [`docs/development.md`](./docs/development.md): dual-half builds (`tsdown` rebuilds `lib/index.js` + `lib/client.js`), type checking (`tsc --noEmit`) and the test suite (`vitest`, 12 files / 170 cases).
+See [`docs/development.md`](./docs/development.md): dual-half builds (`tsdown` rebuilds `lib/index.js` + `lib/client.js`), type checking (`tsc --noEmit`) and the test suite (`vitest`, 13 files / 191 cases).
 
 ## 📄 License
 

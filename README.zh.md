@@ -14,12 +14,8 @@
   <a href="./package.json"><img alt="node" src="https://img.shields.io/node/v/dsh-s-m-c-center?style=flat-square&amp;labelColor=555" /></a>
 </div>
 
-> [!WARNING]
-> **当前版本（0.1.1）仍有已知问题**，请先读这三条再决定怎么用。
->
-> - **已「联接」的技能会出现在每一个对话的技能目录里**，「会话默认」的开关管不到它：目录成员由 dsh 自己扫描技能根得出，插件只能覆盖同名那一行的**内容**，不能让它少列一条。要让它默认不出现，请在技能页把它设为**不启用**（即断开联接；正本仍在储存库，随时可再启用）。
-> - 这个问题已定位（静默条目 / 接管目录两种修法），但都属于破坏性改动，**尚未实施**。
-> - 其余已知问题与进展见 [Issues](https://github.com/YpipaQ/dsh-s-m-c-center/issues)。
+> [!NOTE]
+> **0.1.2 起技能目录由本插件接管（影子目录）**：目录成员严格跟随会话的注入选择；目录变化只发一条替换帧，不再每步追加；容器目录（只有 DESCRIPTION.md）可注入、可加载。已经过三轮外部实测（16/16 通过）。
 
 # 三合一工具台 · dsh-s-m-c-center
 
@@ -43,11 +39,11 @@
 ## 💡 功能
 
 - **技能**：按项目级 / 用户级与来源分组（`.dsh/skills`、`.agents/skills`、`~/.dsh/skills`、`~/.agents/skills`）。用户级技能迁入**统一储存库** `~/.dsh/S-M-C/skills`，「启用」= 在技能根目录注入目录联接，「不启用」= 移除联接（`SKILL.md` 一字不改）；项目级技能就地管理，仍用前言开关。删除为两步确认的物理删除，且**只删储存库里的正本**（见下）。点开可看详情（description / whenToUse / 正文）；支持从任意目录扫描导入。
-- **会话默认与按对话注入**：`会话默认` 是新对话的起始技能；每个对话还能有自己的差异（关掉某个、追加某个）。对话里的 agent 可以自己开关（写入该对话自己的配置），侧边栏还有一个「会话技能」小窗供你随时手动调整。详见下一节。
+- **会话默认与按对话注入**：`会话默认` 是新对话的起始技能；每个对话还能有自己的差异（关掉某个、追加某个）。对话里的 agent 可以自己开关（写入该对话自己的配置），侧边栏还有一个「会话技能」小窗供你随时手动调整——两处列表都只列**已联接**的技能。详见下一节。
 - **MCP**：分「管理 / 新建」两个子页——管理页一台服务器一个 **激活 / 归档** 开关（外加删除），新建页提供表单或 JSON 编辑，保存前可**测试连接**（一次性真实探测）；**激活 / 归档**真实连接 / 断开并注册 `mcp__<server>__<tool>` 工具；实时状态（连接中 / 运行中 / 失败 / 已停止）。
 - **CLI**：自动发现 skill 包装的 CLI（`scripts/run-cli.*` / `cli-state.*`），并登记系统 CLI（`gh`、`git` …，存于 `S-M-C/cli.json`）。每条都会探测：是否安装 / 版本 / 是否需更新 / API-Key 状态 / 子命令，并在行上标出来源与位置。**公告 / 隐藏**开关只决定是否把这个 CLI 写进给 AI 的公告（插件无法启停系统装的 CLI，因此默认隐藏）。
 - **使用说明**：按三类讲清工作方式，最下方是卸载前的总撤退口。「撤销迁移」把储存库技能移回原始位置；储存库空着时同一按钮变为绿色的「迁移」，**双向可逆**；「MCP 全部注入」把归档服务器一次性移回并重连；页面同时列出卸载后需手动删除的目录与配置块。
-- **界面**：全量文案 zh / en 双语（各 196 键，英文环境零中文）；破坏性操作两步确认，且点开别处即复位。
+- **界面**：全量文案 zh / en 双语（各 198 键，英文环境零中文）；破坏性操作两步确认，且点开别处即复位。
 
 ## 🧠 两条通道：联接 vs 注入
 
@@ -75,10 +71,10 @@
 
 | 工具 | 作用 |
 |---|---|
-| `skill_select` | 为**本对话**启用 / 停用某个技能；写入该对话自己的差异并立即生效。仅接受库内可解析的条目，容器目录会被拒绝并指路其下的具体技能。 |
-| `skill_query` | **只读**查询本工作区可见的技能清单（名称 / 描述 / 分组 / 是否已联接 / 本对话是否已注入 / 不可用原因），调用时动态计算，可关键词与分组过滤。 |
+| `skill_select` | 为**本对话**启用 / 停用某个技能；写入该对话自己的差异并立即生效。接受所有已联接的条目——容器目录同样可以（其 DESCRIPTION.md 即可加载的正文）。 |
+| `skill_query` | **只读**查询本工作区可见的技能清单（名称 / 描述 / 分组 / 是否已联接 / 本对话是否已注入），调用时动态计算，可关键词与分组过滤。 |
 
-此外，「使用说明」页可开启**向 AI 公告**：把插件能力与三类工具的现状写进每个 agent 的系统提示。技能目录里还会多出一行 `smc-skill-index` —— 它是个**索引技能**，加载它即可拿到本工作区的完整技能列表（格式与目录层一致）；目录里找不到的技能，用它一次就能看全。
+此外，「使用说明」页可开启**向 AI 公告**：把插件能力与三类工具的现状写进每个 agent 的系统提示。技能目录也由本插件生成（影子目录）：目录里会多出一行 `smc-skill-index` —— **索引技能**，加载它即可拿到本工作区的完整技能列表（格式与目录层一致）；未注入的技能不能加载（提示 "not enabled in this conversation"）；`/技能名` 手势不受影响。
 
 ## 🏗️ 架构
 
@@ -119,7 +115,7 @@ dsh plugin --profile web add dsh-s-m-c-center
 dsh plugin --profile web add <本文件夹绝对路径>
 
 # 或安装打包产物
-dsh plugin --profile web add <path>/dsh-s-m-c-center-0.1.1.tgz
+dsh plugin --profile web add <path>/dsh-s-m-c-center-0.1.2.tgz
 
 # 或使用一键脚本
 bash scripts/install.sh                                        # macOS / Linux / Git Bash
@@ -185,7 +181,7 @@ dsh-s-m-c-center/
 │       ├── shared/         #   api / ui / locales(zh+en) / format / css module
 │       └── features/       #   四个页签各自的面板 + hook
 ├── lib/                    # 构建产物（宿主 index.js；客户端 client.js；types/*）
-├── tests/                  # vitest（12 个文件）
+├── tests/                  # vitest（13 个文件）
 ├── cordis.patch.yml        # DSH bundle patch（包名必须与 package.json 一致）
 ├── dsh.plugin.json         # DSH 插件清单（id / version / main / client.main）
 ├── package.json            # npm 包（dsh.bundle.patch + dsh.client + compatibility）
@@ -201,7 +197,7 @@ dsh-s-m-c-center/
 
 ## 🛠️ 开发
 
-见 [`docs/development.md`](./docs/development.md)：双半区构建（`tsdown` 重建 `lib/index.js` + `lib/client.js`）、类型检查（`tsc --noEmit`）与测试套件（`vitest`，12 个文件 / 170 个用例）。
+见 [`docs/development.md`](./docs/development.md)：双半区构建（`tsdown` 重建 `lib/index.js` + `lib/client.js`）、类型检查（`tsc --noEmit`）与测试套件（`vitest`，13 个文件 / 191 个用例）。
 
 ## 📄 许可
 

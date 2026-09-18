@@ -94,6 +94,7 @@ export function GuidePanel({ skills, mcp, refresh, t }: GuidePanelProps) {
         <div className={css.docH1}>{t('guideSkillsH')}</div>
         <Topic h={t('guideStoreH')} p={t('guideStoreP')} />
         <Topic h={t('guideEnableH')} p={t('guideEnableP')} />
+        <Topic h={t('guideSessionH')} p={t('guideSessionP')} />
 
         <div className={css.docH1}>{t('guideMcpH')}</div>
         <Topic h={t('guideConnectH')} p={t('guideConnectP')} />
