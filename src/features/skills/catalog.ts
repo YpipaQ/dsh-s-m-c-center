@@ -52,7 +52,7 @@ function stateOf(skill: SkillSummary, selected: Set<string>): string {
     skill.slug !== undefined && selected.has(skill.slug) ? '本会话已启用' : '本会话未启用',
   ]
   const slug = skill.slug ?? ''
-  if (slug !== '' && enableBlocker(slug) !== undefined) parts.push('容器目录，需启用其下的具体技能')
+  if (slug !== '' && enableBlocker(slug) !== undefined) parts.push('容器目录（本条正文即该组说明）')
   return parts.join('·')
 }
 

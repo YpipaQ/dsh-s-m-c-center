@@ -276,20 +276,17 @@ interface QueryAnswer {
  * than shipped as a loadable pseudo-skill the model has to run a command for.
  */
 describe('skill_query', () => {
-  /** Two rows: one enableable, one container that has no body to load. */
+  /** Two rows: one regular skill, one container (loadable since the shadow takeover). */
   function queryManager(): SkillsManager {
     return {
       listSkills: () => ([
         { name: 'planned', description: 'resolvable', group: 'stored', linked: true, source: 'user-dsh', level: 'user', kind: 'bundle', path: 'y', slug: 'planned' },
         { name: 'demo-pack', description: 'a container', group: 'native', linked: true, source: 'user-dsh', level: 'user', kind: 'bundle', path: 'z', slug: 'demo-pack' },
       ] satisfies SkillSummary[]),
-      enableBlocker: (slug: string) => (
-        slug === 'demo-pack' ? '该条目是容器目录（只有 DESCRIPTION.md，没有可加载的正文）' : undefined
-      ),
     } as unknown as SkillsManager
   }
 
-  it('answers with live state: linked, selected, and why a row is unusable', async () => {
+  it('answers with live state: linked and selected for every row', async () => {
     const workspace = tempWorkspace()
     writeSelection({ sessionId: 'session-1', selected: ['planned'], updatedAt: '' })
     const tool = buildSkillQueryTool(queryManager())
@@ -304,8 +301,10 @@ describe('skill_query', () => {
     })
     const container = answer.skills.find((s) => s.name === 'demo-pack')
     expect(container?.selected).toBe(false)
-    expect(container?.usable).toBe(false)
-    expect(container?.reason).toContain('容器')
+    // Containers load their DESCRIPTION.md under the shadow loader, so they
+    // are as usable as anything else — no gate, no reason.
+    expect(container?.usable).toBe(true)
+    expect(container?.reason).toBeUndefined()
     rmSync(workspace, { recursive: true, force: true })
   })
 
@@ -341,15 +340,13 @@ describe('skill_select', () => {
     rmSync(workspace, { recursive: true, force: true })
   })
 
-  it('refuses a container row and says where the real skills are', async () => {
+  it('accepts a container row — its DESCRIPTION.md is the loadable body', async () => {
     const captured: SkillRegistration[][] = []
-    // A container admits by DESCRIPTION.md alone: it has a description to list
-    // and nothing to load, and its real skills live one level below where dsh
-    // never scans. Accepting the flip produced a dead catalog line while those
-    // skills stayed unreachable.
+    // A container admits by DESCRIPTION.md alone. Under the shadow loader that
+    // document IS the body, so there is no dead line any more: the flip goes
+    // through like any other row. (The pre-takeover refusal is gone.)
     const container: SkillsManager = {
       resolveRegistration: (slug: string) => (slug === 'demo-pack' ? registration('demo-pack') : undefined),
-      enableBlocker: (slug: string) => (slug === 'demo-pack' ? '该条目是容器目录（只有 DESCRIPTION.md，没有可加载的正文）' : undefined),
       listSkills: () => [],
     } as unknown as SkillsManager
     const tool = buildSkillSelectTool(container, spyBindings(captured))
@@ -357,13 +354,11 @@ describe('skill_select', () => {
 
     const result = await tool.execute({ slug: 'demo-pack', selected: true }, { agent } as never) as {
       applied: boolean
-      error: string
     }
 
-    expect(result.applied).toBe(false)
-    expect(result.error).toContain('容器')
-    // Never even attempted an install.
-    expect(captured.length).toBe(0)
+    expect(result.applied).toBe(true)
+    // The install carried the container's registration (and the index).
+    expect(captured[0].map((r) => r.name)).toContain('demo-pack')
   })
 })
 

@@ -204,21 +204,10 @@ export function buildSkillSelectTool(skills: SkillsManager, bindings: SkillBindi
       const agent = exec.agent as AgentLike | undefined
       if (agent === undefined) throw new Error('skill_select 只能在会话内调用')
       const workspace = workspaceOfAgent(agent)
-      // Container rows (a directory with only DESCRIPTION.md) list fine and
-      // migrate fine, but they have no body to load: enabling one used to put a
-      // dead line in the catalog while the real skills under it stayed
-      // unreachable. Say so instead of accepting the flip.
-      const blocker = skills.enableBlocker(args.slug)
-      if (blocker !== undefined) {
-        return {
-          slug: args.slug,
-          selected: false,
-          selectedAll: readSelection(agent.id).selected,
-          applied: false,
-          missing: [],
-          error: blocker,
-        }
-      }
+      // Containers (a directory with only DESCRIPTION.md) are injectable like
+      // any other row: the shadow loader serves their DESCRIPTION.md as the
+      // body, which is exactly what that file is for. The old refusal predates
+      // the shadow takeover, when a dead line was all an enable produced.
       const planned = planSelection(agent.id, args.slug, args.selected)
       const { registrations, missing } = registrationsFor(skills, planned)
       try {
@@ -380,9 +369,6 @@ export function buildSkillQueryTool(skills: SkillsManager) {
           || it.description.toLowerCase().includes(keyword)
         ))
         .map((it): QueryRow => {
-          const blocker = it.slug === undefined || it.slug === ''
-            ? undefined
-            : skills.enableBlocker(it.slug)
           const chosen = it.slug !== undefined && selected.has(it.slug)
           return {
             name: it.name,
@@ -392,8 +378,9 @@ export function buildSkillQueryTool(skills: SkillsManager) {
             linked: it.linked,
             selected: chosen,
             slug: it.slug,
-            usable: blocker === undefined,
-            ...(blocker !== undefined ? { reason: blocker } : {}),
+            // Containers load too now (their DESCRIPTION.md is the body), so
+            // nothing is gated off here any more.
+            usable: true,
           }
         })
       return { workspace, total: rows.length, skills: rows }
