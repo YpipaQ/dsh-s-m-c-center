@@ -1,0 +1,31 @@
+name: publish
+
+# Publish to npm when a version tag (v0.1.3, v0.2.0, ...) is pushed.
+# Auth is the npm Trusted Publisher (OIDC): no NPM_TOKEN secret needed.
+# The npm-side form must point at this file: .github/workflows/publish.yml
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+  id-token: write # OIDC — trusted publishing + provenance
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: 'https://registry.npmjs.org/'
+      # npm >= 11.5.1 is required for trusted publishing (OIDC)
+      - run: npm install -g npm@latest
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: npm publish --provenance
