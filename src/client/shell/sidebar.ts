@@ -97,8 +97,12 @@ function ensureStyle(): void {
   const style = document.createElement('style')
   style.id = STYLE_ID
   style.textContent = `
-[data-dsh-frame][data-sidebar-collapsed] [${ENTRY_ID}]{justify-content:center!important;width:100%!important;padding:0!important}
-[data-dsh-frame][data-sidebar-collapsed] [${ENTRY_ID}]>span:not(:first-child){display:none!important}
+/* Collapsed rail: dsh publishes data-sidebar-collapsed on the AppFrame root
+   (only while collapsed), and the rail lays controls out as 36x36 boxes with
+   12px rounding — match that so the icon-only entry reads like the others. */
+[data-sidebar-collapsed] [${ENTRY_ID}]{justify-content:center!important;width:36px!important;height:36px!important;min-height:36px!important;margin:0!important;padding:0!important;border-radius:12px!important}
+[data-sidebar-collapsed] [${ENTRY_ID}]:hover{background:var(--dsw-alias-interactive-bg-hover,#f0f1f3)!important}
+[data-sidebar-collapsed] [${ENTRY_ID}]>span:not(:first-child){display:none!important}
 .smc-fp{position:fixed;left:280px;top:80px;width:min(420px,92vw);height:min(560px,72vh);min-width:${MIN_W}px;min-height:${MIN_H}px;z-index:${PANEL_Z};
   display:flex;flex-direction:column;background:var(--dsw-alias-bg-base,#fdfdfd);color:var(--dsw-alias-label-primary,#1f2328);
   border:1px solid var(--dsw-alias-border-l1,#e2e5ea);border-radius:12px;box-shadow:0 12px 40px rgba(8,10,16,.18);
@@ -126,6 +130,7 @@ function buildEntry(onClick: () => void): HTMLButtonElement {
   button.type = 'button'
   button.setAttribute(ENTRY_ID, '')
   button.setAttribute('aria-label', '会话技能')
+  button.title = '会话技能'
   button.style.cssText = [
     'display:flex', 'align-items:center', 'gap:8px', 'width:100%', 'padding:8px 10px',
     'border:none', 'background:transparent', 'color:inherit', 'cursor:pointer', 'text-align:left',
