@@ -2,8 +2,13 @@
   🌏 <a href="./README.zh.md">中文</a> · <b>English</b>
 </div>
 
+<h1 align="center">Three-in-One Console · dsh-s-m-c-center</h1>
+
 <div align="center">
-  <b style="font-size: 1.15em;">A DeepSeek Harness (DSH) web plugin: manage agent skills, MCP servers and local CLI tools from one settings page — and inject skills per conversation.</b><br /><br />
+  <b>One DeepSeek Harness (DSH) settings page for the agent's three kinds of tools —<br />skills, MCP servers and local CLIs — plus per-conversation skill injection.</b>
+  <br /><br />
+  <i>Skill linking · Session injection · Shadow catalog · Real MCP connections · CLI probes · Bilingual · Zero source patching</i>
+  <br /><br />
   <a href="https://github.com/YpipaQ/dsh-s-m-c-center/releases"><img alt="release" src="https://img.shields.io/github/package-json/v/YpipaQ/dsh-s-m-c-center?style=flat-square&amp;label=release&amp;color=fe7d37&amp;labelColor=555" /></a>
   <a href="https://github.com/YpipaQ/dsh-s-m-c-center/stargazers"><img alt="stars" src="https://img.shields.io/github/stars/YpipaQ/dsh-s-m-c-center?style=flat-square&amp;label=stars&amp;color=f0a01e&amp;labelColor=555" /></a>
   <a href="https://github.com/YpipaQ/dsh-s-m-c-center/forks"><img alt="forks" src="https://img.shields.io/github/forks/YpipaQ/dsh-s-m-c-center?style=flat-square&amp;label=forks&amp;color=2b8df5&amp;labelColor=555" /></a>
@@ -12,20 +17,34 @@
   <a href="./LICENSE"><img alt="license: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square&amp;labelColor=555" /></a>
   <a href="./package.json"><img alt="dsh" src="https://img.shields.io/badge/dsh-%3E%3D0.1.2--alpha.2-4d6bfe?style=flat-square&amp;labelColor=555" /></a>
   <a href="./package.json"><img alt="node" src="https://img.shields.io/node/v/dsh-s-m-c-center?style=flat-square&amp;labelColor=555" /></a>
+  <br /><br />
+  <a href="#-what-it-is">What it is</a> · <a href="#-screenshots">Screenshots</a> · <a href="#-features">Features</a> · <a href="#-two-channels-linking-vs-injection">Two channels</a> · <a href="#-two-tools-for-the-agent">Agent tools</a> · <a href="#️-architecture">Architecture</a> · <a href="#-install">Install</a> · <a href="#️-configuration">Configuration</a> · <a href="#-permissions-and-dependency-disclosure">Permissions</a> · <a href="#️-repository-layout">Repository</a> · <a href="#️-development">Development</a> · <a href="#-license">License</a>
+</div>
+
+<br />
+
+<div align="center">
+  <a href="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-skills.png"><img src="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-skills.png" alt="Tool manager settings page: Skills tab" width="86%" /></a>
+  <p><i>Settings → Web UI plugins → Tool manager: the unified store, skill linking and the session default, with one tab per tool family.</i></p>
 </div>
 
 > [!NOTE]
 > **As of 0.1.2 the skill catalog is served by this plugin (shadow catalog)**: catalog membership follows the conversation's injection selection exactly; a catalog change publishes one replacement frame instead of re-appending every step; container directories (DESCRIPTION.md only) are injectable and loadable. Verified by a three-round external test run (16/16 pass).
 
-# 三合一工具台 · dsh-s-m-c-center
+## ✨ What it is
 
 > Chinese name: **三合一工具台** (three-in-one console) ｜ UI entry: Settings → Web UI Plugins → Tool Manager ｜ Aliases: 工具管理, 工具中心, 技能管理, MCP 服务器管理, CLI 工具管理, Skills / MCP / CLI manager
 
-> A self-contained DSH web plugin: it adds one first-class **settings page** for the agent's **three kinds of tool** (skills / MCP servers / local CLI tools), plus a **per-conversation skill injection layer**; a guide tab explains how each of the three works and, at the bottom, hands everything back cleanly on uninstall.
->
-> Mounted purely as a profile bundle patch + package — **no DeepSeek Harness source changes**.
+A self-contained DSH web plugin: it adds one first-class **settings page** for the agent's **three kinds of tool** (skills / MCP servers / local CLI tools), plus a **per-conversation skill injection layer**; a guide tab explains how each of the three works and, at the bottom, hands everything back cleanly on uninstall.
 
-## ✨ What it is
+| Capability | Native dsh web | With this plugin |
+|---|---|---|
+| Skill browsing / toggling | Edit skill directories by hand | One-click linking / unlinking in the settings page; canonical copies go into the store; `SKILL.md` is never touched |
+| Per-conversation skill sets | — | Session default + sidebar panel + `skill_select`; each conversation stores only its difference from the default |
+| Skill catalog (AI view) | Static directory scan | **Shadow catalog**: follows the conversation selection exactly, with one `smc-skill-index` index row |
+| MCP servers | Hand-edit `mcp.json` | Form / JSON creation + one-off connection test + activate / archive switches |
+| Local CLIs | — | Auto-discovery of skill-wrapped CLIs, system CLI registry, probes for installed / version / subcommands / API key |
+| Intrusiveness | — | **Zero source changes**: one npm package + one profile bundle patch line |
 
 | Tab | Manages | Under the hood |
 |---|---|---|
@@ -35,6 +54,17 @@
 | **Guide** | How each of the three kinds works, and what to do before uninstalling | Explanation lives here; the uninstall preparation sits at the bottom |
 
 > Full documentation: [`docs/功能介绍.md`](./docs/功能介绍.md) and [`docs/架构.md`](./docs/架构.md) (Chinese).
+
+## 📷 Screenshots
+
+| | |
+|---|---|
+| **Conversation skills panel** ｜ adjust this conversation's injection from the sidebar | **MCP servers** ｜ real connections, one activate / archive switch each |
+| <a href="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-session.png"><img src="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-session.png" alt="Sidebar conversation skills panel" width="98%" /></a> | <a href="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-mcp.png"><img src="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-mcp.png" alt="MCP servers tab" width="98%" /></a> |
+| **CLI tools** ｜ discover / probe / register local CLIs | **Guide** ｜ how the three kinds work + uninstall escape hatch |
+| <a href="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-cli.png"><img src="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-cli.png" alt="CLI tools tab" width="98%" /></a> | <a href="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-guide.png"><img src="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-guide.png" alt="Guide tab" width="98%" /></a> |
+
+<p align="center"><i>Skill names, descriptions and MCP server details are redacted in the screenshots.</i></p>
 
 ## 💡 Features
 
@@ -56,17 +86,6 @@
 
 **How a conversation stores its choice**: the file keeps the **difference from the default** (`overrides: { on, off }`), and the effective set is `default ∪ on \ off`. Editing the default therefore reaches every conversation that never configured itself, while a skill you turned off in one conversation stays off.
 
-## 📷 Screenshots
-
-<div align="center">
-  <img src="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-skills.png" alt="Skills" width="49%" />
-  <img src="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-mcp.png" alt="MCP servers" width="49%" />
-  <br />
-  <img src="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-cli.png" alt="CLI tools" width="49%" />
-  <img src="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-guide.png" alt="Guide" width="49%" />
-</div>
-<p align="center"><i>The four tabs: skills (unified store + junctions + session default), MCP (real connections), CLI (discover / probe / register), guide. Personal paths are redacted.</i></p>
-
 ## 🤖 Two tools for the agent
 
 | Tool | What it does |
@@ -74,9 +93,16 @@
 | `skill_select` | Enable or disable one skill for **this conversation**; writes the conversation's own difference and applies immediately. Accepts every linked row — container directories too (their DESCRIPTION.md is the loadable body). |
 | `skill_query` | **Read-only** view of the skills visible in this workspace (name / description / group / linked? / injected in this conversation?), computed at call time, with keyword and group filters. |
 
-The guide tab can also switch on **announce to agent**, which describes the plugin and the current state of all three tool families in every agent's system prompt. The plugin also **serves the skill catalog itself** (shadow catalog): the catalog the AI sees is generated here and carries one extra line, `smc-skill-index` — an **index skill** whose body is the complete list of this workspace's skills in the catalog's own shape. Skills that are not injected cannot be loaded ("not enabled in this conversation"); the `/skill-name` gesture is unaffected.
+The skill catalog itself is also served by this plugin (**shadow catalog**): the catalog the AI sees is generated here and carries one extra line, `smc-skill-index` — an **index skill** whose body is the complete list of this workspace's skills in the catalog's own shape. Skills that are not injected cannot be loaded ("not enabled in this conversation"); the `/skill-name` gesture is unaffected.
 
-## 🏗️ Architecture
+The guide tab can also switch on **announce to agent**, which describes the plugin and the current state of all three tool families in every agent's system prompt —
+
+<div align="center">
+  <a href="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-announce.png"><img src="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-announce.png" alt="Announce to agent" width="72%" /></a>
+  <p><i>Announce to agent: expanded, it declares the plugin's capabilities; the setting persists in the <code>dsh-s-m-c-center</code> namespace and applies immediately.</i></p>
+</div>
+
+## 🧱 Architecture
 
 **Mounting and the dual-face structure** — the plugin is one npm package plus one profile bundle patch; dsh source is untouched:
 
@@ -102,7 +128,7 @@ The guide tab can also switch on **announce to agent**, which describes the plug
 ## 🚀 Install
 
 > **Requirements**: DeepSeek Harness **`>= 0.1.2-alpha.2`** (all `@deepseek-ai/*` packages release together); Node `^22.19.0 || >=24`.
-> Status: **fully tested on `0.1.6-alpha.1` and `0.1.5-rc.2`**; every API used has been checked for existence and signature since `0.1.2-alpha.2`.
+> Status: **fully tested on `0.1.6-alpha.1`, `0.1.6-alpha.2` and `0.1.5-rc.2`**; every API used has been checked for existence and signature since `0.1.2-alpha.2`.
 
 > **Install it as a normal package — never as a junction.** A junction breaks resolution of dependencies (`schemastery` / `react` and friends) and makes the package name disagree with `cordis.patch.yml`; either one stops DSH from starting.
 
@@ -159,9 +185,10 @@ The plugin runs with the DSH process's privileges and uses four kinds of capabil
 
 **Known risks**: skill deletion is physical and irreversible (and **only the store's copy is ever deleted**: a `native` skill must be migrated into the store first, a `registered` one is unregistered, and "delete junction" only unlinks and never touches its target); MCP credentials are stored in plain text; enabling / disabling a skill works through a directory junction, so moving the store by hand breaks the junctions (use `DSH_STORE_ROOT` instead and the plugin rebuilds them).
 
-## 🗂️ Repository layout
+<details>
+<summary><b>🗂️ Expand repository layout</b></summary>
 
-```
+```text
 dsh-s-m-c-center/
 ├── src/
 │   ├── index.ts            # host composition root (mount, settings, announcement, tools)
@@ -195,9 +222,11 @@ dsh-s-m-c-center/
 └── scripts/install.*       # one-shot installers into a DSH profile
 ```
 
-## 🛠️ Development
+</details>
 
-See [`docs/development.md`](./docs/development.md): dual-half builds (`tsdown` rebuilds `lib/index.js` + `lib/client.js`), type checking (`tsc --noEmit`) and the test suite (`vitest`, 13 files / 191 cases).
+## 🧰 Development
+
+See [`docs/development.md`](./docs/development.md): dual-half builds (`tsdown` rebuilds `lib/index.js` + `lib/client.js`), type checking (`tsc --noEmit`) and the test suite (`vitest`, 13 files / 193 cases).
 
 ## 📄 License
 

@@ -2,8 +2,13 @@
   🌏 <b>中文</b> · <a href="./README.md">English</a>
 </div>
 
+<h1 align="center">三合一工具台 · dsh-s-m-c-center</h1>
+
 <div align="center">
-  <b style="font-size: 1.15em;">一个 DeepSeek Harness (DSH) Web 插件：在同一个设置页里管理「技能 + MCP + CLI」三类 agent 工具，并让每个对话按需注入自己的技能。</b><br /><br />
+  <b>把智能体的「技能 / MCP / CLI」三类工具收进 DeepSeek Harness 的同一张设置页，<br />并让每个对话按需注入自己的技能。</b>
+  <br /><br />
+  <i>技能联接 · 会话注入 · 影子目录 · MCP 真实连接 · CLI 探针 · 中英双语 · 零源码侵入</i>
+  <br /><br />
   <a href="https://github.com/YpipaQ/dsh-s-m-c-center/releases"><img alt="release" src="https://img.shields.io/github/package-json/v/YpipaQ/dsh-s-m-c-center?style=flat-square&amp;label=release&amp;color=fe7d37&amp;labelColor=555" /></a>
   <a href="https://github.com/YpipaQ/dsh-s-m-c-center/stargazers"><img alt="stars" src="https://img.shields.io/github/stars/YpipaQ/dsh-s-m-c-center?style=flat-square&amp;label=stars&amp;color=f0a01e&amp;labelColor=555" /></a>
   <a href="https://github.com/YpipaQ/dsh-s-m-c-center/forks"><img alt="forks" src="https://img.shields.io/github/forks/YpipaQ/dsh-s-m-c-center?style=flat-square&amp;label=forks&amp;color=2b8df5&amp;labelColor=555" /></a>
@@ -12,20 +17,34 @@
   <a href="./LICENSE"><img alt="license: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square&amp;labelColor=555" /></a>
   <a href="./package.json"><img alt="dsh" src="https://img.shields.io/badge/dsh-%3E%3D0.1.2--alpha.2-4d6bfe?style=flat-square&amp;labelColor=555" /></a>
   <a href="./package.json"><img alt="node" src="https://img.shields.io/node/v/dsh-s-m-c-center?style=flat-square&amp;labelColor=555" /></a>
+  <br /><br />
+  <a href="#-它是什么">它是什么</a> · <a href="#-界面一览">界面一览</a> · <a href="#-功能亮点">功能亮点</a> · <a href="#-两条通道联接-vs-注入">两条通道</a> · <a href="#-交给-agent-的两个工具">Agent 工具</a> · <a href="#️-架构">架构</a> · <a href="#-安装">安装</a> · <a href="#️-配置">配置</a> · <a href="#-权限与依赖声明">权限声明</a> · <a href="#️-仓库结构">仓库结构</a> · <a href="#️-开发">开发</a> · <a href="#-许可">许可</a>
+</div>
+
+<br />
+
+<div align="center">
+  <a href="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-skills.png"><img src="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-skills.png" alt="工具管理设置页：Skills 技能页签" width="86%" /></a>
+  <p><i>「设置 → Web UI 插件 → 工具管理」：统一储存库、技能联接与「会话默认」，三个页签分管三类工具。</i></p>
 </div>
 
 > [!NOTE]
 > **0.1.2 起技能目录由本插件接管（影子目录）**：目录成员严格跟随会话的注入选择；目录变化只发一条替换帧，不再每步追加；容器目录（只有 DESCRIPTION.md）可注入、可加载。已经过三轮外部实测（16/16 通过）。
 
-# 三合一工具台 · dsh-s-m-c-center
-
-> 中文名：**三合一工具台** ｜ 界面入口：「Web UI 插件 → 工具管理」 ｜ 别名：工具管理、工具中心、技能管理、MCP 服务器管理、CLI 工具管理、Skills / MCP / CLI 管理器
-
-> 一个自包含的 DSH Web 插件：在设置页新增一个一级页面，统一管理 agent 的**三类工具**（技能 / MCP 服务器 / 本地 CLI），并新增一层**按对话生效的技能注入**；另有一个使用说明页，讲清三者各自的工作方式，并在最下方负责把它们干净地还回去。
->
-> 仅通过 profile bundle patch + 包安装挂载 —— **不改任何 DeepSeek Harness 源码**。
-
 ## ✨ 它是什么
+
+> 中文别名：**三合一工具台** ｜ 别名：工具管理、工具中心、技能管理、MCP 服务器管理、CLI 工具管理、Skills / MCP / CLI 管理器
+
+一个自包含的 DSH Web 插件：在设置页新增一个一级页面，统一管理 agent 的**三类工具**（技能 / MCP 服务器 / 本地 CLI），并新增一层**按对话生效的技能注入**；另有一个使用说明页，讲清三者各自的工作方式，并在最下方负责把它们干净地还回去。
+
+| 能力 | 原生 dsh web | 装上本插件后 |
+|---|---|---|
+| 技能浏览 / 启停 | 到技能目录手动增删 | 设置页一键联接 / 断开，正本统一入库，`SKILL.md` 一字不改 |
+| 会话级技能组合 | — | 会话默认 + 侧边栏小窗 + `skill_select`，每个对话只存与默认的差异 |
+| 技能目录（AI 视角） | 静态目录扫描 | **影子目录**：严格跟随会话选区，附 `smc-skill-index` 索引行 |
+| MCP 服务器 | 手编 `mcp.json` | 表单 / JSON 新建 + 一次性测试连接 + 激活 / 归档开关 |
+| 本地 CLI | — | 自动发现 skill 内嵌 CLI，登记系统 CLI，探测安装 / 版本 / 子命令 / API-Key |
+| 侵入性 | — | **零源码改动**：一个 npm 包 + 一行 profile bundle patch |
 
 | 页签 | 管理 | 底层 |
 |---|---|---|
@@ -36,11 +55,22 @@
 
 > 完整说明见 [`docs/功能介绍.md`](./docs/功能介绍.md)、[`docs/架构.md`](./docs/架构.md)。
 
-## 💡 功能
+## 📷 界面一览
+
+| | |
+|---|---|
+| **会话技能小窗** ｜ 侧边栏随手调整本对话的注入 | **MCP 服务** ｜ 真实连接，激活 / 归档一键切换 |
+| <a href="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-session.png"><img src="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-session.png" alt="侧边栏「会话技能」小窗" width="98%" /></a> | <a href="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-mcp.png"><img src="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-mcp.png" alt="MCP 服务页签" width="98%" /></a> |
+| **CLI 工具** ｜ 发现 / 探测 / 登记本地 CLI | **使用说明** ｜ 三类工具讲解 + 卸载撤退口 |
+| <a href="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-cli.png"><img src="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-cli.png" alt="CLI 工具页签" width="98%" /></a> | <a href="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-guide.png"><img src="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-guide.png" alt="使用说明页签" width="98%" /></a> |
+
+<p align="center"><i>截图中的技能名、描述与 MCP 服务器信息已打码。</i></p>
+
+## 💡 功能亮点
 
 - **技能**：按项目级 / 用户级与来源分组（`.dsh/skills`、`.agents/skills`、`~/.dsh/skills`、`~/.agents/skills`）。用户级技能迁入**统一储存库** `~/.dsh/S-M-C/skills`，「启用」= 在技能根目录注入目录联接，「不启用」= 移除联接（`SKILL.md` 一字不改）；项目级技能就地管理，仍用前言开关。删除为两步确认的物理删除，且**只删储存库里的正本**（见下）。点开可看详情（description / whenToUse / 正文）；支持从任意目录扫描导入。
 - **会话默认与按对话注入**：`会话默认` 是新对话的起始技能；每个对话还能有自己的差异（关掉某个、追加某个）。对话里的 agent 可以自己开关（写入该对话自己的配置），侧边栏还有一个「会话技能」小窗供你随时手动调整——两处列表都只列**已联接**的技能。详见下一节。
-- **MCP**：分「管理 / 新建」两个子页——管理页一台服务器一个 **激活 / 归档** 开关（外加删除），新建页提供表单或 JSON 编辑，保存前可**测试连接**（一次性真实探测）；**激活 / 归档**真实连接 / 断开并注册 `mcp__<server>__<tool>` 工具；实时状态（连接中 / 运行中 / 失败 / 已停止）。
+- **MCP**：分「管理 / 新建」两个子页——管理页一台服务器一个 **激活 / 归档** 开关（外加删除），新建页提供表单或 JSON 编辑，保存前可**测试连接**（一次性真实探测）；激活 / 归档真实连接 / 断开并注册 `mcp__<server>__<tool>` 工具；实时状态（连接中 / 运行中 / 失败 / 已停止）。
 - **CLI**：自动发现 skill 包装的 CLI（`scripts/run-cli.*` / `cli-state.*`），并登记系统 CLI（`gh`、`git` …，存于 `S-M-C/cli.json`）。每条都会探测：是否安装 / 版本 / 是否需更新 / API-Key 状态 / 子命令，并在行上标出来源与位置。**公告 / 隐藏**开关只决定是否把这个 CLI 写进给 AI 的公告（插件无法启停系统装的 CLI，因此默认隐藏）。
 - **使用说明**：按三类讲清工作方式，最下方是卸载前的总撤退口。「撤销迁移」把储存库技能移回原始位置；储存库空着时同一按钮变为绿色的「迁移」，**双向可逆**；「MCP 全部注入」把归档服务器一次性移回并重连；页面同时列出卸载后需手动删除的目录与配置块。
 - **界面**：全量文案 zh / en 双语（各 200 键，英文环境零中文）；破坏性操作两步确认，且点开别处即复位。
@@ -56,17 +86,6 @@
 
 **会话选择的存储方式**：文件里存的是**与默认的差异**（`overrides: { on, off }`），有效集合 = `默认 ∪ on \ off`。这样改了默认，未单独配置过的对话立刻跟着变；而你在某个对话里手动关掉的技能不会被默认拉回来。
 
-## 📷 界面预览
-
-<div align="center">
-  <img src="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-skills.png" alt="Skills 技能" width="49%" />
-  <img src="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-mcp.png" alt="MCP 服务" width="49%" />
-  <br />
-  <img src="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-cli.png" alt="CLI 工具" width="49%" />
-  <img src="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-guide.png" alt="使用说明" width="49%" />
-</div>
-<p align="center"><i>四个页签：技能（统一储存库 + 联接 + 会话默认）、MCP（真实连接）、CLI（发现 / 探测 / 登记）、使用说明。个人路径已打码。</i></p>
-
 ## 🤖 交给 agent 的两个工具
 
 | 工具 | 作用 |
@@ -74,7 +93,14 @@
 | `skill_select` | 为**本对话**启用 / 停用某个技能；写入该对话自己的差异并立即生效。接受所有已联接的条目——容器目录同样可以（其 DESCRIPTION.md 即可加载的正文）。 |
 | `skill_query` | **只读**查询本工作区可见的技能清单（名称 / 描述 / 分组 / 是否已联接 / 本对话是否已注入），调用时动态计算，可关键词与分组过滤。 |
 
-此外，「使用说明」页可开启**向 AI 公告**：把插件能力与三类工具的现状写进每个 agent 的系统提示。技能目录也由本插件生成（影子目录）：目录里会多出一行 `smc-skill-index` —— **索引技能**，加载它即可拿到本工作区的完整技能列表（格式与目录层一致）；未注入的技能不能加载（提示 "not enabled in this conversation"）；`/技能名` 手势不受影响。
+技能目录也由本插件生成（**影子目录**）：目录里会多出一行 `smc-skill-index` —— **索引技能**，加载它即可拿到本工作区的完整技能列表（格式与目录层一致）；未注入的技能不能加载（提示 "not enabled in this conversation"）；`/技能名` 手势不受影响。
+
+此外，「使用说明」页可开启**向 AI 公告**：把插件能力与三类工具的现状写进每个 agent 的系统提示——
+
+<div align="center">
+  <a href="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-announce.png"><img src="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-announce.png" alt="向 AI 公告" width="72%" /></a>
+  <p><i>向 AI 公告：展开后声明插件能力；设置持久化在 <code>dsh-s-m-c-center</code> 命名空间，切换即时生效。</i></p>
+</div>
 
 ## 🏗️ 架构
 
@@ -102,7 +128,7 @@
 ## 🚀 安装
 
 > **环境要求**：DeepSeek Harness **`>= 0.1.2-alpha.2`**（`@deepseek-ai/*` 统一发版）；Node `^22.19.0 || >=24`。
-> 现状：**`0.1.6-alpha.1` 与 `0.1.5-rc.2` 上完整实测**；`0.1.2-alpha.2` 起所用 API 已逐一核对存在且签名一致。
+> 现状：**`0.1.6-alpha.1`、`0.1.6-alpha.2` 与 `0.1.5-rc.2` 上完整实测**；`0.1.2-alpha.2` 起所用 API 已逐一核对存在且签名一致。
 
 > **必须按普通包安装 —— 切勿 junction 链接。** junction 会让依赖（`schemastery` / `react` 等）无法向上解析，并导致包名与 `cordis.patch.yml` 不一致；两者都会让 DSH 启动失败。
 
@@ -159,9 +185,10 @@ dsh-s-m-c-center:
 
 **已知风险**：技能删除是物理删除、不可恢复（且**只删储存库正本**：`native` 技能需先「迁移入库」，`registered` 用「取消登记」，「删除联接」只解联、从不删目标）；MCP 凭证明文保存；技能启用 / 禁用经目录联接生效，手动剪切储存库会让联接失效（需要时用 `DSH_STORE_ROOT` 搬迁，插件会自建联接）。
 
-## 🗂️ 仓库结构
+<details>
+<summary><b>📦 展开查看仓库结构</b></summary>
 
-```
+```text
 dsh-s-m-c-center/
 ├── src/
 │   ├── index.ts            # 宿主组合根（挂载、设置、公告、工具注册）
@@ -195,9 +222,11 @@ dsh-s-m-c-center/
 └── scripts/install.*       # 一键安装进 DSH profile
 ```
 
-## 🛠️ 开发
+</details>
 
-见 [`docs/development.md`](./docs/development.md)：双半区构建（`tsdown` 重建 `lib/index.js` + `lib/client.js`）、类型检查（`tsc --noEmit`）与测试套件（`vitest`，13 个文件 / 191 个用例）。
+## 🧰 开发
+
+见 [`docs/development.md`](./docs/development.md)：双半区构建（`tsdown` 重建 `lib/index.js` + `lib/client.js`）、类型检查（`tsc --noEmit`）与测试套件（`vitest`，13 个文件 / 193 个用例）。
 
 ## 📄 许可
 
