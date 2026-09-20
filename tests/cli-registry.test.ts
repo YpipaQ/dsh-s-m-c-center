@@ -142,6 +142,38 @@ describe('removeEntry — deletion sticks', () => {
     // 3 built-ins minus the deleted one.
     expect(mgr.list()).toHaveLength(2)
   })
+
+  /**
+   * The reported bug, pinned: deleting the last built-in left an empty
+   * document, and the old re-seed-on-empty fallback resurrected all three
+   * defaults on the next read — the built-ins could never be removed. An
+   * empty document is the user's choice; the seed happens once, on first
+   * boot only, and is persisted then.
+   */
+  it('deleting every built-in stays empty (no resurrection)', () => {
+    const mgr = manager()
+    mgr.removeEntry('gh')
+    mgr.removeEntry('git')
+    mgr.removeEntry('tencent-news-cli')
+    expect(persisted()?.entries).toHaveLength(0)
+    expect(mgr.list()).toHaveLength(0)
+    // And it stays empty across further reads/mutations.
+    expect(mgr.list()).toHaveLength(0)
+    mgr.setEnabled('mycli', true)
+    expect(persisted()?.entries).toHaveLength(1)
+    expect(mgr.list().some((e) => e.name === 'gh')).toBe(false)
+  })
+
+  it('first boot seeds the built-ins and persists them', () => {
+    // Fresh isolation: no cli.json has been written yet in this workspace.
+    const mgr = manager()
+    expect(mgr.list()).toHaveLength(3) // triggers the one-time seed
+    expect(persisted()?.entries).toHaveLength(3)
+    // The seed is written, not just returned — a later empty doc is the
+    // user's doing, not a missing file.
+    mgr.removeEntry('gh')
+    expect(persisted()?.entries).toHaveLength(2)
+  })
 })
 
 describe('invariant', () => {

@@ -99,17 +99,21 @@ export function normalizeCliEntry(entry: CliRegistryEntry): NormalizedCliEntry {
 }
 
 /**
- * The registry entries as persisted, seeded with the built-ins when the file
- * is empty or missing.
+ * The registry entries as persisted. The built-ins are seeded exactly once —
+ * when the document does not exist yet — and the seed is written back, so the
+ * file from then on is the single source of truth.
  *
- * Seeding matters: the list falls back to {@link DEFAULT_REGISTRY} for an empty
- * document, so writing a single-entry document back would make the built-ins
- * vanish from the list. Every mutation therefore starts from the same set the
- * reader would have shown.
+ * The seed must never re-arm on an empty document: an empty `entries` array is
+ * what a user gets after deleting the last built-in, and re-seeding there
+ * would resurrect the defaults on the next read, making them undeletable (the
+ * reported bug: the three built-in rows always came back). First boot seeds;
+ * after that, whatever the user leaves in the file is what the list shows.
  */
 export function persistedEntries(): CliRegistryEntry[] {
-  const config = readCliConfig()
-  return config.entries.length > 0
-    ? config.entries
-    : DEFAULT_REGISTRY.map((e) => ({ ...e }))
+  if (!existsSync(cliConfigPath())) {
+    const seeded = DEFAULT_REGISTRY.map((e) => ({ ...e }))
+    writeCliConfig({ entries: seeded })
+    return seeded
+  }
+  return readCliConfig().entries
 }
