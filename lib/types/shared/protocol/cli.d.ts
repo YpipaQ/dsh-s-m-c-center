@@ -23,6 +23,8 @@ export interface CliSummary {
     exists: boolean;
     /** Resolved executable path, when found. */
     path?: string;
+    /** A first-boot hint row, not a real CLI: the UI renders it as an explanation. */
+    virtual?: boolean;
 }
 /** Detailed probe state for one CLI, fetched lazily. */
 export interface CliStateDetail {
@@ -67,6 +69,8 @@ export interface CliRegistryEntry {
      * {@link NormalizedCliEntry}) the flag is always a resolved boolean.
      */
     enabled?: boolean;
+    /** The one-time first-boot hint row (deletable like any other row). */
+    virtual?: boolean;
 }
 /** A registry entry whose provided flag has been resolved (never undefined). */
 export type NormalizedCliEntry = CliRegistryEntry & {

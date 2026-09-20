@@ -85,13 +85,17 @@ export class CliManager {
     return persistedEntries().map((e) => {
       const normalized = normalizeCliEntry(e)
       const resolved = resolveOnPath(normalized.command)
+      const virtual = normalized.virtual === true
       return {
         name: normalized.name,
         command: normalized.command,
         source: 'registry',
         enabled: normalized.enabled,
-        exists: resolved !== undefined,
-        path: resolved,
+        // A hint row has no executable; the UI renders its description, so
+        // "not found" would be noise.
+        exists: virtual ? true : resolved !== undefined,
+        path: virtual ? undefined : resolved,
+        ...(virtual ? { virtual: true } : {}),
       }
     })
   }

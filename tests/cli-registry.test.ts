@@ -82,8 +82,8 @@ describe('list — reading what was persisted', () => {
     expect(flags()).toEqual({ gh: false, git: false })
   })
 
-  it('hides every built-in by default when the document is empty', () => {
-    expect(manager().list()).toHaveLength(3)
+  it('seeds the hint row hidden when the document is empty', () => {
+    expect(manager().list()).toHaveLength(1)
     expect(Object.values(flags()).every((v) => v === false)).toBe(true)
   })
 })
@@ -97,14 +97,14 @@ describe('setEnabled — write agrees with read', () => {
     expect(typeof persisted()?.entries[0].enabled).toBe('boolean')
   })
 
-  it('persists a toggle on a built-in even when cli.json is absent', () => {
+  it('persists a toggle on a skill-provided CLI even when cli.json is absent', () => {
     const mgr = manager()
-    mgr.setEnabled('git', false)
+    mgr.setEnabled('nope', false)
     expect(persisted()).toBeDefined()
-    expect(flags().git).toBe(false)
-    // Siblings are carried over, not silently dropped.
-    expect(persisted()?.entries).toHaveLength(3)
-    expect(flags().gh).toBe(false)
+    expect(flags().nope).toBe(false)
+    // The seed row is carried over, not silently dropped.
+    expect(persisted()?.entries).toHaveLength(2)
+    expect(flags()['cli-hint']).toBe(false)
   })
 
   it('registers an unknown name, so a skill-provided CLI can be advertised', () => {
@@ -115,12 +115,12 @@ describe('setEnabled — write agrees with read', () => {
   })
 })
 
-describe('saveEntry — registering keeps the built-ins', () => {
-  it('does not make the built-ins vanish', () => {
+describe('saveEntry — registering keeps the seed', () => {
+  it('does not make the hint row vanish', () => {
     const mgr = manager()
     mgr.saveEntry({ name: 'mycli', command: 'mycli', enabled: true })
-    expect(persisted()?.entries).toHaveLength(4)
-    expect(mgr.list()).toHaveLength(4)
+    expect(persisted()?.entries).toHaveLength(2)
+    expect(mgr.list()).toHaveLength(2)
     expect(flags().mycli).toBe(true)
   })
 
@@ -128,51 +128,49 @@ describe('saveEntry — registering keeps the built-ins', () => {
     const mgr = manager()
     mgr.saveEntry({ name: 'mycli', command: 'mycli', enabled: true })
     mgr.saveEntry({ name: 'mycli', command: 'mycli', enabled: false })
-    expect(persisted()?.entries).toHaveLength(4)
+    expect(persisted()?.entries).toHaveLength(2)
     expect(flags().mycli).toBe(false)
   })
 })
 
 describe('removeEntry — deletion sticks', () => {
-  it('removing a built-in is not undone by the default fallback', () => {
+  it('removing the seeded hint row is not undone by a fallback', () => {
     const mgr = manager()
-    mgr.removeEntry('gh')
-    expect(persisted()?.entries.some((e) => e.name === 'gh')).toBe(false)
-    expect(mgr.list().some((e) => e.name === 'gh')).toBe(false)
-    // 3 built-ins minus the deleted one.
-    expect(mgr.list()).toHaveLength(2)
+    mgr.removeEntry('cli-hint')
+    expect(persisted()?.entries.some((e) => e.name === 'cli-hint')).toBe(false)
+    expect(mgr.list().some((e) => e.name === 'cli-hint')).toBe(false)
+    expect(mgr.list()).toHaveLength(0)
   })
 
   /**
    * The reported bug, pinned: deleting the last built-in left an empty
-   * document, and the old re-seed-on-empty fallback resurrected all three
-   * defaults on the next read — the built-ins could never be removed. An
-   * empty document is the user's choice; the seed happens once, on first
-   * boot only, and is persisted then.
+   * document, and the old re-seed-on-empty fallback resurrected the defaults
+   * on the next read — the built-ins could never be removed. An empty
+   * document is the user's choice; the seed happens once, on first boot
+   * only, and is persisted then.
    */
-  it('deleting every built-in stays empty (no resurrection)', () => {
+  it('deleting the seed stays empty (no resurrection)', () => {
     const mgr = manager()
-    mgr.removeEntry('gh')
-    mgr.removeEntry('git')
-    mgr.removeEntry('tencent-news-cli')
+    mgr.removeEntry('cli-hint')
     expect(persisted()?.entries).toHaveLength(0)
     expect(mgr.list()).toHaveLength(0)
     // And it stays empty across further reads/mutations.
     expect(mgr.list()).toHaveLength(0)
     mgr.setEnabled('mycli', true)
     expect(persisted()?.entries).toHaveLength(1)
-    expect(mgr.list().some((e) => e.name === 'gh')).toBe(false)
+    expect(mgr.list().some((e) => e.name === 'cli-hint')).toBe(false)
   })
 
-  it('first boot seeds the built-ins and persists them', () => {
+  it('first boot seeds the virtual hint row and persists it', () => {
     // Fresh isolation: no cli.json has been written yet in this workspace.
     const mgr = manager()
-    expect(mgr.list()).toHaveLength(3) // triggers the one-time seed
-    expect(persisted()?.entries).toHaveLength(3)
+    expect(mgr.list()).toHaveLength(1) // triggers the one-time seed
+    expect(persisted()?.entries).toHaveLength(1)
+    expect(persisted()?.entries[0].name).toBe('cli-hint')
     // The seed is written, not just returned — a later empty doc is the
     // user's doing, not a missing file.
-    mgr.removeEntry('gh')
-    expect(persisted()?.entries).toHaveLength(2)
+    mgr.removeEntry('cli-hint')
+    expect(persisted()?.entries).toHaveLength(0)
   })
 })
 

@@ -17,11 +17,14 @@ import { join } from 'node:path'
 import { storeCliPath } from '../../shared/paths.ts'
 import type { CliRegistryEntry, NormalizedCliEntry } from '../../shared/protocol/index.ts'
 
-/** Known well-known tool names the plugin watches out of the box. */
+/**
+ * The first-boot seed: a single virtual hint row explaining the list, in place
+ * of fake default CLI entries (the old gh/git/tencent-news-cli trio could
+ * never be deleted and named tools the machine may not even have). It is a
+ * real, deletable registry row — the UI renders it as an explanation.
+ */
 export const DEFAULT_REGISTRY: CliRegistryEntry[] = [
-  { name: 'gh', command: 'gh', enabled: false },
-  { name: 'git', command: 'git', enabled: false },
-  { name: 'tencent-news-cli', command: 'tencent-news-cli', enabled: false },
+  { name: 'cli-hint', command: 'cli-hint', enabled: false, virtual: true },
 ]
 
 /** Coerce a cli-state boolean (JSON boolean or the string "true"/"false"). */
@@ -95,6 +98,7 @@ export function normalizeCliEntry(entry: CliRegistryEntry): NormalizedCliEntry {
     name: entry.name,
     command: (typeof entry.command === 'string' && entry.command.trim() !== '') ? entry.command : entry.name,
     enabled: flag === true,
+    ...(entry.virtual === true ? { virtual: true } : {}),
   }
 }
 

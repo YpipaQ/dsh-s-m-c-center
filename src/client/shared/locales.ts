@@ -63,6 +63,8 @@ export type SkillsMcpKey =
   | 'guideDataH'
   | 'guideDataP'
   | 'sourceSystem'
+  | 'cliVirtualTitle'
+  | 'cliVirtualHint'
   | 'skillList'
   | 'groupNative'
   | 'groupStored'
@@ -284,6 +286,8 @@ export const zh: Record<SkillsMcpKey, string> = {
   guideDataH: '数据放在哪里',
   guideDataP: '插件的全部数据都在统一储存库（默认 ~/.dsh/S-M-C，可用 DSH_STORE_ROOT 改位）：skills/ 放技能正本、mcp.json 放激活的服务器、mcp-archive.json 放归档的、cli.json 放 CLI 登记表。密码与环境变量为明文，文件权限 0600 需自行保证。',
   sourceSystem: '系统 CLI',
+  cliVirtualTitle: '关于本列表',
+  cliVirtualHint: '这里自动发现技能自带的 CLI（scripts/run-cli），也可在下方登记系统命令；每一行都可删除或设为「隐藏」。本行只是说明，可随时删除。',
   skillList: '技能列表',
   groupNative: '原生',
   groupStored: '储存库',
@@ -502,6 +506,8 @@ export const en: Record<SkillsMcpKey, string> = {
   guideDataH: 'Where the data lives',
   guideDataP: 'Everything this plugin stores lives in one place — by default ~/.dsh/S-M-C (relocate with DSH_STORE_ROOT): skills/ holds the canonical skill copies, mcp.json the enabled servers, mcp-archive.json the archived ones, cli.json the CLI registry. Secrets and env vars are plain text; file permissions (0600) are up to you.',
   sourceSystem: 'System CLI',
+  cliVirtualTitle: 'About this list',
+  cliVirtualHint: 'Skill-wrapped CLIs (scripts/run-cli) are discovered automatically; register system commands below. Every row can be deleted or set to hidden — this row is just the note, delete it whenever you like.',
   skillList: 'Skills',
   groupNative: 'Native',
   groupStored: 'Stored',

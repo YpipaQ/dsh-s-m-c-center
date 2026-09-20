@@ -5,7 +5,7 @@
     "url": "git+https://github.com/YpipaQ/dsh-s-m-c-center.git"
   },
   "description": "Skills, MCP & CLI manager for the dsh web GUI: browse/enable/import/delete skills across project and user roots; manage MCP servers with a REAL connection through @deepseek-ai/dsh-mcp-client (enabled servers connect and register their tools on ctx.tools; enable/disable actually connects/disconnects); and discover/diagnose local CLI tools (skill-embedded run-cli wrappers plus a ~/.dsh/S-M-C/cli.json registry, reporting install/version/update/subcommands/API-key state). Hot-pluggable — mounted via a profile bundle patch + node_modules package, no dsh source changes. Requires DeepSeek Harness >= 0.1.2-alpha.2 (tested on 0.1.6-alpha.2).",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "type": "module",
   "engines": {
     "node": "^22.19.0 || >=24.0.0"

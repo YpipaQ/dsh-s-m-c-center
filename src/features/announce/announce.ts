@@ -106,7 +106,9 @@ function renderMcp(servers: McpServerSummary[]): string {
 }
 
 /** Render the CLI block — the only place these tools are announced at all. */
-function renderCli(entries: CliSummary[]): string {
+function renderCli(all: CliSummary[]): string {
+  // The first-boot hint row is UI copy, never announcement material.
+  const entries = all.filter((e) => e.virtual !== true)
   if (entries.length === 0) return '本地 CLI 工具：未发现。'
   const on = enabledOnly(entries)
   const installed = on.filter((e) => e.exists)

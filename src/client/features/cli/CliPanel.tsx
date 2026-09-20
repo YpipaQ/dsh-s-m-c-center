@@ -38,26 +38,31 @@ export function CliPanel({ cli, t }: CliPanelProps) {
             : cli.entries.map((entry) => {
                 const isOpen = cli.detail !== null && cli.detail.name === entry.name
                 const isRegistry = entry.source === 'registry'
+                const isVirtual = entry.virtual === true
                 return (
                   <div key={entry.name}>
                     <div className={css.row}>
                       <div className={css.main} style={{ cursor: 'pointer' }} onClick={() => { cli.view(entry.name) }}>
                         <div className={css.name}>
-                          <span className={css.nameText}>{entry.name}{entry.enabled ? '' : t('suffixHidden')}</span>
-                          <span className={css.status}>{entry.exists ? t('stInstalled') : t('stNotFound')}</span>
+                          <span className={css.nameText}>{isVirtual ? t('cliVirtualTitle') : entry.name}{entry.enabled || isVirtual ? '' : t('suffixHidden')}</span>
+                          {isVirtual ? null : <span className={css.status}>{entry.exists ? t('stInstalled') : t('stNotFound')}</span>}
                         </div>
                         <div className={css.desc}>
-                          {t(entry.source === 'skill' ? 'cliSkillSource' : 'sourceSystem')} · {entry.path || entry.command}
+                          {isVirtual ? t('cliVirtualHint') : t(entry.source === 'skill' ? 'cliSkillSource' : 'sourceSystem') + ' · ' + (entry.path || entry.command)}
                         </div>
                       </div>
                       {/* Every row gets the switch: for a skill-provided CLI it is
-                          written as a same-named registry entry on first flip. */}
-                      <Switch
-                        checked={entry.enabled}
-                        onChange={() => { cli.toggle(entry) }}
-                        label={t(cliAnnounceLabel(entry.enabled))}
-                      />
-                      <Button onClick={() => { cli.view(entry.name) }}>{isOpen ? t('collapse') : t('probe')}</Button>
+                          written as a same-named registry entry on first flip. The
+                          virtual hint row hides both switch and probe — neither
+                          means anything for a row without an executable. */}
+                      {isVirtual ? null : (
+                        <Switch
+                          checked={entry.enabled}
+                          onChange={() => { cli.toggle(entry) }}
+                          label={t(cliAnnounceLabel(entry.enabled))}
+                        />
+                      )}
+                      {isVirtual ? null : <Button onClick={() => { cli.view(entry.name) }}>{isOpen ? t('collapse') : t('probe')}</Button>}
                       {isRegistry
                         ? (
                           <ConfirmButton

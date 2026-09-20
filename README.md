@@ -43,7 +43,7 @@
 - **MCP**: two sub-tabs — "manage" gives each server one **activate / archive** switch (plus delete), "create" offers a form or raw JSON with a one-off **connection test** before saving. Activating connects for real and registers `mcp__<server>__<tool>`; archiving disconnects and moves the definition to `S-M-C/mcp-archive.json`, fully preserved. Live status: connecting / running / failed / stopped.
 - **CLI**: discovers skill-wrapped CLIs (`scripts/run-cli.*` / `cli-state.*`) and registers system CLIs (`gh`, `git`, … in `S-M-C/cli.json`). Each entry is probed for installed / version / needs-update / API-key state / subcommands, and the row shows where it came from and where it lives. The **announce / hide** switch only decides whether the CLI is written into the announcement handed to the agent — the plugin cannot start or stop a system-installed CLI, so entries default to hidden.
 - **Guide**: explains all three kinds and holds the pre-uninstall escape hatch. "Undo migration" moves stored skills back to their original paths; when the store is empty and the skill roots still hold skills, the same button turns into a green "Migrate" — **reversible both ways**. "Inject all MCP" moves every archived server back and reconnects. The page also lists the directories and config blocks to remove manually after uninstalling.
-- **Interface**: fully bilingual zh / en (198 keys each; English UI renders no Chinese); destructive actions take two confirmations and reset when you click elsewhere.
+- **Interface**: fully bilingual zh / en (200 keys each; English UI renders no Chinese); destructive actions take two confirmations and reset when you click elsewhere.
 
 ## 🧠 Two channels: linking vs injection
 
@@ -115,7 +115,7 @@ dsh plugin --profile web add dsh-s-m-c-center
 dsh plugin --profile web add <absolute path to this folder>
 
 # Or from a packed tarball
-dsh plugin --profile web add <path>/dsh-s-m-c-center-0.1.3.tgz
+dsh plugin --profile web add <path>/dsh-s-m-c-center-0.1.4.tgz
 
 # Or the one-shot scripts
 bash scripts/install.sh                                        # macOS / Linux / Git Bash

@@ -12,7 +12,12 @@
  * @module
  */
 import type { CliRegistryEntry, NormalizedCliEntry } from '../../shared/protocol/index.ts';
-/** Known well-known tool names the plugin watches out of the box. */
+/**
+ * The first-boot seed: a single virtual hint row explaining the list, in place
+ * of fake default CLI entries (the old gh/git/tencent-news-cli trio could
+ * never be deleted and named tools the machine may not even have). It is a
+ * real, deletable registry row — the UI renders it as an explanation.
+ */
 export declare const DEFAULT_REGISTRY: CliRegistryEntry[];
 /** Coerce a cli-state boolean (JSON boolean or the string "true"/"false"). */
 export declare function toBool(value: unknown): boolean | undefined;

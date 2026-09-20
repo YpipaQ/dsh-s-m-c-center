@@ -43,7 +43,7 @@
 - **MCP**：分「管理 / 新建」两个子页——管理页一台服务器一个 **激活 / 归档** 开关（外加删除），新建页提供表单或 JSON 编辑，保存前可**测试连接**（一次性真实探测）；**激活 / 归档**真实连接 / 断开并注册 `mcp__<server>__<tool>` 工具；实时状态（连接中 / 运行中 / 失败 / 已停止）。
 - **CLI**：自动发现 skill 包装的 CLI（`scripts/run-cli.*` / `cli-state.*`），并登记系统 CLI（`gh`、`git` …，存于 `S-M-C/cli.json`）。每条都会探测：是否安装 / 版本 / 是否需更新 / API-Key 状态 / 子命令，并在行上标出来源与位置。**公告 / 隐藏**开关只决定是否把这个 CLI 写进给 AI 的公告（插件无法启停系统装的 CLI，因此默认隐藏）。
 - **使用说明**：按三类讲清工作方式，最下方是卸载前的总撤退口。「撤销迁移」把储存库技能移回原始位置；储存库空着时同一按钮变为绿色的「迁移」，**双向可逆**；「MCP 全部注入」把归档服务器一次性移回并重连；页面同时列出卸载后需手动删除的目录与配置块。
-- **界面**：全量文案 zh / en 双语（各 198 键，英文环境零中文）；破坏性操作两步确认，且点开别处即复位。
+- **界面**：全量文案 zh / en 双语（各 200 键，英文环境零中文）；破坏性操作两步确认，且点开别处即复位。
 
 ## 🧠 两条通道：联接 vs 注入
 
@@ -115,7 +115,7 @@ dsh plugin --profile web add dsh-s-m-c-center
 dsh plugin --profile web add <本文件夹绝对路径>
 
 # 或安装打包产物
-dsh plugin --profile web add <path>/dsh-s-m-c-center-0.1.3.tgz
+dsh plugin --profile web add <path>/dsh-s-m-c-center-0.1.4.tgz
 
 # 或使用一键脚本
 bash scripts/install.sh                                        # macOS / Linux / Git Bash
