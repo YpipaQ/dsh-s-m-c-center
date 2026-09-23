@@ -1,14 +1,16 @@
 /**
- * The `/settings` route family — the plugin's own config block.
+ * The `/settings` route family — the plugin's own config.
  *
- * This is the one namespace the browser cannot reach through dsh's own settings
- * API (third-party namespaces are not exposed), so the page's switches
- * round-trip through here and the host edits `~/.dsh/settings.yaml` directly.
+ * dsh's settings surface does not expose third-party namespaces to the
+ * browser, and since dsh 0.1.7 archives settings.yaml on upgrade (wiping
+ * third-party blocks with it) the plugin does not write there at all any
+ * more. The page's switches round-trip through here and the host persists
+ * to `$STORE_ROOT/settings.json`.
  *
  * `writeOwnSettings` is injected rather than imported because applying a write
- * has side effects beyond this file: it re-adopts the persisted value as the
- * live source and re-applies the announcement (dropping or registering the
- * system-prompt section), which is the composition root's business.
+ * has side effects beyond this file: it re-applies the announcement (dropping
+ * or registering the system-prompt section), which is the composition root's
+ * business.
  * @module
  */
 import type { WebRoute } from '@deepseek-ai/dsh-host-webserver';

@@ -5,8 +5,9 @@
  * system-prompt announcement.
  *
  * This module is the composition root and nothing else. It owns exactly the
- * things that cannot live inside a feature: the live config getter that
- * `sync()` reads, the order in which the one-shot migrations run, and the
+ * things that cannot live inside a feature: the settings source (the store's
+ * settings.json, read live on every `sync()`), the order in which the one-shot
+ * migrations run, and the
  * lifecycle that ties every registered surface to the current config. The
  * actual work — what a skill is, how MCP converges, what the announcement says
  * — lives in `src/features/*`.
@@ -18,7 +19,6 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import type {} from '@deepseek-ai/dsh-settings'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 import type {} from '@deepseek-ai/dsh-system-prompt'
 import type {} from '@deepseek-ai/dsh-tools'
@@ -32,7 +32,7 @@ import { McpManager } from './features/mcp/index.ts'
 import { SkillsManager } from './features/skills/index.ts'
 import { migrateStoreRoot } from './features/skills/store-migration.ts'
 import { invalidateAnnouncement, renderAnnouncement } from './features/announce/index.ts'
-import { migrateSettingsNamespace, readSettings, writeSettings } from './features/settings/index.ts'
+import { migrateSettingsIntoStore, readSettings, writeSettings } from './features/settings/index.ts'
 import { makeRoutes } from './routes.ts'
 import {
   Config, DEFAULT_ANNOUNCE, DEFAULT_ENABLED, SECTION_ORDER, SMC_GUIDANCE, SMC_NAMESPACE,
@@ -60,18 +60,21 @@ interface LiveAgents {
  * for — and keep them in step with every later config change.
  *
  * @param ctx - host context exposing the webserver / tools / system-prompt services.
- * @param config - the composition entry's config, if any; schema defaults are
- *   already applied by the loader before this runs.
+ * @param _config - the composition entry's config, if any. Kept for signature
+ *   compatibility; the store's settings.json is the single source of truth.
  */
-export function apply(ctx: Context, config?: ConfigShape): void {
-  // The loader hands the first config in already defaulted; a later settings
-  // write replaces it, so keep reading through the getter rather than closing
-  // over the original value.
-  let current = (): ConfigShape => config ?? {}
-  const resolve = (): Required<ConfigShape> => ({
-    enabled: current().enabled ?? DEFAULT_ENABLED,
-    announceToAgent: current().announceToAgent ?? DEFAULT_ANNOUNCE,
-  })
+export function apply(ctx: Context, _config?: ConfigShape): void {
+  // The persisted store document is the single source of truth. The config
+  // entry (`config ?? {}`) is only the cordis-shaped first default: dsh 0.1.7
+  // archives settings.yaml on upgrade and with it every third-party block, so
+  // nothing derived from it may be trusted past the one-shot store migration.
+  const resolve = (): Required<ConfigShape> => {
+    const persisted = readSettings()
+    return {
+      enabled: persisted.enabled ?? DEFAULT_ENABLED,
+      announceToAgent: persisted.announceToAgent ?? DEFAULT_ANNOUNCE,
+    }
+  }
 
   const skills = new SkillsManager()
   const cli = new CliManager(skills)
@@ -91,9 +94,10 @@ attachSmcCatalog(ctx, skills)
   // failure must never keep the plugin from mounting, and a skill that cannot
   // be moved simply stays where it is, still usable.
   try {
-    // The settings block moved with the package name; carry the user's values
-    // over before anything reads them.
-    migrateSettingsNamespace()
+    // The settings document moved into the store: carry the user's values over
+    // from dsh's settings.yaml (or its 0.1.7 archive) before anything reads
+    // them. One-shot — the store document wins from here on.
+    migrateSettingsIntoStore()
     // Relocate first: the skills migration below has to adopt into the new
     // store root, and migrating into the old path would just double the work
     // (and leave every link pointing at a directory that is about to move).
@@ -129,6 +133,7 @@ attachSmcCatalog(ctx, skills)
 
   let disposeSection: (() => void) | undefined
   let disposeRoutes: (() => void) | undefined
+  let disposeSettingsRoutes: (() => void) | undefined
   let applyAnnouncement: () => void = () => {}
 
   /**
@@ -183,7 +188,7 @@ attachSmcCatalog(ctx, skills)
     })
   })
 
-  const { routes } = makeRoutes({
+  const { routes, settingsRoutes } = makeRoutes({
     skills,
     mcp,
     cli,
@@ -191,11 +196,11 @@ attachSmcCatalog(ctx, skills)
     get agents() {
       return liveAgents
     },
-    applyToAgent: (agent, selection) => applyToAgent(skills, bindings, agent, selection),    readOwnSettings: () => readSettings(),
+    applyToAgent: (agent, selection) => applyToAgent(skills, bindings, agent, selection),
+    readOwnSettings: () => readSettings(),
     writeOwnSettings: (next) => {
       writeSettings(next)
-      // Adopt the persisted value as the new source, then refresh the section.
-      current = () => ({ enabled: readSettings().enabled, announceToAgent: readSettings().announceToAgent })
+      // Refresh the prompt section; routes stay up.
       invalidateAnnouncement()
       applyAnnouncement()
       return readSettings()
@@ -243,8 +248,21 @@ attachSmcCatalog(ctx, skills)
       disposeRoutes()
       disposeRoutes = undefined
     }
+    if (disposeSettingsRoutes !== undefined) {
+      disposeSettingsRoutes()
+      disposeSettingsRoutes = undefined
+    }
     invalidateAnnouncement()
     applyAnnouncement()
+    // The settings routes stay up even when the plugin is disabled — with no
+    // dsh settings section left, the settings page is the only switch back on.
+    disposeSettingsRoutes = ctx.effect(
+      () => {
+        const disposers = settingsRoutes.map((route) => ctx.webServer.register(route))
+        return () => { for (const dispose of disposers) dispose() }
+      },
+      'dsh-s-m-c-center: settings routes',
+    )
     if (!value.enabled) {
       void mcp.dispose()
       return
@@ -260,20 +278,11 @@ attachSmcCatalog(ctx, skills)
     void mcp.reload()
   }
 
-  // Attach the optional settings section (DSH 0.1.2-alpha.2 API: the old
-  // standalone `installSettingsSection` was folded into the provider's
-  // `installSection` instance method). `ctx.inject` keeps `settings` optional:
-  // a deployment without the settings surface still runs routes + MCP, with
-  // the composition entry (`config ?? {}`) as the authoritative config.
-  ctx.inject(['settings'], (settingsCtx) => {
-    settingsCtx.settings.installSection(ctx, SMC_NAMESPACE, Config, config ?? {}, {
-      setSource: (source) => {
-        current = source
-        sync()
-      },
-      onChange: sync,
-    })
-  })
+  // (No dsh settings section: the plugin's config is fully self-managed in
+  // $STORE_ROOT/settings.json. dsh 0.1.7 archives settings.yaml on upgrade,
+  // which would silently reset any block kept there — so nothing is written
+  // into it any more, and the settings page drives the store document through
+  // the /settings routes instead.)
 
   // Connections must not outlive the plugin.
   ctx.effect(() => () => { void mcp.dispose() }, 'dsh-s-m-c-center: mcp')

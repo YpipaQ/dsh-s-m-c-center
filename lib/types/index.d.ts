@@ -5,8 +5,9 @@
  * system-prompt announcement.
  *
  * This module is the composition root and nothing else. It owns exactly the
- * things that cannot live inside a feature: the live config getter that
- * `sync()` reads, the order in which the one-shot migrations run, and the
+ * things that cannot live inside a feature: the settings source (the store's
+ * settings.json, read live on every `sync()`), the order in which the one-shot
+ * migrations run, and the
  * lifecycle that ties every registered surface to the current config. The
  * actual work — what a skill is, how MCP converges, what the announcement says
  * — lives in `src/features/*`.
@@ -26,8 +27,8 @@ export type { Config as ConfigFields } from './setup.ts';
  * for — and keep them in step with every later config change.
  *
  * @param ctx - host context exposing the webserver / tools / system-prompt services.
- * @param config - the composition entry's config, if any; schema defaults are
- *   already applied by the loader before this runs.
+ * @param _config - the composition entry's config, if any. Kept for signature
+ *   compatibility; the store's settings.json is the single source of truth.
  */
-export declare function apply(ctx: Context, config?: ConfigShape): void;
+export declare function apply(ctx: Context, _config?: ConfigShape): void;
 //# sourceMappingURL=index.d.ts.map

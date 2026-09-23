@@ -75,7 +75,8 @@ export function ManagerShell({ cwd, enabled, pickDirectory, t }: ManagerShellPro
               <div>{t('announceOnNote')}</div>
               <div>{t('announceOffNote')}</div>
               <div className={css.noteFoot}>
-                {t('persistA')} <code>dsh-s-m-c-center</code> {t('persistB')} <code>~/.dsh/settings.yaml</code>
+                {t('persistA')} <code>settings.json</code>
+                {t('persistB')} <code>~/.dsh/S-M-C/</code>
                 {t('persistC')}
               </div>
             </div>

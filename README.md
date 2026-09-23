@@ -18,7 +18,7 @@
   <a href="./package.json"><img alt="dsh" src="https://img.shields.io/badge/dsh-%3E%3D0.1.2--alpha.2-4d6bfe?style=flat-square&amp;labelColor=555" /></a>
   <a href="./package.json"><img alt="node" src="https://img.shields.io/node/v/dsh-s-m-c-center?style=flat-square&amp;labelColor=555" /></a>
   <br /><br />
-  <a href="#-what-it-is">What it is</a> · <a href="#-screenshots">Screenshots</a> · <a href="#-features">Features</a> · <a href="#-two-channels-linking-vs-injection">Two channels</a> · <a href="#-two-tools-for-the-agent">Agent tools</a> · <a href="#️-architecture">Architecture</a> · <a href="#-install">Install</a> · <a href="#️-configuration">Configuration</a> · <a href="#-permissions-and-dependency-disclosure">Permissions</a> · <a href="#️-repository-layout">Repository</a> · <a href="#️-development">Development</a> · <a href="#-license">License</a>
+  <a href="#-what-it-is">What it is</a> · <a href="#-screenshots">Screenshots</a> · <a href="#-features">Features</a> · <a href="#-two-channels-linking-vs-injection">Two channels</a> · <a href="#-two-tools-for-the-agent">Agent tools</a> · <a href="#-architecture">Architecture</a> · <a href="#-install">Install</a> · <a href="#-configuration">Configuration</a> · <a href="#-permissions-and-dependency-disclosure">Permissions</a> · <a href="#-development">Development</a> · <a href="#-license">License</a>
 </div>
 
 <br />
@@ -73,7 +73,7 @@ A self-contained DSH web plugin: it adds one first-class **settings page** for t
 - **MCP**: two sub-tabs — "manage" gives each server one **activate / archive** switch (plus delete), "create" offers a form or raw JSON with a one-off **connection test** before saving. Activating connects for real and registers `mcp__<server>__<tool>`; archiving disconnects and moves the definition to `S-M-C/mcp-archive.json`, fully preserved. Live status: connecting / running / failed / stopped.
 - **CLI**: discovers skill-wrapped CLIs (`scripts/run-cli.*` / `cli-state.*`) and registers system CLIs (`gh`, `git`, … in `S-M-C/cli.json`). Each entry is probed for installed / version / needs-update / API-key state / subcommands, and the row shows where it came from and where it lives. The **announce / hide** switch only decides whether the CLI is written into the announcement handed to the agent — the plugin cannot start or stop a system-installed CLI, so entries default to hidden.
 - **Guide**: explains all three kinds and holds the pre-uninstall escape hatch. "Undo migration" moves stored skills back to their original paths; when the store is empty and the skill roots still hold skills, the same button turns into a green "Migrate" — **reversible both ways**. "Inject all MCP" moves every archived server back and reconnects. The page also lists the directories and config blocks to remove manually after uninstalling.
-- **Interface**: fully bilingual zh / en (200 keys each; English UI renders no Chinese); destructive actions take two confirmations and reset when you click elsewhere.
+- **Interface**: fully bilingual zh / en (202 keys each; English UI renders no Chinese); destructive actions take two confirmations and reset when you click elsewhere.
 
 ## 🧠 Two channels: linking vs injection
 
@@ -141,7 +141,7 @@ dsh plugin --profile web add dsh-s-m-c-center
 dsh plugin --profile web add <absolute path to this folder>
 
 # Or from a packed tarball
-dsh plugin --profile web add <path>/dsh-s-m-c-center-0.2.0.tgz
+dsh plugin --profile web add <path>/dsh-s-m-c-center-0.2.1.tgz
 
 # Or the one-shot scripts
 bash scripts/install.sh                                        # macOS / Linux / Git Bash
@@ -152,17 +152,20 @@ After the first install, **restart DSH and hard-refresh the browser** (Cmd/Ctrl+
 
 > **Upgrading**: for UI-only changes, overwrite the files and hard-refresh. Changes on the host side (routes / engines / tools) need one DSH process restart.
 
-## ⚙️ Configuration
+## 🔧 Configuration
 
-```yaml
-# The plugin's own settings namespace (dsh settings)
-dsh-s-m-c-center:
-  enabled: true        # master switch (routes, MCP connections, CLI probing)
-  announceToAgent: true # describe the plugin in every agent's system prompt
+The config is **fully self-managed** in the store as `~/.dsh/S-M-C/settings.json` — **nothing is written into dsh's `settings.yaml`** any more (dsh 0.1.7 archives that file on upgrade, wiping every third-party block in it):
+
+```json
+{
+  "enabled": true,        // master switch (routes, MCP connections, CLI probing)
+  "announceToAgent": true // describe the plugin in every agent's system prompt
+}
 ```
 
 Runtime state:
 
+- **Plugin settings**: `S-M-C/settings.json`, living with the store; when upgrading from an older release the first mount carries the old `settings.yaml` block (or its archive) over in one shot.
 - **Unified external store**: `~/.dsh/S-M-C/` (**S**kills / **M**CP / **C**LI) — `skills/` (canonical copies plus `index.json` manifest), `skills-links.json` (junction ledger), `skills-registry.json` (registered external skills), `mcp.json`, `mcp-archive.json`, `cli.json`. The old locations are migrated in on first start; the whole store can move elsewhere with `DSH_STORE_ROOT` (the plugin rebuilds the junctions).
 - **Conversation selections**: one table for the whole machine at `~/.dsh/S-M-C/contexts.json` — `default` is the session default and `sessions.<sessionId>` holds that conversation's difference from it (`on` / `off`). **No workspace is involved**: the key is the session id, so the settings page and the sidebar read the same document. An older version kept one file per workspace; those are folded in once, on the first mount with the table missing.
 - MCP: active definitions in `S-M-C/mcp.json`, archived ones in `S-M-C/mcp-archive.json` (credentials and headers are stored in plain text — keep both files `0600`).
@@ -208,7 +211,7 @@ dsh-s-m-c-center/
 │       ├── shared/         #   api / ui / locales (zh+en) / format / css module
 │       └── features/       #   one panel + hook per tab
 ├── lib/                    # build output (host index.js; client client.js; types/*)
-├── tests/                  # vitest (13 files)
+├── tests/                  # vitest (14 files)
 ├── cordis.patch.yml        # DSH bundle patch (package name must match package.json)
 ├── dsh.plugin.json         # DSH plugin manifest (id / version / main / client.main)
 ├── package.json            # npm package (dsh.bundle.patch + dsh.client + compatibility)
@@ -226,7 +229,7 @@ dsh-s-m-c-center/
 
 ## 🧰 Development
 
-See [`docs/development.md`](./docs/development.md): dual-half builds (`tsdown` rebuilds `lib/index.js` + `lib/client.js`), type checking (`tsc --noEmit`) and the test suite (`vitest`, 13 files / 193 cases).
+See [`docs/development.md`](./docs/development.md): dual-half builds (`tsdown` rebuilds `lib/index.js` + `lib/client.js`), type checking (`tsc --noEmit`) and the test suite (`vitest`, 14 files / 206 cases).
 
 ## 📄 License
 

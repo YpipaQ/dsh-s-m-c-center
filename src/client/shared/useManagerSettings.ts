@@ -1,6 +1,6 @@
 /**
- * Own-settings state: this plugin's `dsh-s-m-c-center` namespace block in
- * ~/.dsh/settings.yaml.
+ * Own-settings state: the plugin's settings.json in the unified store
+ * ($STORE_ROOT/settings.json), read and written through the host routes.
  *
  * The write path is optimistic-free on purpose: the Host round-trips the
  * persisted record, and the Host side re-applies the system-prompt

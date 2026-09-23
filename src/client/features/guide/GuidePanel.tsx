@@ -156,6 +156,13 @@ export function GuidePanel({ skills, mcp, refresh, t }: GuidePanelProps) {
           <div className={css.pathSub}>{t('uninstallFilesList')}</div>
         </div>
         <div className={css.descWrap}>{t('uninstallSettingsPath')}</div>
+        <div className={css.descWrap}>
+          {t('starNoteA')}{' '}
+          <a className={css.starLink} href="https://github.com/YpipaQ/dsh-s-m-c-center" target="_blank" rel="noreferrer">
+            ⭐ Star
+          </a>{' '}
+          {t('starNoteB')}
+        </div>
       </div>
     </div>
   )

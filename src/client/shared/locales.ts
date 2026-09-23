@@ -218,6 +218,8 @@ export type SkillsMcpKey =
   | 'uninstallFilesNote'
   | 'uninstallFilesList'
   | 'uninstallSettingsPath'
+  | 'starNoteA'
+  | 'starNoteB'
   | 'uninstallNothing'
   | 'migrateSkills'
   | 'migratingSkills'
@@ -323,8 +325,8 @@ export const zh: Record<SkillsMcpKey, string> = {
   announceOffState: '已关闭',
   announceOnNote: '开启后，插件会在每个智能体的系统提示中声明自身能力（技能 / MCP / CLI 管理）。',
   announceOffNote: '关闭后，则完全不向 AI 暴露本插件的存在与能力。',
-  persistA: '设置持久化到',
-  persistB: '命名空间，写在',
+  persistA: '设置持久化在',
+  persistB: '文件里，位于',
   persistC: '；切换即时生效，无需重启。',
 
   pluginDisabled: '插件已禁用：路由与 MCP 连接、CLI 探测均已停止，重新启用后刷新即可恢复。',
@@ -442,8 +444,10 @@ export const zh: Record<SkillsMcpKey, string> = {
   uninstallMcpNote: '「MCP 全部注入」把归档的服务器一次性移回 mcp.json 并重新连接。此操作无需撤回：不需要的服务器随时可以在「MCP 服务」页单独停用或删除。',
   uninstallFilesTitle: '需要手动删除的文件',
   uninstallFilesNote: '插件卸载不会清理数据。移除插件后，请手动删除整个储存库目录；删除目录即包含以下全部内容：',
-  uninstallFilesList: 'skills/（技能正本）、mcp.json（激活的 MCP 服务器）、mcp-archive.json（归档的 MCP 服务器）、cli.json（CLI 登记表）',
-  uninstallSettingsPath: '另外，~/.dsh/settings.yaml 中的 dsh-s-m-c-center 配置块可以一并删掉。',
+  uninstallFilesList: 'skills/（技能正本）、settings.json（插件设置）、contexts.json（会话技能表）、mcp.json（激活的 MCP 服务器）、mcp-archive.json（归档的 MCP 服务器）、cli.json（CLI 登记表）',
+  uninstallSettingsPath: '插件的全部配置（settings.json）也在 ~/.dsh/S-M-C/ 内，随储存库一并删除；~/.dsh/settings.yaml 里遗留的 dsh-s-m-c-center 旧配置块可以顺手删掉（0.1.7 起 dsh 还会把它归档为 settings.yaml.imported）。',
+  starNoteA: '如果这个插件帮到了你，欢迎去 GitHub 给它',
+  starNoteB: '——这是对独立开发最好的支持。',
   uninstallNothing: '储存库中没有技能、skills 目录也没有待迁移的技能，归档里也没有 MCP 服务器——无需任何操作。',
   migrateSkills: '迁移',
   migratingSkills: '迁移中…',
@@ -543,8 +547,8 @@ export const en: Record<SkillsMcpKey, string> = {
   announceOffState: 'Off',
   announceOnNote: 'When on, the plugin declares what it can do (skills / MCP / CLI) in every agent system prompt.',
   announceOffNote: 'When off, the plugin is completely invisible to the AI — neither its presence nor its capabilities.',
-  persistA: 'The setting persists under the',
-  persistB: ' namespace in',
+  persistA: 'Settings persist in',
+  persistB: ', located at',
   persistC: '; switching takes effect immediately, no restart needed.',
 
   pluginDisabled: 'Plugin disabled: routes, MCP connections and CLI probing have all stopped. Re-enable it and refresh to recover.',
@@ -662,8 +666,10 @@ export const en: Record<SkillsMcpKey, string> = {
   uninstallMcpNote: '"Inject all MCP" moves every archived server back into mcp.json in one pass and reconnects it. No undo is provided: a server you no longer need can be archived or deleted individually on the MCP tab at any time.',
   uninstallFilesTitle: 'Files to remove by hand',
   uninstallFilesNote: 'Uninstalling the plugin does not clean up its data. After removal, delete the whole store directory; deleting it covers everything listed below:',
-  uninstallFilesList: 'skills/ (canonical skill copies), mcp.json (active MCP servers), mcp-archive.json (archived MCP servers), cli.json (CLI registry)',
-  uninstallSettingsPath: 'Also feel free to delete the dsh-s-m-c-center block in ~/.dsh/settings.yaml.',
+  uninstallFilesList: 'skills/ (canonical skill copies), settings.json (plugin settings), contexts.json (session-skill table), mcp.json (active MCP servers), mcp-archive.json (archived MCP servers), cli.json (CLI registry)',
+  uninstallSettingsPath: 'Everything the plugin persists (settings.json included) lives in ~/.dsh/S-M-C/ and goes with the store; feel free to also delete the leftover dsh-s-m-c-center block in ~/.dsh/settings.yaml (which dsh 0.1.7+ archives as settings.yaml.imported).',
+  starNoteA: 'If this plugin earns its keep, give it a',
+  starNoteB: 'on GitHub — the best thank-you for a solo developer.',
   uninstallNothing: 'The store holds no skills, no skills await migration, and no MCP servers are archived — nothing to do.',
   migrateSkills: 'Migrate',
   migratingSkills: 'Migrating…',

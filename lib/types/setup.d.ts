@@ -10,13 +10,15 @@ import z from 'schemastery';
 /** Cordis plugin id. Renaming it breaks existing profiles — treat as fixed. */
 export declare const name = "dsh-s-m-c-center";
 /**
- * Services that must be present before any surface mounts. `settings` is
- * absent on purpose: the config section is attached later through
- * `ctx.inject`, so a host without a settings surface still gets routes + MCP.
+ * Services that must be present before any surface mounts. `settings` used to
+ * be attached here too; since the config moved into the store's settings.json
+ * no dsh settings section is registered at all.
  */
 export declare const inject: string[];
 /**
- * Key of this plugin's block in `~/.dsh/settings.yaml`.
+ * Key of this plugin's config — historically the block name in
+ * `~/.dsh/settings.yaml`, and still the identity string used to match the
+ * legacy block during the one-shot migration into the store's settings.json.
  *
  * Written as a literal rather than imported so the browser half can spell the
  * same value without depending on a Host package. It stays a plain kebab-case
@@ -31,9 +33,10 @@ export interface Config {
     /** Whether to announce the plugin in every agent's system prompt. */
     announceToAgent?: boolean;
 }
-/** Schema form of the above, so dsh validates the block as it loads it. */
+/** Schema form of the above. No longer registered with dsh (the config is
+ *  self-managed in the store), but kept exported for signature stability. */
 export declare const Config: z<Config>;
-/** Fallbacks used until a config block has been written. */
+/** Fallbacks used when the store document has not been written yet. */
 export declare const DEFAULT_ENABLED = true;
 export declare const DEFAULT_ANNOUNCE = true;
 /** Where the announcement sits inside the tool-guidance band. */

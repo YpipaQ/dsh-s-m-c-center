@@ -34,7 +34,7 @@ export interface RoutesDeps {
      * *that* set rather than the one still in the file.
      */
     applyToAgent?: (agent: AgentLike, selection: ContextSelection) => Promise<ApplyOutcome>;
-    /** Read the plugin's own persisted settings (~/.dsh/settings.yaml block). */
+    /** Read the plugin's own persisted settings ($STORE_ROOT/settings.json). */
     readOwnSettings: () => ManagerSettings;
     /** Persist new settings, then re-apply surfaces; returns what landed. */
     writeOwnSettings: (next: ManagerSettings) => ManagerSettings;
@@ -46,5 +46,6 @@ export interface RoutesDeps {
  */
 export declare function makeRoutes(deps: RoutesDeps): {
     routes: WebRoute[];
+    settingsRoutes: WebRoute[];
 };
 //# sourceMappingURL=routes.d.ts.map

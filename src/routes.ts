@@ -39,7 +39,7 @@ export interface RoutesDeps {
    * *that* set rather than the one still in the file.
    */
   applyToAgent?: (agent: AgentLike, selection: ContextSelection) => Promise<ApplyOutcome>
-  /** Read the plugin's own persisted settings (~/.dsh/settings.yaml block). */
+  /** Read the plugin's own persisted settings ($STORE_ROOT/settings.json). */
   readOwnSettings: () => ManagerSettings
   /** Persist new settings, then re-apply surfaces; returns what landed. */
   writeOwnSettings: (next: ManagerSettings) => ManagerSettings
@@ -50,8 +50,17 @@ export interface RoutesDeps {
  * @param deps - skills engine, MCP connection manager, and CLI manager.
  * @returns the route registrations.
  */
-export function makeRoutes(deps: RoutesDeps): { routes: WebRoute[] } {
+export function makeRoutes(deps: RoutesDeps): { routes: WebRoute[]; settingsRoutes: WebRoute[] } {
+  const settings = settingsRoutes({
+    readOwnSettings: deps.readOwnSettings,
+    writeOwnSettings: deps.writeOwnSettings,
+  })
   return {
+    // Everything that operates on data. The settings routes are kept apart so
+    // the composition root can register them even while `enabled` is false —
+    // otherwise turning the plugin off would take its own settings page down
+    // with it, and with no dsh settings section left there would be no way
+    // back in short of hand-editing the JSON.
     routes: [
       ...skillsRoutes(deps.skills),
       ...contextRoutes({
@@ -61,10 +70,7 @@ export function makeRoutes(deps: RoutesDeps): { routes: WebRoute[] } {
       }),
       ...mcpRoutes(deps.mcp),
       ...cliRoutes(deps.cli),
-      ...settingsRoutes({
-        readOwnSettings: deps.readOwnSettings,
-        writeOwnSettings: deps.writeOwnSettings,
-      }),
     ],
+    settingsRoutes: settings,
   }
 }

@@ -12,8 +12,10 @@
  *
  * - `~/.dsh/skills/` — dsh's own skill root. The agent scans it, so it has to
  *   stay where dsh looks; what we do is point *links* in it at the store.
- * - `~/.dsh/settings.yaml` — dsh's document. We own one namespace block in it,
- *   not the file.
+ *
+ * (`~/.dsh/settings.yaml` used to hold the plugin's config block too, but dsh
+ * 0.1.7 archives that file on upgrade, so the block moved into the store —
+ * `settings.json` above.)
  *
  * Every path below follows `$DSH_HOME`, and the whole root can be relocated
  * with `$DSH_STORE_ROOT` for anyone who wants the store on another drive.
@@ -52,6 +54,15 @@ export declare const STORE_SKILLS_LINKS_NAME = "skills-links.json";
  * own — so it is kept in one table and nothing has to guess a directory.
  */
 export declare const STORE_CONTEXT_TABLE_NAME = "contexts.json";
+/**
+ * File name of the plugin's own settings document.
+ *
+ * Lives in the store on purpose: dsh 0.1.7 archives `~/.dsh/settings.yaml` to
+ * `settings.yaml.imported` on upgrade, wiping every third-party block in it —
+ * and with it every setting this plugin used to keep there. The store is the
+ * one directory the plugin owns end to end, so its config belongs there too.
+ */
+export declare const STORE_SETTINGS_NAME = "settings.json";
 /** The dsh home directory: `$DSH_HOME`, falling back to `~/.dsh`. */
 export declare function dshHomeDir(): string;
 /**
@@ -76,6 +87,8 @@ export declare function storeSkillsRegistryPath(): string;
 export declare function storeSkillsLinksPath(): string;
 /** `$STORE_ROOT/contexts.json` — the session-skill relay table. */
 export declare function storeContextTablePath(): string;
+/** `$STORE_ROOT/settings.json` — the plugin's own settings document. */
+export declare function storeSettingsPath(): string;
 /**
  * Create the store root (and nothing below it) when it is missing.
  *

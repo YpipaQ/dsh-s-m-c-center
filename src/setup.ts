@@ -13,14 +13,16 @@ import z from 'schemastery'
 export const name = 'dsh-s-m-c-center'
 
 /**
- * Services that must be present before any surface mounts. `settings` is
- * absent on purpose: the config section is attached later through
- * `ctx.inject`, so a host without a settings surface still gets routes + MCP.
+ * Services that must be present before any surface mounts. `settings` used to
+ * be attached here too; since the config moved into the store's settings.json
+ * no dsh settings section is registered at all.
  */
 export const inject = ['webServer', 'tools', 'systemPrompt']
 
 /**
- * Key of this plugin's block in `~/.dsh/settings.yaml`.
+ * Key of this plugin's config — historically the block name in
+ * `~/.dsh/settings.yaml`, and still the identity string used to match the
+ * legacy block during the one-shot migration into the store's settings.json.
  *
  * Written as a literal rather than imported so the browser half can spell the
  * same value without depending on a Host package. It stays a plain kebab-case
@@ -37,13 +39,14 @@ export interface Config {
   announceToAgent?: boolean
 }
 
-/** Schema form of the above, so dsh validates the block as it loads it. */
+/** Schema form of the above. No longer registered with dsh (the config is
+ *  self-managed in the store), but kept exported for signature stability. */
 export const Config: z<Config> = z.object({
   enabled: z.boolean().default(true),
   announceToAgent: z.boolean().default(true),
 })
 
-/** Fallbacks used until a config block has been written. */
+/** Fallbacks used when the store document has not been written yet. */
 export const DEFAULT_ENABLED = true
 export const DEFAULT_ANNOUNCE = true
 

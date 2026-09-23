@@ -766,3 +766,14 @@ textarea.inputMono {
     padding: var(--sp-2) var(--sp-3);
   }
 }
+
+/* Guide tab: the "give it a Star" link — quiet, inherit the text ink. */
+.starLink {
+  color: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.starLink:hover {
+  opacity: .75;
+}

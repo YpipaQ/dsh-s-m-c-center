@@ -18,7 +18,7 @@
   <a href="./package.json"><img alt="dsh" src="https://img.shields.io/badge/dsh-%3E%3D0.1.2--alpha.2-4d6bfe?style=flat-square&amp;labelColor=555" /></a>
   <a href="./package.json"><img alt="node" src="https://img.shields.io/node/v/dsh-s-m-c-center?style=flat-square&amp;labelColor=555" /></a>
   <br /><br />
-  <a href="#-它是什么">它是什么</a> · <a href="#-界面一览">界面一览</a> · <a href="#-功能亮点">功能亮点</a> · <a href="#-两条通道联接-vs-注入">两条通道</a> · <a href="#-交给-agent-的两个工具">Agent 工具</a> · <a href="#️-架构">架构</a> · <a href="#-安装">安装</a> · <a href="#️-配置">配置</a> · <a href="#-权限与依赖声明">权限声明</a> · <a href="#️-仓库结构">仓库结构</a> · <a href="#️-开发">开发</a> · <a href="#-许可">许可</a>
+  <a href="#-它是什么">它是什么</a> · <a href="#-界面一览">界面一览</a> · <a href="#-功能亮点">功能亮点</a> · <a href="#-两条通道联接-vs-注入">两条通道</a> · <a href="#-交给-agent-的两个工具">Agent 工具</a> · <a href="#-架构">架构</a> · <a href="#-安装">安装</a> · <a href="#-配置">配置</a> · <a href="#-权限与依赖声明">权限声明</a> · <a href="#-开发">开发</a> · <a href="#-许可">许可</a>
 </div>
 
 <br />
@@ -73,7 +73,7 @@
 - **MCP**：分「管理 / 新建」两个子页——管理页一台服务器一个 **激活 / 归档** 开关（外加删除），新建页提供表单或 JSON 编辑，保存前可**测试连接**（一次性真实探测）；激活 / 归档真实连接 / 断开并注册 `mcp__<server>__<tool>` 工具；实时状态（连接中 / 运行中 / 失败 / 已停止）。
 - **CLI**：自动发现 skill 包装的 CLI（`scripts/run-cli.*` / `cli-state.*`），并登记系统 CLI（`gh`、`git` …，存于 `S-M-C/cli.json`）。每条都会探测：是否安装 / 版本 / 是否需更新 / API-Key 状态 / 子命令，并在行上标出来源与位置。**公告 / 隐藏**开关只决定是否把这个 CLI 写进给 AI 的公告（插件无法启停系统装的 CLI，因此默认隐藏）。
 - **使用说明**：按三类讲清工作方式，最下方是卸载前的总撤退口。「撤销迁移」把储存库技能移回原始位置；储存库空着时同一按钮变为绿色的「迁移」，**双向可逆**；「MCP 全部注入」把归档服务器一次性移回并重连；页面同时列出卸载后需手动删除的目录与配置块。
-- **界面**：全量文案 zh / en 双语（各 200 键，英文环境零中文）；破坏性操作两步确认，且点开别处即复位。
+- **界面**：全量文案 zh / en 双语（各 202 键，英文环境零中文）；破坏性操作两步确认，且点开别处即复位。
 
 ## 🧠 两条通道：联接 vs 注入
 
@@ -102,7 +102,7 @@
   <p><i>向 AI 公告：展开后声明插件能力；设置持久化在 <code>dsh-s-m-c-center</code> 命名空间，切换即时生效。</i></p>
 </div>
 
-## 🏗️ 架构
+## 🧱 架构
 
 **挂载与双面结构** —— 插件只是一个 npm 包 + 一行 profile bundle patch，dsh 源码零改动：
 
@@ -141,7 +141,7 @@ dsh plugin --profile web add dsh-s-m-c-center
 dsh plugin --profile web add <本文件夹绝对路径>
 
 # 或安装打包产物
-dsh plugin --profile web add <path>/dsh-s-m-c-center-0.2.0.tgz
+dsh plugin --profile web add <path>/dsh-s-m-c-center-0.2.1.tgz
 
 # 或使用一键脚本
 bash scripts/install.sh                                        # macOS / Linux / Git Bash
@@ -152,17 +152,20 @@ powershell -ExecutionPolicy Bypass -File scripts/install.ps1   # Windows
 
 > **升级**：只改界面时，覆盖文件 + 硬刷新即可；改到 Host 侧（路由 / 引擎 / 工具）时需要重启一次 DSH 进程。
 
-## ⚙️ 配置
+## 🔧 配置
 
-```yaml
-# 本插件自己的设置命名空间（dsh settings）
-dsh-s-m-c-center:
-  enabled: true        # 总开关（路由、MCP 连接、CLI 探测）
-  announceToAgent: true # 向每个 agent 的系统提示说明本插件
+插件配置**完全自管**，存放在储存库内的 `~/.dsh/S-M-C/settings.json` —— **不写入 dsh 的 `settings.yaml`**（dsh 0.1.7 起会在升级时把该文件归档为 `settings.yaml.imported`，里面的第三方配置块会全部丢失）：
+
+```json
+{
+  "enabled": true,        // 总开关（路由、MCP 连接、CLI 探测）
+  "announceToAgent": true // 向每个 agent 的系统提示说明本插件
+}
 ```
 
 运行时状态：
 
+- **插件设置**：`S-M-C/settings.json`，随储存库走；从旧版本升级时首次启动会把 `settings.yaml`（或其归档）里的旧配置块一次性迁入。
 - **统一外挂储存库**：`~/.dsh/S-M-C/`（**S**kills / **M**CP / **C**LI）—— `skills/`（正本与 `index.json` 清单）、`skills-links.json`（联接账本）、`skills-registry.json`（登记的外部技能）、`mcp.json`、`mcp-archive.json`、`cli.json`。旧位置在首次启动时自动迁入；整个库可用 `DSH_STORE_ROOT` 挪到别处（插件会重建目录联接）。
 - **会话选择**：全机一张表 —— `~/.dsh/S-M-C/contexts.json`，`default` 是会话默认，`sessions.<sessionId>` 是该对话与默认的差异（`on` / `off`）。**不涉及工作区**：键就是会话 id，所以设置页与小窗读的是同一份文档。旧版每个工作区一份文件，首次挂载（表不存在时）会一次性并入。
 - MCP：激活的 `S-M-C/mcp.json`，归档的 `S-M-C/mcp-archive.json`（凭证 / headers 明文保存 —— 请保持这两个文件 `0600`）。
@@ -208,7 +211,7 @@ dsh-s-m-c-center/
 │       ├── shared/         #   api / ui / locales(zh+en) / format / css module
 │       └── features/       #   四个页签各自的面板 + hook
 ├── lib/                    # 构建产物（宿主 index.js；客户端 client.js；types/*）
-├── tests/                  # vitest（13 个文件）
+├── tests/                  # vitest（14 个文件）
 ├── cordis.patch.yml        # DSH bundle patch（包名必须与 package.json 一致）
 ├── dsh.plugin.json         # DSH 插件清单（id / version / main / client.main）
 ├── package.json            # npm 包（dsh.bundle.patch + dsh.client + compatibility）
@@ -226,7 +229,7 @@ dsh-s-m-c-center/
 
 ## 🧰 开发
 
-见 [`docs/development.md`](./docs/development.md)：双半区构建（`tsdown` 重建 `lib/index.js` + `lib/client.js`）、类型检查（`tsc --noEmit`）与测试套件（`vitest`，13 个文件 / 193 个用例）。
+见 [`docs/development.md`](./docs/development.md)：双半区构建（`tsdown` 重建 `lib/index.js` + `lib/client.js`）、类型检查（`tsc --noEmit`）与测试套件（`vitest`，14 个文件 / 206 个用例）。
 
 ## 📄 许可
 
