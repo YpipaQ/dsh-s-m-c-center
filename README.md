@@ -128,7 +128,7 @@ The guide tab can also switch on **announce to agent**, which describes the plug
 ## 🚀 Install
 
 > **Requirements**: DeepSeek Harness **`>= 0.1.2-alpha.2`** (all `@deepseek-ai/*` packages release together); Node `^22.19.0 || >=24`.
-> Status: **fully tested on `0.1.7-rc.2` (every plugin route, the injection chain and the UI) as well as `0.1.6-alpha.1`, `0.1.6-alpha.2` and `0.1.5-rc.2`**; every API used has been checked for existence and signature since `0.1.2-alpha.2`.
+> Status: **fully tested on `0.2.0-rc.1` and `0.1.7-rc.2` (every plugin route, the injection chain and the UI) as well as `0.1.6-alpha.1`, `0.1.6-alpha.2` and `0.1.5-rc.2`**; every API used has been checked for existence and signature since `0.1.2-alpha.2`.
 
 > **Install it as a normal package — never as a junction.** A junction breaks resolution of dependencies (`schemastery` / `react` and friends) and makes the package name disagree with `cordis.patch.yml`; either one stops DSH from starting.
 
@@ -141,7 +141,7 @@ dsh plugin --profile web add dsh-s-m-c-center
 dsh plugin --profile web add <absolute path to this folder>
 
 # Or from a packed tarball
-dsh plugin --profile web add <path>/dsh-s-m-c-center-0.2.2.tgz
+dsh plugin --profile web add <path>/dsh-s-m-c-center-0.2.3.tgz
 
 # Or the one-shot scripts
 bash scripts/install.sh                                        # macOS / Linux / Git Bash

@@ -128,7 +128,7 @@
 ## 🚀 安装
 
 > **环境要求**：DeepSeek Harness **`>= 0.1.2-alpha.2`**（`@deepseek-ai/*` 统一发版）；Node `^22.19.0 || >=24`。
-> 现状：**`0.1.7-rc.2`（含全部插件路由、会话注入链路与界面）与 `0.1.6-alpha.1`、`0.1.6-alpha.2`、`0.1.5-rc.2` 上完整实测**；`0.1.2-alpha.2` 起所用 API 已逐一核对存在且签名一致。
+> 现状：**`0.2.0-rc.1` 与 `0.1.7-rc.2`（均含全部插件路由、会话注入链路与界面）以及 `0.1.6-alpha.1`、`0.1.6-alpha.2`、`0.1.5-rc.2` 上完整实测**；`0.1.2-alpha.2` 起所用 API 已逐一核对存在且签名一致。
 
 > **必须按普通包安装 —— 切勿 junction 链接。** junction 会让依赖（`schemastery` / `react` 等）无法向上解析，并导致包名与 `cordis.patch.yml` 不一致；两者都会让 DSH 启动失败。
 
@@ -141,7 +141,7 @@ dsh plugin --profile web add dsh-s-m-c-center
 dsh plugin --profile web add <本文件夹绝对路径>
 
 # 或安装打包产物
-dsh plugin --profile web add <path>/dsh-s-m-c-center-0.2.2.tgz
+dsh plugin --profile web add <path>/dsh-s-m-c-center-0.2.3.tgz
 
 # 或使用一键脚本
 bash scripts/install.sh                                        # macOS / Linux / Git Bash
