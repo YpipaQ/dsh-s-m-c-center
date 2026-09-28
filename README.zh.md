@@ -128,7 +128,7 @@
 ## 🚀 安装
 
 > **环境要求**：DeepSeek Harness **`>= 0.1.2-alpha.2`**（`@deepseek-ai/*` 统一发版）；Node `^22.19.0 || >=24`。
-> 现状：**`0.1.6-alpha.1`、`0.1.6-alpha.2` 与 `0.1.5-rc.2` 上完整实测**；`0.1.2-alpha.2` 起所用 API 已逐一核对存在且签名一致。
+> 现状：**`0.1.7-rc.2`（含全部插件路由、会话注入链路与界面）与 `0.1.6-alpha.1`、`0.1.6-alpha.2`、`0.1.5-rc.2` 上完整实测**；`0.1.2-alpha.2` 起所用 API 已逐一核对存在且签名一致。
 
 > **必须按普通包安装 —— 切勿 junction 链接。** junction 会让依赖（`schemastery` / `react` 等）无法向上解析，并导致包名与 `cordis.patch.yml` 不一致；两者都会让 DSH 启动失败。
 
@@ -141,7 +141,7 @@ dsh plugin --profile web add dsh-s-m-c-center
 dsh plugin --profile web add <本文件夹绝对路径>
 
 # 或安装打包产物
-dsh plugin --profile web add <path>/dsh-s-m-c-center-0.2.1.tgz
+dsh plugin --profile web add <path>/dsh-s-m-c-center-0.2.2.tgz
 
 # 或使用一键脚本
 bash scripts/install.sh                                        # macOS / Linux / Git Bash
@@ -211,7 +211,7 @@ dsh-s-m-c-center/
 │       ├── shared/         #   api / ui / locales(zh+en) / format / css module
 │       └── features/       #   四个页签各自的面板 + hook
 ├── lib/                    # 构建产物（宿主 index.js；客户端 client.js；types/*）
-├── tests/                  # vitest（14 个文件）
+├── tests/                  # vitest（15 个文件）
 ├── cordis.patch.yml        # DSH bundle patch（包名必须与 package.json 一致）
 ├── dsh.plugin.json         # DSH 插件清单（id / version / main / client.main）
 ├── package.json            # npm 包（dsh.bundle.patch + dsh.client + compatibility）
@@ -229,7 +229,7 @@ dsh-s-m-c-center/
 
 ## 🧰 开发
 
-见 [`docs/development.md`](./docs/development.md)：双半区构建（`tsdown` 重建 `lib/index.js` + `lib/client.js`）、类型检查（`tsc --noEmit`）与测试套件（`vitest`，14 个文件 / 206 个用例）。
+见 [`docs/development.md`](./docs/development.md)：双半区构建（`tsdown` 重建 `lib/index.js` + `lib/client.js`）、类型检查（`tsc --noEmit`）与测试套件（`vitest`，15 个文件 / 212 个用例）。
 
 ## 📄 许可
 
