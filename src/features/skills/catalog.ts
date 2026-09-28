@@ -27,10 +27,15 @@ export const INDEX_NAME = 'smc-skill-index'
 /**
  * The one line the index contributes to the catalog. It has to be a pointer and
  * nothing else: this text sits in the model's context on every single step.
+ *
+ * It also carries the access rule: the body is a complete inventory, and an
+ * inventory is exactly the kind of thing a model will load "just to be sure".
+ * The gate is stated here — on the line the model reads every step — so the
+ * default is not to open it.
  */
 const INDEX_DESCRIPTION =
-  '技能目录索引：加载本技能可取得本工作区技能完整列表（格式与技能目录层一致，含每条的联接与启用状态）。' +
-  '你要找的技能若不在目录里，先加载本技能再决定如何启用。'
+  '技能目录索引：本工作区全部技能清单（含联接与启用状态）。**无必要不要加载**——仅当目录里找不到所需技能，'
+  + '或用户明确要求清点 / 查看技能清单时才加载；加载后不要把清单整篇复述给用户。'
 
 /**
  * One description on one line.
@@ -70,6 +75,11 @@ export function buildIndexSkill(rows: SkillSummary[], selected: string[]): Skill
   ))
   const content = [
     `本工作区技能完整列表（共 ${sorted.length} 条，格式与技能目录层一致）。`,
+    '',
+    '使用约束：',
+    '- 无必要不要加载本技能。不要为了确认某个技能是否存在、或出于好奇浏览而加载它；目录行本身已足够决定行动。',
+    '- 加载后不要把完整列表整篇复述给用户，除非用户就是要这份清单。',
+    '- 列表只是状态快照，不构成行动建议；启用 / 停用某个技能仍要用 skill_select，或由用户在「会话技能」小窗勾选。',
     '',
     ...lines,
     '',
