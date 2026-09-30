@@ -129,9 +129,16 @@ export function skillsRoutes(skills: SkillsManager): WebRoute[] {
       writeJson(res, 200, ok({ slug }))
     }),
 
-    // Traceability pass: does every registered canonical path still exist?
-    handle('POST', SMC_API.skillRefresh, async (_req, res) => {
-      writeJson(res, 200, ok({ results: skills.refreshRegistry() }))
+    // Traceability pass: is there still a row for every registered record, and
+    // does what it points at still resolve? The list is scanned once here and
+    // handed in, so the check and the panel look at the same snapshot — and it
+    // is scanned **with the caller's cwd**, because the panel lists with one.
+    // Reading without it would drop project-level rows from the comparison and
+    // every project-level record would then look like an orphan and be pruned.
+    handle('POST', SMC_API.skillRefresh, async (_req, res, _body, url) => {
+      const cwd = queryParam(url, 'cwd')
+      const outcome = skills.refreshRegistry(skills.listSkills(cwd))
+      writeJson(res, 200, ok({ results: outcome.results, pruned: outcome.pruned }))
     }),
 
     handle('GET', SMC_API.skillStore, async (_req, res) => {

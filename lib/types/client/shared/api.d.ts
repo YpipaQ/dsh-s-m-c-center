@@ -40,12 +40,22 @@ export declare class SkillsMcpApi {
     }>>;
     /** Drop a registry entry (and its link, when one exists). */
     unregisterSkill(slug: string): Promise<void>;
-    /** Traceability pass: does every registered path still exist? */
-    refreshRegistry(): Promise<Array<{
-        slug: string;
-        name: string;
-        exists: boolean;
-    }>>;
+    /**
+     * Traceability pass: is there a row for every registered record, and does
+     * each surviving one still resolve?
+     *
+     * Returns the orphan count alongside the verdicts: a pass that quietly
+     * dropped records has something to report, not just a list of healthy rows.
+     */
+    refreshRegistry(): Promise<{
+        results: Array<{
+            slug: string;
+            name: string;
+            ok: boolean;
+            reason: string;
+        }>;
+        pruned: number;
+    }>;
     /** One conversation's selection: the effective set plus how it differs. */
     getContext(sessionId: string): Promise<{
         /** Path of the relay table — shown in the UI so the state is findable. */

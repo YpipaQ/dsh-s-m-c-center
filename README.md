@@ -68,12 +68,33 @@ A self-contained DSH web plugin: it adds one first-class **settings page** for t
 
 ## 💡 Features
 
-- **Skills**: grouped by project / user level and by source (`.dsh/skills`, `.agents/skills`, `~/.dsh/skills`, `~/.agents/skills`). User-level skills are adopted into the **unified store** `~/.dsh/S-M-C/skills`; "enable" injects a directory junction in the skill root, "disable" removes it (`SKILL.md` is never touched). Project-level skills are managed in place through their frontmatter. Deletion is a two-step, physical delete — and it **only ever deletes the store's own canonical copy** (see below). Open a row for details (description / whenToUse / body); import by scanning any directory.
+- **Skills**: grouped by project / user level and by source (`.dsh/skills`, `.agents/skills`, `~/.dsh/skills`, `~/.agents/skills`). User-level skills are adopted into the **unified store** `~/.dsh/S-M-C/skills`; project-level skills are managed in place through their frontmatter. Deletion takes two confirmations. Open a row for details (description / whenToUse / body); import by scanning any directory.
+
+  | Action | What happens underneath |
+  |---|---|
+  | Enable / disable | Inject / remove a directory junction in the skill root (`SKILL.md` is never touched) |
+  | Delete | **Only the store's own canonical copy** is deleted (see below); directories outside the store are never touched |
+
+  **Every entry in a skill root is listed, including the ones that are not skills.** A directory with no valid admission document (SKILL.md / DESCRIPTION.md) is flagged red as `not a valid skill`, told why, and cannot be enabled:
+
+  | Situation | Shown as | Why it is not descended into |
+  |---|---|---|
+  | Directory holds no admission document | red `not a valid skill` | dsh reads exactly one level of a root, so a skill buried in `<root>/<category>/<skill>/` does not exist as far as dsh is concerned; listing it would only suggest it is reachable |
+  | A registered record lost its source | `⚠ source gone` | see the next bullet |
+
+- **Traceable registry**: "Refresh traceability" runs in **two stages**, because a *useless record* and a *broken source* call for different repairs.
+
+  | Stage | What it decides | Outcome |
+  |---|---|---|
+  | 1. Compare against the current skill list | A row with no matching entry is an **orphan** (typically a project-level skill registered while another project was open) | Dropped from the ledger outright — it can never be shown, linked or loaded, so keeping it would only bury the real problems |
+  | 2. Trace the source | Only rows that do appear in the list: does the path still exist, and does it still *hold* a skill? | A failure is written onto the ledger row (`missing`, with a timestamp and reason) and shown as `⚠ source gone` |
+
+  A traced failure **stays visibly broken** across reloads instead of looking healthy again and offering a link that cannot work. Orphans that get cleaned up are reported alongside the verdicts.
 - **Session default and per-conversation injection**: the session default is what a brand-new conversation starts with; each conversation can also carry its own differences (one skill turned off, another added). The agent can flip its own skills in-conversation (written to that conversation's own file), and a small "conversation skills" panel in the sidebar lets you adjust them by hand at any time — both switches list **linked** skills only. See the next section.
 - **MCP**: two sub-tabs — "manage" gives each server one **activate / archive** switch (plus delete), "create" offers a form or raw JSON with a one-off **connection test** before saving. Activating connects for real and registers `mcp__<server>__<tool>`; archiving disconnects and moves the definition to `S-M-C/mcp-archive.json`, fully preserved. Live status: connecting / running / failed / stopped.
 - **CLI**: discovers skill-wrapped CLIs (`scripts/run-cli.*` / `cli-state.*`) and registers system CLIs (`gh`, `git`, … in `S-M-C/cli.json`). Each entry is probed for installed / version / needs-update / API-key state / subcommands, and the row shows where it came from and where it lives. The **announce / hide** switch only decides whether the CLI is written into the announcement handed to the agent — the plugin cannot start or stop a system-installed CLI, so entries default to hidden.
 - **Guide**: explains all three kinds and holds the pre-uninstall escape hatch. "Undo migration" moves stored skills back to their original paths; when the store is empty and the skill roots still hold skills, the same button turns into a green "Migrate" — **reversible both ways**. "Inject all MCP" moves every archived server back and reconnects. The page also lists the directories and config blocks to remove manually after uninstalling.
-- **Interface**: fully bilingual zh / en (202 keys each; English UI renders no Chinese); destructive actions take two confirmations and reset when you click elsewhere.
+- **Interface**: fully bilingual zh / en (206 keys each; English UI renders no Chinese); destructive actions take two confirmations and reset when you click elsewhere.
 
 ## 🧠 Two channels: linking vs injection
 
@@ -129,6 +150,7 @@ The guide tab can also switch on **announce to agent**, which describes the plug
 
 > **Requirements**: DeepSeek Harness **`>= 0.1.2-alpha.2`** (all `@deepseek-ai/*` packages release together); Node `^22.19.0 || >=24`.
 > Status: **fully tested on `0.2.0-rc.1` and `0.1.7-rc.2` (every plugin route, the injection chain and the UI) as well as `0.1.6-alpha.1`, `0.1.6-alpha.2` and `0.1.5-rc.2`**; every API used has been checked for existence and signature since `0.1.2-alpha.2`.
+> **The desktop build is supported too** — the plugin only uses dsh's host/client plugin interfaces and does not depend on the CLI form factor; verified working on the desktop build.
 
 > **Install it as a normal package — never as a junction.** A junction breaks resolution of dependencies (`schemastery` / `react` and friends) and makes the package name disagree with `cordis.patch.yml`; either one stops DSH from starting.
 
@@ -141,7 +163,7 @@ dsh plugin --profile web add dsh-s-m-c-center
 dsh plugin --profile web add <absolute path to this folder>
 
 # Or from a packed tarball
-dsh plugin --profile web add <path>/dsh-s-m-c-center-0.2.3.tgz
+dsh plugin --profile web add <path>/dsh-s-m-c-center-0.2.4.tgz
 
 # Or the one-shot scripts
 bash scripts/install.sh                                        # macOS / Linux / Git Bash
@@ -166,7 +188,7 @@ The config is **fully self-managed** in the store as `~/.dsh/S-M-C/settings.json
 Runtime state:
 
 - **Plugin settings**: `S-M-C/settings.json`, living with the store; when upgrading from an older release the first mount carries the old `settings.yaml` block (or its archive) over in one shot.
-- **Unified external store**: `~/.dsh/S-M-C/` (**S**kills / **M**CP / **C**LI) — `skills/` (canonical copies plus `index.json` manifest), `skills-links.json` (junction ledger), `skills-registry.json` (registered external skills), `mcp.json`, `mcp-archive.json`, `cli.json`. The old locations are migrated in on first start; the whole store can move elsewhere with `DSH_STORE_ROOT` (the plugin rebuilds the junctions).
+- **Unified external store**: `~/.dsh/S-M-C/` (**S**kills / **M**CP / **C**LI) — `skills/` (canonical copies plus `index.json` manifest), `skills-links.json` (junction ledger), `skills-registry.json` (registered external skills, plus the `missing` traceability flag), `mcp.json`, `mcp-archive.json`, `cli.json`. The old locations are migrated in on first start; the whole store can move elsewhere with `DSH_STORE_ROOT` (the plugin rebuilds the junctions).
 - **Conversation selections**: one table for the whole machine at `~/.dsh/S-M-C/contexts.json` — `default` is the session default and `sessions.<sessionId>` holds that conversation's difference from it (`on` / `off`). **No workspace is involved**: the key is the session id, so the settings page and the sidebar read the same document. An older version kept one file per workspace; those are folded in once, on the first mount with the table missing.
 - MCP: active definitions in `S-M-C/mcp.json`, archived ones in `S-M-C/mcp-archive.json` (credentials and headers are stored in plain text — keep both files `0600`).
 - CLI registry: `S-M-C/cli.json`.
@@ -186,7 +208,14 @@ The plugin runs with the DSH process's privileges and uses four kinds of capabil
 
 **Failure boundaries**: a failed scan or route degrades to an empty list and a placeholder; a failed migration is recorded in `failures` and ignored, never blocking DSH startup; a failed MCP connection only changes the status line and touches no files; a failed conversation injection never vetoes the conversation and only explains itself in the log. None of them can stop DSH from starting.
 
-**Known risks**: skill deletion is physical and irreversible (and **only the store's copy is ever deleted**: a `native` skill must be migrated into the store first, a `registered` one is unregistered, and "delete junction" only unlinks and never touches its target); MCP credentials are stored in plain text; enabling / disabling a skill works through a directory junction, so moving the store by hand breaks the junctions (use `DSH_STORE_ROOT` instead and the plugin rebuilds them).
+**Known risks**:
+
+| Risk | Detail |
+|---|---|
+| Deletion is irreversible | Physical, and **only the store's copy is ever deleted**: a `native` skill must be migrated into the store first, a `registered` one is unregistered, and "delete junction" only unlinks and never touches its target |
+| MCP credentials are plain text | Passwords / env are stored verbatim in `mcp.json`; file permissions are the user's to manage |
+| Moving the store by hand breaks junctions | Enabling / disabling works through a directory junction; move it with `DSH_STORE_ROOT` instead and the plugin rebuilds them |
+| Skills under a category directory cannot be loaded | dsh reads only one level of a root; the panel flags that directory as not a valid skill and says why, but does not list its children (they would not be reachable anyway). Loading them needs the skills moved up a level or adopted into the store |
 
 <details>
 <summary><b>🗂️ Expand repository layout</b></summary>
@@ -211,7 +240,7 @@ dsh-s-m-c-center/
 │       ├── shared/         #   api / ui / locales (zh+en) / format / css module
 │       └── features/       #   one panel + hook per tab
 ├── lib/                    # build output (host index.js; client client.js; types/*)
-├── tests/                  # vitest (15 files)
+├── tests/                  # vitest (16 files)
 ├── cordis.patch.yml        # DSH bundle patch (package name must match package.json)
 ├── dsh.plugin.json         # DSH plugin manifest (id / version / main / client.main)
 ├── package.json            # npm package (dsh.bundle.patch + dsh.client + compatibility)
@@ -229,7 +258,7 @@ dsh-s-m-c-center/
 
 ## 🧰 Development
 
-See [`docs/development.md`](./docs/development.md): dual-half builds (`tsdown` rebuilds `lib/index.js` + `lib/client.js`), type checking (`tsc --noEmit`) and the test suite (`vitest`, 15 files / 212 cases).
+See [`docs/development.md`](./docs/development.md): dual-half builds (`tsdown` rebuilds `lib/index.js` + `lib/client.js`), type checking (`tsc --noEmit`) and the test suite (`vitest`, 16 files / 237 cases).
 
 ## 📄 License
 

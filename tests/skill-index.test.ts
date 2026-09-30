@@ -70,3 +70,35 @@ describe('catalogEntriesOf index line', () => {
     expect(entries.map((entry) => entry.name)).toEqual(['demo-linked', INDEX_NAME])
   })
 })
+
+/**
+ * The index body is the one place the model can learn that a row exists but
+ * cannot be loaded. Saying it there is what turns "my skills are missing" into
+ * an actionable answer, so the wording is pinned.
+ */
+describe('buildIndexSkill — non-skill rows', () => {
+  it('marks a directory that is not a valid skill', () => {
+    const skill = buildIndexSkill([
+      row({ name: 'demo-cat', slug: 'dir:user-dsh:demo-cat', irregular: 'illegal' }),
+    ], [])
+    expect(skill.content).toContain('非法技能（不符合常规技能格式：无 SKILL.md / DESCRIPTION.md）')
+  })
+
+  it('marks a registered skill whose source is gone', () => {
+    const skill = buildIndexSkill([
+      row({ name: 'demo-ext', slug: 'demo-ext', group: 'registered', linked: false, missing: true }),
+    ], [])
+    expect(skill.content).toContain('⚠ 正本已失效')
+  })
+
+  it('explains what the marks mean, not just that they exist', () => {
+    const skill = buildIndexSkill(rows, [])
+    expect(skill.content).toContain('不可加载')
+    expect(skill.content).toContain('非法技能')
+  })
+
+  it('leaves an ordinary row without a state tag', () => {
+    const skill = buildIndexSkill([row({ name: 'demo-plain', slug: 'demo-plain' })], [])
+    expect(skill.content).toContain('`demo-plain`: d 【已联接·本会话未启用】')
+  })
+})

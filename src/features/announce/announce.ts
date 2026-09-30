@@ -60,17 +60,39 @@ function enabledOnly<T extends { enabled: boolean }>(items: T[]): T[] {
  * it, and a store copy becomes loadable through the context engine's selection,
  * not through this text — so a switch here would control nothing but the width
  * of this paragraph.
+ *
+ * Non-skill and category rows are listed with their state instead of being
+ * dropped, and a category earns a line of its own: it is the one shape where
+ * "the skill exists but the agent cannot load it" is true *and* fixable, and
+ * without that line the announcement would read as a complete inventory of a
+ * library the agent cannot touch.
  */
 function renderSkills(skills: SkillSummary[]): string {
   if (skills.length === 0) return '技能：无。'
   const lines = [`技能：共 ${skills.length} 个。`]
   const detail = skills.slice(0, MAX_NAMES).map((s) => {
     const desc = s.description.trim()
-    return desc === '' ? `- ${s.name}` : `- ${s.name}：${desc}`
+    const state = skillState(s)
+    const head = desc === '' ? `- ${s.name}` : `- ${s.name}：${desc}`
+    return state === '' ? head : `${head}【${state}】`
   })
   lines.push('可用技能：', ...detail)
   if (skills.length > detail.length) lines.push(truncatedNote(detail.length, skills.length))
+  const illegal = skills.filter((s) => s.irregular === 'illegal').length
+  if (illegal > 0) {
+    lines.push(
+      `注意：上面有 ${illegal} 个条目标着「非法技能」——它们是技能根目录里的目录，`
+      + '但里面没有 SKILL.md 或 DESCRIPTION.md，所以不是合格技能。dsh 同样看不见其中的技能。',
+    )
+  }
   return lines.join('\n')
+}
+
+/** The short state tag a skills line carries, '' when the row is ordinary. */
+function skillState(skill: SkillSummary): string {
+  if (skill.irregular === 'illegal') return '非法技能(无 SKILL.md / DESCRIPTION.md)'
+  if (skill.missing === true) return '⚠ 正本已失效'
+  return ''
 }
 
 /**

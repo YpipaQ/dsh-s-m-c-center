@@ -161,6 +161,37 @@ describe('renderAnnouncement — inventory', () => {
     expect(text).toContain('MCP 服务器：未配置。')
     expect(text).toContain('本地 CLI 工具：未发现。')
   })
+
+  it('flags an illegal directory and explains that dsh cannot see inside it', () => {
+    const text = renderAnnouncement(sources({
+      skills: [
+        { ...skill('demo-cat', ''), irregular: 'illegal' },
+        { ...skill('demo-real', 'does a thing'), slug: 'demo-real' },
+      ],
+    }))
+    // The directory is shown with its state…
+    expect(text).toContain('demo-cat【非法技能(无 SKILL.md / DESCRIPTION.md)】')
+    // …and the consequence is spelled out, because the agent cannot load them
+    // and would otherwise report this list as the whole inventory.
+    expect(text).toContain('非法技能')
+    expect(text).toContain('dsh 同样看不见其中的技能')
+  })
+
+  it('flags a dead registered source', () => {
+    const text = renderAnnouncement(sources({
+      skills: [
+        { ...skill('demo-ext', 'external'), group: 'registered', missing: true },
+      ],
+    }))
+    expect(text).toContain('demo-ext')
+    expect(text).toContain('正本已失效')
+  })
+
+  it('leaves an ordinary skill line free of state noise', () => {
+    const text = renderAnnouncement(sources({ skills: [skill('demo-plain', 'does a thing')] }))
+    expect(text).toContain('- demo-plain：does a thing')
+    expect(text).not.toContain('- demo-plain：does a thing【')
+  })
 })
 
 describe('renderAnnouncement — resilience', () => {

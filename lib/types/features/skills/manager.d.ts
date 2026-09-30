@@ -59,12 +59,14 @@ export declare class SkillsManager {
     }[];
     /** Drop a registry entry (and its link, when one exists). */
     unregisterExternal(slug: string): void;
-    /** Traceability pass: does every registered canonical path still exist? */
-    refreshRegistry(): {
-        slug: string;
-        name: string;
-        exists: boolean;
-    }[];
+    /**
+     * Traceability pass: for every registered record, is there still a row, and
+     * does its canonical path still resolve?
+     *
+     * @param rows - the list to check against. Callers that already have one pass
+     * it in rather than paying for a second scan.
+     */
+    refreshRegistry(rows?: SkillSummary[]): import("./registry-ops.ts").RefreshResult;
     /**
      * Converge the store manifest on the canonical row shape, dropping keys an
      * older version wrote (a per-skill 公告 / 启用 / 链接 / 来源 set that nothing

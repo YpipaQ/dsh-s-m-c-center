@@ -46,6 +46,12 @@ export class CliManager {
       persistedEntries().filter((e) => normalizeCliEntry(e).enabled).map((e) => e.name),
     )
     for (const skill of this.skills.listSkills(cwd)) {
+      // A flagged row is a directory, not a skill: it has no admission document
+      // and therefore no `scripts/` of its own. Its `path` *is* the directory,
+      // so deriving "the skill's folder" from it would land on the skill root
+      // and advertise whatever CLI that happens to contain under this row's
+      // name. Skip it — there is no skill here to carry a CLI.
+      if (skill.irregular !== undefined) continue
       const skillDir = skill.path.split(/[\\/]/).slice(0, -1).join('/')
       const scriptsDir = join(skillDir, 'scripts')
       if (!existsSync(scriptsDir)) continue

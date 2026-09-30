@@ -131,12 +131,26 @@ export class SkillsMcpApi {
     await call('POST', SMC_API.skillUnregister, { slug })
   }
 
-  /** Traceability pass: does every registered path still exist? */
-  async refreshRegistry(): Promise<Array<{ slug: string; name: string; exists: boolean }>> {
-    const body = await call<{ results: Array<{ slug: string; name: string; exists: boolean }> }>(
-      'POST', SMC_API.skillRefresh, {},
-    )
-    return body.results
+  /**
+   * Traceability pass: is there a row for every registered record, and does
+   * each surviving one still resolve?
+   *
+   * Takes `cwd` for the same reason the list call does: the pass compares the
+   * registry against the rows *the panel is showing*, project-level roots
+   * included, so scanning without a cwd would leave those rows out and let
+   * their records be mistaken for orphans.
+   *
+   * Returns the orphan count alongside the verdicts: a pass that quietly
+   * dropped records has something to report, not just a list of healthy rows.
+   */
+  async refreshRegistry(cwd: string): Promise<{
+    results: Array<{ slug: string; name: string; ok: boolean; reason: string }>
+    pruned: number
+  }> {
+    return await call<{
+      results: Array<{ slug: string; name: string; ok: boolean; reason: string }>
+      pruned: number
+    }>('POST', withCwd(SMC_API.skillRefresh, cwd), {})
   }
 
   // ── conversation contexts ────────────────────────────────────────────────

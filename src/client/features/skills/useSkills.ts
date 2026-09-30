@@ -194,14 +194,21 @@ export function useSkills(options: UseSkillsOptions): UseSkillsResult {
 
   const refreshRegistry = useCallback(() => {
     setMessage('')
-    api.refreshRegistry().then((results) => {
-      const missing = results.filter((r) => !r.exists)
-      setMessage(missing.length === 0
-        ? format(t('msgRefreshOk'), { n: results.length })
-        : format(t('msgRefreshMissing'), { n: missing.length }) + ' ' + missing.map((m) => m.name).join(', '))
+    api.refreshRegistry(cwd).then(({ results, pruned }) => {
+      const missing = results.filter((r) => !r.ok)
+      let text: string
+      if (missing.length > 0) {
+        text = format(t('msgRefreshMissing'), { n: missing.length }) + ' ' + missing.map((m) => m.name).join(', ')
+      } else {
+        text = format(t('msgRefreshOk'), { n: results.length })
+      }
+      // A pass that dropped records gets to say so — otherwise the ledger
+      // shrinking is something the user only notices by accident.
+      if (pruned > 0) text += ' ' + format(t('msgRefreshPruned'), { n: pruned })
+      setMessage(text)
       reloadAll()
     }).catch((e) => { setMessage(errorText(e)) })
-  }, [reloadAll, t])
+  }, [cwd, reloadAll, t])
 
   const remove = useCallback((skill: SkillSummary) => {
     act(skill, () => api.deleteSkill(skill.slug ?? ''))

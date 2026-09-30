@@ -232,30 +232,58 @@ interface SkillRowProps {
   t: Translate
 }
 
+/** Locale key per row flag, in the order a row can carry them. */
+function rowFlagKey(skill: UseSkillsResult['filtered'][number]): SkillsMcpKey | undefined {
+  if (skill.untracked === true) return 'suffixUntracked'
+  if (skill.missing === true) return 'suffixMissing'
+  if (skill.irregular === 'illegal') return 'suffixIllegal'
+  return undefined
+}
+
 /**
  * One row: the group badge and exactly the operations the row's group allows.
  * The source is not badged — every row in a group comes from the same place, so
  * the pill said the same thing twice; the path stays visible in 详情.
+ *
+ * A row can be *flagged* rather than ordinary, and all three flags mean the same
+ * thing to the user: this row will not work, and here is why. `untracked` is a
+ * link with no ledger record, `missing` is a record whose source no longer
+ * resolves, and `illegal` is a directory in a skill root that holds no skill
+ * document at all. They are drawn the same way — red outline, no link button —
+ * because a user does not care which layer produced the fault, only that the
+ * row is not usable. The difference lives in the explanation, not the styling.
  */
 function SkillRow({ skill, skills, t }: SkillRowProps) {
   const isBusy = skills.busyPath === skill.path
   const isOpen = skills.detailPath === skill.path
-  const redFlag = skill.untracked === true
+  const flagged = skill.untracked === true || skill.missing === true || skill.irregular !== undefined
+  const irregular = skill.irregular !== undefined
+  const flagKey = rowFlagKey(skill)
 
   return (
     <div>
-      <div className={css.row} style={redFlag ? { outline: '1px solid var(--dsh-danger, #d1242f)' } : undefined}>
+      <div
+        className={css.row}
+        style={flagged ? { outline: '1px solid var(--dsh-danger, #d1242f)' } : undefined}
+      >
         <div className={css.rowHead} style={{ cursor: 'pointer' }} onClick={() => { skills.view(skill) }}>
           <div className={css.name}>
             <span className={css.nameText}>
               {skill.name}
-              {redFlag ? t('suffixUntracked') : ''}
+              {flagKey !== undefined ? t(flagKey) : ''}
             </span>
           </div>
-          {skill.description ? <div className={css.desc}>{skill.description}</div> : null}
+          {skill.description
+            ? <div className={css.desc}>{skill.description}</div>
+            : irregular
+              // Non-skill rows carry no frontmatter to read a description from,
+              // so the reason is spelled out here rather than left as a blank
+              // line the user has to interpret.
+              ? <div className={css.desc}>{describeFlag(skill, t)}</div>
+              : null}
         </div>
         <Badge>{t(GROUP_KEY[skill.group])}</Badge>
-        {redFlag
+        {skill.untracked === true
           ? (
             <>
               <Button disabled={isBusy} onClick={() => { skills.verify(skill) }}>{t('btnVerify')}</Button>
@@ -264,37 +292,51 @@ function SkillRow({ skill, skills, t }: SkillRowProps) {
               </Button>
             </>
           )
-          : (
-            <>
-              {skill.group === 'native' && skill.level === 'user'
-                ? <Button disabled={isBusy} onClick={() => { skills.migrate(skill) }}>{t('btnMigrate')}</Button>
-                : null}
-              {skill.group === 'registered'
-                ? (
-                  <Button disabled={isBusy} onClick={() => { skills.unregister(skill) }}>
-                    {t('btnUnregister')}
-                  </Button>
-                )
-                : null}
-              {/* Link state owns exactly one button, coloured by direction:
-                  green when pressing it links the skill in, red when it takes
-                  the link away. Native rows are the skill itself — nothing to
-                  link. */}
-              {skill.group !== 'native'
-                ? (skill.linked
-                  ? (
-                    <Button variant="danger" disabled={isBusy} title={t('tipUnlink')} onClick={() => { skills.unlink(skill) }}>
-                      {t('btnUnlink')}
-                    </Button>
-                  )
-                  : (
-                    <Button variant="success" disabled={isBusy} title={t('tipLink')} onClick={() => { skills.link(skill) }}>
-                      {t('btnLink')}
-                    </Button>
-                  ))
-                : null}
-            </>
-          )}
+          : skill.missing === true
+            ? (
+              <>
+                {/* The source is gone, so the only move is to drop the record:
+                    取消登记 removes it and leaves whatever copy may still exist
+                    on disk alone. No link button — linking a dead path can only
+                    produce an entry the agent cannot load. */}
+                <Button variant="danger" disabled={isBusy} onClick={() => { skills.unregister(skill) }}>
+                  {t('btnUnregister')}
+                </Button>
+              </>
+            )
+            : irregular
+              ? null
+              : (
+                <>
+                  {skill.group === 'native' && skill.level === 'user'
+                    ? <Button disabled={isBusy} onClick={() => { skills.migrate(skill) }}>{t('btnMigrate')}</Button>
+                    : null}
+                  {skill.group === 'registered'
+                    ? (
+                      <Button disabled={isBusy} onClick={() => { skills.unregister(skill) }}>
+                        {t('btnUnregister')}
+                      </Button>
+                    )
+                    : null}
+                  {/* Link state owns exactly one button, coloured by direction:
+                      green when pressing it links the skill in, red when it takes
+                      the link away. Native rows are the skill itself — nothing to
+                      link. */}
+                  {skill.group !== 'native'
+                    ? (skill.linked
+                      ? (
+                        <Button variant="danger" disabled={isBusy} title={t('tipUnlink')} onClick={() => { skills.unlink(skill) }}>
+                          {t('btnUnlink')}
+                        </Button>
+                      )
+                      : (
+                        <Button variant="success" disabled={isBusy} title={t('tipLink')} onClick={() => { skills.link(skill) }}>
+                          {t('btnLink')}
+                        </Button>
+                      ))
+                    : null}
+                </>
+              )}
         <Button onClick={() => { skills.view(skill) }}>{isOpen ? t('collapse') : t('details')}</Button>
         {/* Deletion is store-only: the canonical copy under S-M-C/skills is the
             one thing this plugin owns, so it is the only thing it destroys. A
@@ -316,6 +358,18 @@ function SkillRow({ skill, skills, t }: SkillRowProps) {
       {isOpen ? <SkillDetail detail={skills.detail} path={skill.path} fallback={skill.description} t={t} /> : null}
     </div>
   )
+}
+
+/**
+ * The sentence a flagged row shows in place of a description.
+ *
+ * Kept in the locale, not in the host: the reason a traceability pass recorded
+ * is a diagnostic string (`path is gone: …`) and is shown as-is in the tooltip,
+ * while what the user reads is a translated explanation of what to do.
+ */
+function describeFlag(skill: UseSkillsResult['filtered'][number], t: Translate): string {
+  if (skill.irregular === 'illegal') return t('noteIllegal')
+  return ''
 }
 
 interface SkillDetailProps {

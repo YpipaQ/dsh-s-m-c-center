@@ -129,9 +129,15 @@ export class SkillsManager {
     unregisterExternal(slug)
   }
 
-  /** Traceability pass: does every registered canonical path still exist? */
-  refreshRegistry() {
-    return refreshRegistry()
+  /**
+   * Traceability pass: for every registered record, is there still a row, and
+   * does its canonical path still resolve?
+   *
+   * @param rows - the list to check against. Callers that already have one pass
+   * it in rather than paying for a second scan.
+   */
+  refreshRegistry(rows?: SkillSummary[]) {
+    return refreshRegistry(rows)
   }
 
   /**

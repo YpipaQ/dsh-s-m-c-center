@@ -30,6 +30,13 @@ export interface SkillSummary {
     linked: boolean;
     /** True for a link on disk that the link ledger has no record of (red flag). */
     untracked?: boolean;
+    /**
+     * True for a registered row whose canonical path failed the last traceability
+     * pass — the source moved, was deleted, or stopped holding a skill.
+     */
+    missing?: boolean;
+    /** Why it failed, verbatim from the ledger (shown in the row's tooltip). */
+    missingReason?: string;
     /** The root it lives under, which also decides its level. */
     source: SkillSource;
     level: SkillLevel;
@@ -39,6 +46,17 @@ export interface SkillSummary {
     path: string;
     /** Store / registry slug; present for stored and registered rows. */
     slug?: string;
+    /**
+     * Set when this row is a directory sitting in a skill root that is *not* a
+     * skill — what the panel flags in red.
+     *
+     * A scanned root is the agent's own territory: what sits directly under it is
+     * news whether or not it parses. dsh reads exactly one level, so a directory
+     * laid out as `<root>/<category>/<skill>/SKILL.md` holds no skill as far as
+     * dsh is concerned; the row says so instead of the entry vanishing. Nothing
+     * below such a directory is listed, because nothing below it is reachable.
+     */
+    irregular?: 'illegal';
 }
 /** One skill including its body, for the detail pane. */
 export interface SkillDetail {
@@ -134,6 +152,20 @@ export interface RegistryEntry {
     registeredAt: string;
     /** Last successful existence check (the refresh button's traceability). */
     lastSeen?: string;
+    /**
+     * The last traceability verdict, when it was a failure — the path is gone, or
+     * it is there but no longer holds an admission document.
+     *
+     * Kept on the row (not only in the transient toast) because the failure has
+     * to outlive the click that found it: a registered skill whose source was
+     * renamed or deleted otherwise keeps looking like a healthy row, is offered
+     * 联接 like any other, and linking it can only fail. Cleared automatically by
+     * the next refresh that finds the path healthy again.
+     */
+    missing?: {
+        at: string;
+        reason: string;
+    };
 }
 /** Persisted external-skills registry (`~/.dsh/S-M-C/skills-registry.json`). */
 export interface SkillsRegistry {

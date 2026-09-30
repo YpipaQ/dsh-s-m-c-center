@@ -279,17 +279,112 @@ describe('the four groups (operations)', () => {
     expect(slugs[0]).not.toBe(slugs[1])
   })
 
-  it('refreshRegistry only checks existence (traceability, no parsing)', () => {
+  it('refreshRegistry traces the path and keeps the verdict on the row', () => {
     const skills = new SkillsManager()
     const outside = bundle(join(home, 'incoming'), 'gamma', 'gamma')
     skills.registerExternal([{ sourcePath: outside, kind: 'bundle' }])
 
-    let results = skills.refreshRegistry()
-    expect(results[0]?.exists).toBe(true)
+    let outcome = skills.refreshRegistry()
+    expect(outcome.pruned).toBe(0)
+    expect(outcome.results[0]?.ok).toBe(true)
+    expect(skills.readRegistry().entries[0]?.missing).toBeUndefined()
 
     rmSync(outside, { recursive: true, force: true })
-    results = skills.refreshRegistry()
-    expect(results[0]?.exists).toBe(false)
+    outcome = skills.refreshRegistry()
+    expect(outcome.pruned).toBe(0)
+    expect(outcome.results[0]?.ok).toBe(false)
+    // The failure is written onto the row, not just returned: it has to outlive
+    // the click that found it, or the stale row reads as healthy again.
+    expect(skills.readRegistry().entries[0]?.missing?.reason).toContain('gone')
+    // …and the row says so in the listing.
+    const row = skills.listSkills().find((s) => s.slug === 'gamma')
+    expect(row?.missing).toBe(true)
+  })
+
+  it('refreshRegistry drops a record whose slug has no row in the list', () => {
+    const skills = new SkillsManager()
+    const outside = bundle(join(home, 'incoming'), 'zeta', 'zeta')
+    skills.registerExternal([{ sourcePath: outside, kind: 'bundle' }])
+
+    // A record with a live path is healthy, and that verdict comes from the
+    // disk only after the list has confirmed there is a row to trace.
+    expect(skills.refreshRegistry().results[0]?.ok).toBe(true)
+
+    // Now hand it a list with no such row while the path stays perfectly valid.
+    // A record nothing points at is an orphan: it can never be shown, linked or
+    // loaded, so it is removed rather than flagged — there is nothing to fix.
+    const outcome = skills.refreshRegistry([])
+    expect(outcome.results.length).toBe(0)
+    expect(outcome.pruned).toBe(1)
+    expect(skills.readRegistry().entries.length).toBe(0)
+  })
+
+  it('refreshRegistry prunes orphans but keeps the failing rows it can report', () => {
+    const skills = new SkillsManager()
+    const good = bundle(join(home, 'incoming'), 'one', 'one')
+    const bad = bundle(join(home, 'incoming-two'), 'two', 'two')
+    skills.registerExternal([{ sourcePath: good, kind: 'bundle' }])
+    skills.registerExternal([{ sourcePath: bad, kind: 'bundle' }])
+    rmSync(bad, { recursive: true, force: true })
+
+    // One row will survive with a broken source, the other has no row at all.
+    const rows = skills.listSkills().filter((r) => r.slug !== 'two')
+    const outcome = skills.refreshRegistry(rows)
+    expect(outcome.pruned).toBe(1)
+    expect(outcome.results.length).toBe(1)
+    expect(outcome.results[0]?.ok).toBe(true)
+    // Only the orphan was dropped; the healthy record is still there.
+    expect(skills.readRegistry().entries.map((e) => e.slug)).toEqual(['one'])
+  })
+
+  it('refreshRegistry also flags a directory that lost its admission document', () => {
+    const skills = new SkillsManager()
+    const outside = bundle(join(home, 'incoming'), 'delta', 'delta')
+    skills.registerExternal([{ sourcePath: outside, kind: 'bundle' }])
+    expect(skills.refreshRegistry().results[0]?.ok).toBe(true)
+
+    // The directory survives, the skill inside it does not — an existence check
+    // alone would still call this healthy.
+    rmSync(join(outside, 'SKILL.md'), { force: true })
+    const outcome = skills.refreshRegistry()
+    expect(outcome.results[0]?.ok).toBe(false)
+    expect(outcome.results[0]?.reason).toContain('SKILL.md')
+  })
+
+  it('keeps a project-level record when the pass is scanned with its workspace', () => {
+    const skills = new SkillsManager()
+    // A native skill under a project root: it is scanned into the list only
+    // while that workspace is the one being listed, which is exactly the trap —
+    // a pass that scanned *without* a cwd would find no row for it and drop the
+    // record as an orphan, silently, on the first refresh from another folder.
+    const project = join(home, 'work', 'proj')
+    const dir = join(project, '.dsh', 'skills', 'demo-proj')
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(join(dir, 'SKILL.md'), '---\nname: demo-proj\ndescription: d\n---\nbody', 'utf8')
+    mkdirSync(join(project, '.git'), { recursive: true })
+
+    expect(skills.listSkills(project).map((r) => r.slug)).toContain('demo-proj')
+    expect(skills.readRegistry().entries.map((e) => e.slug)).toContain('demo-proj')
+
+    // Scanned with the workspace, the row is there and the record survives.
+    const outcome = skills.refreshRegistry(skills.listSkills(project))
+    expect(outcome.pruned).toBe(0)
+    expect(skills.readRegistry().entries.map((e) => e.slug)).toContain('demo-proj')
+  })
+
+  it('refreshRegistry clears the flag once the path is healthy again', () => {
+    const skills = new SkillsManager()
+    const outside = bundle(join(home, 'incoming'), 'epsilon', 'epsilon')
+    skills.registerExternal([{ sourcePath: outside, kind: 'bundle' }])
+    rmSync(outside, { recursive: true, force: true })
+    skills.refreshRegistry()
+    expect(skills.readRegistry().entries[0]?.missing).toBeDefined()
+
+    // A refresh that finds it again — the user restored or re-registered it —
+    // must not leave the stale flag behind.
+    bundle(join(home, 'incoming'), 'epsilon', 'epsilon')
+    expect(skills.refreshRegistry().results[0]?.ok).toBe(true)
+    expect(skills.readRegistry().entries[0]?.missing).toBeUndefined()
   })
 
   it('verifyLink reports target state; deleteUntrackedLink removes a red-flag link', () => {

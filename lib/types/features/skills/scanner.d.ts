@@ -36,10 +36,13 @@ export declare function resolveRegistration(slug: string): SkillRegistration | u
  * Why the model may not enable `slug`, or undefined when it may.
  *
  * A directory admitted by `DESCRIPTION.md` alone is a *container*: it lists in
- * the panel and migrates into the store, but it has no body to load and its
- * real skills live one level down — where dsh's own scanner never looks. Letting
- * a flip accept it produced a dead line in the model's catalog while the actual
- * skills stayed unreachable from both sides.
+ * the panel and migrates into the store, but it has no body to load. Letting a
+ * flip accept it produced a dead line in the model's catalog.
+ *
+ * A directory with *no* admission document at all is worse — there is not even
+ * a body to show. It is not a skill at all, and dsh would not see anything in
+ * it either, so it is refused with the reason said plainly rather than a flip
+ * that appears to do nothing.
  */
 export declare function enableBlocker(slug: string): string | undefined;
 /**

@@ -56,6 +56,13 @@ function stateOf(skill: SkillSummary, selected: Set<string>): string {
     skill.linked ? '已联接' : '未联接',
     skill.slug !== undefined && selected.has(skill.slug) ? '本会话已启用' : '本会话未启用',
   ]
+  if (skill.irregular === 'illegal') {
+    // Not a skill, and dsh would not see one in there either. The model should
+    // relay that plainly rather than treating the row as something loadable.
+    parts.push('非法技能（不符合常规技能格式：无 SKILL.md / DESCRIPTION.md）')
+    return parts.join('·')
+  }
+  if (skill.missing === true) parts.push('⚠ 正本已失效')
   const slug = skill.slug ?? ''
   if (slug !== '' && enableBlocker(slug) !== undefined) parts.push('容器目录（本条正文即该组说明）')
   return parts.join('·')
@@ -88,6 +95,10 @@ export function buildIndexSkill(rows: SkillSummary[], selected: string[]): Skill
     '- 本会话已启用 = 已注册进本会话，可直接用 skill 工具加载。',
     '- 需要但本会话未启用：用 skill_select 启用，或请用户在「会话技能」小窗勾选；启用后它才会出现在本会话的目录里。',
     '- 容器目录（只有 DESCRIPTION.md）没有可加载的正文，要启用它下面的具体技能。',
+    '- 标「非法技能」的条目**不可加载**：它是一个目录，但里面没有合格的技能文档，'
+      + 'dsh 同样看不见其中的任何技能。它只是如实告诉你技能根目录里有这么一项，'
+      + '需要用户处理（补上 SKILL.md / DESCRIPTION.md，或把它移走）。',
+    '- 标「正本已失效」的登记技能指向的目录已不存在或不再含技能，需要用户重新登记或取消登记。',
   ].join('\n')
   return {
     name: INDEX_NAME,
@@ -119,6 +130,13 @@ export function catalogEntriesOf(
   const entries: { name: string; description: string }[] = []
   for (const skill of [...rows].sort((a, b) => a.name.localeCompare(b.name))) {
     if (skill.slug === undefined || skill.slug === '' || !chosen.has(skill.slug)) continue
+    // A directory with no admission document is not a skill, so it never earns
+    // a line here — and this is checked *as well as* the slug match, because a
+    // selection file written before that rule existed can still name one, and a
+    // stale file must not be able to put a non-skill back in the model's
+    // catalog. The index body still lists it (flagged), which is where the
+    // model should learn about it.
+    if (skill.irregular !== undefined) continue
     entries.push({ name: skill.name, description: oneLine(skill.description || skill.name) })
   }
   entries.push({ name: INDEX_NAME, description: oneLine(INDEX_DESCRIPTION) })

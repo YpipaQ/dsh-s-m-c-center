@@ -116,6 +116,9 @@ export type SkillsMcpKey =
   | 'suffixArchived'
   | 'suffixHidden'
   | 'suffixUntracked'
+  | 'suffixMissing'
+  | 'suffixIllegal'
+  | 'noteIllegal'
   | 'suffixOversize'
   | 'suffixDir'
   | 'suffixFile'
@@ -195,6 +198,7 @@ export type SkillsMcpKey =
   | 'msgVerifyUntracked'
   | 'msgRefreshOk'
   | 'msgRefreshMissing'
+  | 'msgRefreshPruned'
   // conversation contexts (phase two)
   | 'contextTitle'
   | 'contextNote'
@@ -341,6 +345,9 @@ export const zh: Record<SkillsMcpKey, string> = {
   suffixArchived: ' （已归档）',
   suffixHidden: ' （已隐藏）',
   suffixUntracked: ' （⚠ 无记录联接）',
+  suffixMissing: ' （⚠ 正本已失效）',
+  suffixIllegal: ' （非法技能）',
+  noteIllegal: '这个目录不符合常规技能格式：里面既没有 SKILL.md 也没有 DESCRIPTION.md，所以不是技能、无法加载。dsh 同样不会看到它里面的任何技能——它只是被列出来，让你知道技能根目录里有这么一项。要让它变成技能，补一个合格的 SKILL.md 即可；不然就把它移出技能根目录。',
   suffixOversize: ' （超过 10G 上限）',
   suffixDir: ' (目录)',
   suffixFile: ' (文件)',
@@ -419,7 +426,8 @@ export const zh: Record<SkillsMcpKey, string> = {
   msgVerifyTracked: '联接有效（有账本记录）→ ',
   msgVerifyUntracked: '联接有效（无账本记录）→ ',
   msgRefreshOk: '溯源刷新完成：{n} 条记录均存在',
-  msgRefreshMissing: '溯源刷新：{n} 条记录的目录已不存在 → ',
+  msgRefreshMissing: '溯源刷新：{n} 条记录的正本已失效 → ',
+  msgRefreshPruned: '已清理 {n} 条无对应行的孤条记录。',
 
   contextTitle: '会话默认',
   contextNote: '这里列出的是**已联接**的技能（真实技能目录里存在的）。注入（开）= 进入每个尚未单独配置的新对话；对话里的 agent 也能自己开关（写入该会话自己的配置）。未联接的技能不在此列。',
@@ -563,6 +571,9 @@ export const en: Record<SkillsMcpKey, string> = {
   suffixArchived: ' (archived)',
   suffixHidden: ' (hidden)',
   suffixUntracked: ' (⚠ untracked link)',
+  suffixMissing: ' (⚠ source gone)',
+  suffixIllegal: ' (not a valid skill)',
+  noteIllegal: 'This directory does not match the usual skill layout: it holds neither SKILL.md nor DESCRIPTION.md, so it is not a skill and cannot be loaded. dsh will not see any skill inside it either — the row is listed only so you know something non-skill sits in the skill root. Add a proper SKILL.md to turn it into a skill, or move it out of the root.',
   suffixOversize: ' (over the 10 GB cap)',
   suffixDir: ' (dir)',
   suffixFile: ' (file)',
@@ -642,6 +653,7 @@ export const en: Record<SkillsMcpKey, string> = {
   msgVerifyUntracked: 'Link is valid (no ledger record) → ',
   msgRefreshOk: 'Traceability refresh done: all {n} records exist',
   msgRefreshMissing: 'Traceability refresh: {n} record(s) missing → ',
+  msgRefreshPruned: 'Dropped {n} orphan record(s) with no matching row.',
 
   contextTitle: 'Session default',
   contextNote: 'This lists **linked** skills only — what actually sits in the skill roots. Injected (on) skills reach every new conversation without a selection of its own; the agent can also flip its own skills in-conversation (written to that conversation\'s config). Unlinked skills are not listed here.',
