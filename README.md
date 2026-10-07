@@ -149,7 +149,7 @@ The guide tab can also switch on **announce to agent**, which describes the plug
 ## 🚀 Install
 
 > **Requirements**: DeepSeek Harness **`>= 0.1.2-alpha.2`** (all `@deepseek-ai/*` packages release together); Node `^22.19.0 || >=24`.
-> Status: **fully tested on `0.2.0-rc.1` and `0.1.7-rc.2` (every plugin route, the injection chain and the UI) as well as `0.1.6-alpha.1`, `0.1.6-alpha.2` and `0.1.5-rc.2`**; every API used has been checked for existence and signature since `0.1.2-alpha.2`.
+> Status: **fully tested end-to-end on `0.2.1-alpha.1` (every plugin route, both plugin halves and the settings UI) as well as `0.2.0-rc.1` and `0.1.7-rc.2` (every plugin route, the injection chain and the UI) and `0.1.6-alpha.1`, `0.1.6-alpha.2`, `0.1.5-rc.2`**; every API used has been checked for existence and signature since `0.1.2-alpha.2`.
 > **The desktop build is supported too** — the plugin only uses dsh's host/client plugin interfaces and does not depend on the CLI form factor; verified working on the desktop build.
 
 > **Install it as a normal package — never as a junction.** A junction breaks resolution of dependencies (`schemastery` / `react` and friends) and makes the package name disagree with `cordis.patch.yml`; either one stops DSH from starting.

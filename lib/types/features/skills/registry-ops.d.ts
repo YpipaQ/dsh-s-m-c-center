@@ -77,6 +77,10 @@ export interface RefreshResult {
  * refresh clears it.
  *
  * @param rows - the skills currently listed. Defaults to a fresh scan.
+ *   Callers should pass the list they are showing, **scanned with the same cwd**:
+ *   project-level rows only exist under their own workspace, so a pass that
+ *   scanned elsewhere would compare the registry against a list missing them
+ *   and drop those records as orphans.
  * @returns one verdict per *surviving* record, plus how many orphans were
  * dropped — the count is worth showing, because a user whose ledger quietly
  * shrank should be told rather than left to notice.

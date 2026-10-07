@@ -23,13 +23,36 @@ export declare function listSkills(cwd?: string): SkillSummary[];
  * DESCRIPTION.md-style document falls back to the lenient parse (name from
  * its directory, description from its body).
  */
+/**
+ * Read one skill document (body included). Strict frontmatter first; a
+ * DESCRIPTION.md-style document falls back to the lenient parse (name from
+ * its directory, description from its body).
+ *
+ * A *directory* is the one input that has no document to read — the shape a
+ * flagged non-skill row takes. Rather than letting `readFileSync` throw (the
+ * request would 500 and the panel would show a raw error for a row the user is
+ * clicking precisely to understand), it answers with the same explanation the
+ * row's own description carries.
+ */
 export declare function readSkill(path: string): SkillDetail | null;
 /**
  * Resolve a slug to a runtime `SkillRegistration` for the context engine:
  * looks in the store first, then the external registry, and reads the
  * admission document (SKILL.md or DESCRIPTION.md) body verbatim (no
  * frontmatter rewriting, ever).
- * @returns undefined when the slug is unknown or its copy is gone.
+ *
+ * A row that carries **no** admission document is refused here even though
+ * {@link resolveCandidate} can describe it. That description exists so the panel
+ * can answer "why is this row red?" when a user clicks it, and a description is
+ * not a body: this function is the *loading* path (the context engine and
+ * `skill_select` both call it), and handing back the explanation there installed
+ * a non-skill into a conversation — the panel said "not loadable" while the
+ * model's catalog listed it as loadable, and the slug was written into the
+ * conversation's selection file where no cleanup would ever remove it. The two
+ * questions are different questions and now get different answers.
+ *
+ * @returns undefined when the slug is unknown, its copy is gone, or it is a
+ * directory with nothing to load.
  */
 export declare function resolveRegistration(slug: string): SkillRegistration | undefined;
 /**

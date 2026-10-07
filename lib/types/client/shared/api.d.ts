@@ -44,10 +44,15 @@ export declare class SkillsMcpApi {
      * Traceability pass: is there a row for every registered record, and does
      * each surviving one still resolve?
      *
+     * Takes `cwd` for the same reason the list call does: the pass compares the
+     * registry against the rows *the panel is showing*, project-level roots
+     * included, so scanning without a cwd would leave those rows out and let
+     * their records be mistaken for orphans.
+     *
      * Returns the orphan count alongside the verdicts: a pass that quietly
      * dropped records has something to report, not just a list of healthy rows.
      */
-    refreshRegistry(): Promise<{
+    refreshRegistry(cwd: string): Promise<{
         results: Array<{
             slug: string;
             name: string;
