@@ -15,6 +15,11 @@
  * The window it opens stays imperative DOM on `document.body` (see sidebar.ts):
  * it must outlive this component, survive shell re-renders, and be dragged and
  * resized like a desktop window.
+ *
+ * The seat is shared, so the row also has a *place* in it to claim: whichever
+ * other packages register a footer action, ours has to sit somewhere sensible
+ * relative to theirs. That rule lives in footer-slot.ts; this component only
+ * measures and applies it.
  * @module
  */
 
@@ -22,6 +27,7 @@ import { useEffect, useRef, useSyncExternalStore } from 'react'
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 // Type-only: pulls ui-sidebar's SlotMap merge (the 'sidebar.footer.action' entry).
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
+import { placeFooterAction } from './footer-slot.ts'
 import { closePanel, isPanelOpen, openPanel, readOpenFlag, subscribePanel } from './sidebar.ts'
 import css from './sidebar-entry.module.css'
 
@@ -69,6 +75,45 @@ export function SidebarEntry({ wide, t }: SidebarEntryProps) {
   }, [])
 
   const label = t('panelTitle')
+
+  // Claim our place in the shared seat.
+  //
+  // Measured rather than assumed: which packages share the foot is not
+  // knowable from here, and a sibling can arrive after us or change size, so
+  // the rule is re-applied whenever the seat's children change or the
+  // container resizes.
+  useEffect(() => {
+    const button = ref.current
+    if (button === null) return
+    const slot = document.querySelector('[data-slot="sidebar.footer.action"]')
+    if (slot === null) return
+
+    // The shell lays out the element it sees in the seat, which is our row —
+    // the direct child of the slot container, whatever wrapper depth React
+    // happens to render at.
+    let node: HTMLElement | null = button
+    while (node !== null && node.parentElement !== slot) node = node.parentElement
+    if (node === null) return
+    const row = node
+
+    const place = (): void => { placeFooterAction(row) }
+    place()
+
+    const arrivals = new MutationObserver(place)
+    arrivals.observe(slot, { childList: true })
+
+    // The slot wrapper is `display: contents` and therefore has no box to
+    // observe, so the resize signal comes from the container that lays us out.
+    const container = slot.parentElement
+    const resize = container === null ? null : new ResizeObserver(place)
+    if (container !== null && resize !== null) resize.observe(container)
+
+    return () => {
+      arrivals.disconnect()
+      resize?.disconnect()
+      row.style.removeProperty('order')
+    }
+  }, [])
 
   return (
     <div className={wide ? css.row : `${css.row} ${css.railRow}`}>

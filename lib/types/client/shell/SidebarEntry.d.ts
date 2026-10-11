@@ -15,6 +15,11 @@
  * The window it opens stays imperative DOM on `document.body` (see sidebar.ts):
  * it must outlive this component, survive shell re-renders, and be dragged and
  * resized like a desktop window.
+ *
+ * The seat is shared, so the row also has a *place* in it to claim: whichever
+ * other packages register a footer action, ours has to sit somewhere sensible
+ * relative to theirs. That rule lives in footer-slot.ts; this component only
+ * measures and applies it.
  * @module
  */
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';

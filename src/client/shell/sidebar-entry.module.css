@@ -90,3 +90,24 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* The foot is a stack, not a shelf.
+   ------------------------------------------------- -----------------------------
+   The shell lays every `sidebar.footer.action` occupant out on one flex line,
+   and the slot wrapper between them is `display: contents` — so our row and the
+   next plugin's action end up as siblings *in this container*, not as children
+   of a wrapper. Two entries that each want the full column then split that one
+   line and both read as truncated labels: "会…" beside "性能监视器".
+
+   Folding the line is the only correction available from a plugin, and it is
+   scoped to the case that needs it — a second action being present. With our
+   row alone in the seat nothing changes, so a deployment without any other
+   footer action sees the shell's own layout untouched.
+
+   `align-items` is repeated rather than relied upon: a column with the wrong
+   alignment would leave both rows hugging the left edge at their content width,
+   which is exactly the shape this is fixing. */
+div:has(> [data-slot='sidebar.footer.action'] > * + *) {
+  flex-direction: column;
+  align-items: stretch;
+}

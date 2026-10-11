@@ -163,7 +163,7 @@ dsh plugin --profile web add dsh-s-m-c-center
 dsh plugin --profile web add <absolute path to this folder>
 
 # Or from a packed tarball
-dsh plugin --profile web add <path>/dsh-s-m-c-center-0.2.4.tgz
+dsh plugin --profile web add <path>/dsh-s-m-c-center-0.2.7.tgz
 
 # Or the one-shot scripts
 bash scripts/install.sh                                        # macOS / Linux / Git Bash
@@ -258,7 +258,7 @@ dsh-s-m-c-center/
 
 ## 🧰 Development
 
-See [`docs/development.md`](./docs/development.md): dual-half builds (`tsdown` rebuilds `lib/index.js` + `lib/client.js`), type checking (`tsc --noEmit`) and the test suite (`vitest`, 18 files / 271 cases).
+See [`docs/development.md`](./docs/development.md): dual-half builds (`tsdown` rebuilds `lib/index.js` + `lib/client.js`), type checking (`tsc --noEmit`) and the test suite (`vitest`, 19 files / 285 cases).
 
 ## 📄 License
 

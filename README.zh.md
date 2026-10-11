@@ -163,7 +163,7 @@ dsh plugin --profile web add dsh-s-m-c-center
 dsh plugin --profile web add <本文件夹绝对路径>
 
 # 或安装打包产物
-dsh plugin --profile web add <path>/dsh-s-m-c-center-0.2.4.tgz
+dsh plugin --profile web add <path>/dsh-s-m-c-center-0.2.7.tgz
 
 # 或使用一键脚本
 bash scripts/install.sh                                        # macOS / Linux / Git Bash
@@ -258,7 +258,7 @@ dsh-s-m-c-center/
 
 ## 🧰 开发
 
-见 [`docs/development.md`](./docs/development.md)：双半区构建（`tsdown` 重建 `lib/index.js` + `lib/client.js`）、类型检查（`tsc --noEmit`）与测试套件（`vitest`，18 个文件 / 271 个用例）。
+见 [`docs/development.md`](./docs/development.md)：双半区构建（`tsdown` 重建 `lib/index.js` + `lib/client.js`）、类型检查（`tsc --noEmit`）与测试套件（`vitest`，19 个文件 / 285 个用例）。
 
 ## 📄 许可
 
