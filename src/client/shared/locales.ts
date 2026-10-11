@@ -235,6 +235,21 @@ export type SkillsMcpKey =
   | 'detailWhenToUse'
   | 'helpToggle'
   | 'cliSkillPrefix'
+  // conversation-skills window (the sidebar foot entry + its floating panel)
+  | 'panelTitle'
+  | 'panelClose'
+  | 'panelPin'
+  | 'panelUnpin'
+  | 'panelNewConversation'
+  | 'panelCurrentConversation'
+  | 'panelConfigured'
+  | 'panelInherited'
+  | 'panelTable'
+  | 'panelTableUnresolved'
+  | 'panelReset'
+  | 'panelResetTitle'
+  | 'panelEmpty'
+  | 'panelNoSession'
 
 /** Translator bound to this plugin's namespace (what `PropsLocale` hands out). */
 export type Translate = (key: SkillsMcpKey) => string
@@ -463,6 +478,20 @@ export const zh: Record<SkillsMcpKey, string> = {
   restoringMcp: '注入中…',
   msgMigrateDone: '已迁移 {moved} 个技能。',
   msgRestoreDone: '已注入 {restored} 个 MCP 服务器。',
+  panelTitle: '会话技能',
+  panelClose: '关闭',
+  panelPin: '钉住：钉住后点击窗口外部不再自动关闭',
+  panelUnpin: '取消钉住',
+  panelNewConversation: '新会话（尚未开始对话）',
+  panelCurrentConversation: '当前会话',
+  panelConfigured: '本会话已单独配置',
+  panelInherited: '本会话跟随「会话默认」',
+  panelTable: '配置表：{path}',
+  panelTableUnresolved: '（未解析）',
+  panelReset: '跟随默认（清除本会话）',
+  panelResetTitle: '删除本会话自己的选择，改为跟随「会话默认」',
+  panelEmpty: '没有可勾选的技能（先在管理页登记或迁移入库）',
+  panelNoSession: '新会话还没有会话 ID——发第一条消息后，这里就会跟随该对话的技能选择',
 }
 
 /** English dictionary, checked complete against the zh key set. */
@@ -689,4 +718,18 @@ export const en: Record<SkillsMcpKey, string> = {
   restoringMcp: 'Injecting…',
   msgMigrateDone: 'Migrated {moved} skills.',
   msgRestoreDone: 'Injected {restored} MCP servers.',
+  panelTitle: 'Conversation skills',
+  panelClose: 'Close',
+  panelPin: 'Pin: keep this window open when you click outside',
+  panelUnpin: 'Unpin',
+  panelNewConversation: 'New conversation (not started yet)',
+  panelCurrentConversation: 'Current conversation',
+  panelConfigured: 'This conversation has its own configuration',
+  panelInherited: 'This conversation follows the session default',
+  panelTable: 'Config table: {path}',
+  panelTableUnresolved: '(unresolved)',
+  panelReset: 'Follow default (clear this conversation)',
+  panelResetTitle: 'Drop this conversation’s own selection and follow the session default again',
+  panelEmpty: 'No selectable skills (register or move one into the store on the management page first)',
+  panelNoSession: 'A new conversation has no session id yet — after its first message this panel follows that conversation',
 }

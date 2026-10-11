@@ -59,7 +59,7 @@
 
 | | |
 |---|---|
-| **会话技能小窗** ｜ 侧边栏随手调整本对话的注入 | **MCP 服务** ｜ 真实连接，激活 / 归档一键切换 |
+| **会话技能小窗** ｜ 侧边栏底部随手调整本对话的注入 | **MCP 服务** ｜ 真实连接，激活 / 归档一键切换 |
 | <a href="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-session.png"><img src="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-session.png" alt="侧边栏「会话技能」小窗" width="98%" /></a> | <a href="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-mcp.png"><img src="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-mcp.png" alt="MCP 服务页签" width="98%" /></a> |
 | **CLI 工具** ｜ 发现 / 探测 / 登记本地 CLI | **使用说明** ｜ 三类工具讲解 + 卸载撤退口 |
 | <a href="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-cli.png"><img src="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-cli.png" alt="CLI 工具页签" width="98%" /></a> | <a href="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-guide.png"><img src="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-guide.png" alt="使用说明页签" width="98%" /></a> |
@@ -90,11 +90,11 @@
   | ② 核对正本 | 列表里确实有行的，才查路径还在不在、**里面是否仍有技能** | 失败写进登记表（`missing` 字段，带时间与原因）并在列表标 `⚠ 正本已失效` |
 
   正本核对失败会**持续显示为坏的**，而不是下次打开又显得正常、还提供一个根本联不上的「联接」按钮。清理了几条孤条记录也会一并告诉你。
-- **会话默认与按对话注入**：`会话默认` 是新对话的起始技能；每个对话还能有自己的差异（关掉某个、追加某个）。对话里的 agent 可以自己开关（写入该对话自己的配置），侧边栏还有一个「会话技能」小窗供你随时手动调整——两处列表都只列**已联接**的技能。详见下一节。
+- **会话默认与按对话注入**：`会话默认` 是新对话的起始技能；每个对话还能有自己的差异（关掉某个、追加某个）。对话里的 agent 可以自己开关（写入该对话自己的配置），侧边栏底部（「设置」正上方）还有一个「会话技能」小窗供你随时手动调整——两处列表都只列**已联接**的技能。小窗**每秒静默自查一次，只有内容真变了才重绘**：切换对话、给对话改名都会在 1 秒内自己跟上，所以它不再需要「刷新」按钮；点窗口外面即关闭，要它常驻就点**图钉**钉住（钉住只决定「点外面关不关」，不影响拖动与缩放）。详见下一节。
 - **MCP**：分「管理 / 新建」两个子页——管理页一台服务器一个 **激活 / 归档** 开关（外加删除），新建页提供表单或 JSON 编辑，保存前可**测试连接**（一次性真实探测）；激活 / 归档真实连接 / 断开并注册 `mcp__<server>__<tool>` 工具；实时状态（连接中 / 运行中 / 失败 / 已停止）。
 - **CLI**：自动发现 skill 包装的 CLI（`scripts/run-cli.*` / `cli-state.*`），并登记系统 CLI（`gh`、`git` …，存于 `S-M-C/cli.json`）。每条都会探测：是否安装 / 版本 / 是否需更新 / API-Key 状态 / 子命令，并在行上标出来源与位置。**公告 / 隐藏**开关只决定是否把这个 CLI 写进给 AI 的公告（插件无法启停系统装的 CLI，因此默认隐藏）。
 - **使用说明**：按三类讲清工作方式，最下方是卸载前的总撤退口。「撤销迁移」把储存库技能移回原始位置；储存库空着时同一按钮变为绿色的「迁移」，**双向可逆**；「MCP 全部注入」把归档服务器一次性移回并重连；页面同时列出卸载后需手动删除的目录与配置块。
-- **界面**：全量文案 zh / en 双语（各 206 键，英文环境零中文）；破坏性操作两步确认，且点开别处即复位。
+- **界面**：全量文案 zh / en 双语（各 220 键，英文环境零中文）；破坏性操作两步确认，且点开别处即复位。
 
 ## 🧠 两条通道：联接 vs 注入
 
@@ -258,7 +258,7 @@ dsh-s-m-c-center/
 
 ## 🧰 开发
 
-见 [`docs/development.md`](./docs/development.md)：双半区构建（`tsdown` 重建 `lib/index.js` + `lib/client.js`）、类型检查（`tsc --noEmit`）与测试套件（`vitest`，16 个文件 / 237 个用例）。
+见 [`docs/development.md`](./docs/development.md)：双半区构建（`tsdown` 重建 `lib/index.js` + `lib/client.js`）、类型检查（`tsc --noEmit`）与测试套件（`vitest`，18 个文件 / 271 个用例）。
 
 ## 📄 许可
 

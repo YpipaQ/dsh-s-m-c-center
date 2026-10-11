@@ -1,0 +1,92 @@
+/**
+ * The sidebar-foot entry that opens the conversation-skills window.
+ *
+ * Geometry is copied from the two things this row sits between rather than
+ * invented: the settings trigger directly below it (42px row, md radius, the
+ * shared hover surface) and the other footer occupant's shell. Matching those
+ * numbers is what makes the new row read as part of the sidebar instead of a
+ * plugin bolted onto it.
+ *
+ * A stylesheet, not inline styles, because the states that matter here are
+ * pseudo-class and attribute driven (`:hover`, `[data-active]`, `:focus-visible`)
+ * and those cannot be expressed from a style attribute.
+ *
+ * Every dsh token carries a fallback: the shell's aliases are an implementation
+ * detail of the release we happen to be running against, and a missing variable
+ * must degrade to something legible rather than to nothing.
+ */
+
+/* `flex: 1 1 auto` rather than `width: 100%`: this row should fill the foot
+   when it is the only action, but it also has to *shrink* to its icon box if
+   another footer action claims the full width — hence the 36px floor, which is
+   the same box the collapsed rail uses. */
+.row {
+  flex: 1 1 auto;
+  min-width: 36px;
+  max-width: calc(100% + 4px);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px -2px;
+}
+
+/* Collapsed rail (56px column): the row is the icon box, nothing else. */
+.railRow {
+  flex: none;
+  width: 36px;
+  min-width: 36px;
+  margin: 8px 0 10px;
+}
+
+.entry {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 42px;
+  padding: 0 10px 0 8px;
+  box-sizing: border-box;
+  border: none;
+  border-radius: var(--dsw-radius-md, 8px);
+  background: transparent;
+  color: var(--dsw-alias-label-primary, inherit);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 22px;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.entry:hover {
+  background: var(--dsw-alias-interactive-bg-hover, rgba(127, 127, 127, 0.12));
+}
+
+/* The window is showing. The sidebar's own rows mark the selected one with this
+   same surface, so an open window reads as "this row is active" for free. */
+.entry[data-active] {
+  background: var(--dsw-alias-interactive-bg-hover, rgba(127, 127, 127, 0.12));
+}
+
+.entry:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary, #3b6fe0);
+  outline-offset: -2px;
+}
+
+/* Collapsed rail: a square icon box, centred, no label (see the component). */
+.entry.rail {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  justify-content: center;
+  gap: 0;
+  padding: 0;
+}
+
+.label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
