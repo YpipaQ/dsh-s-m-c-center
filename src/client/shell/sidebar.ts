@@ -1,9 +1,10 @@
 /**
  * The conversation-skills window: a floating panel, and only that.
  *
- * The sidebar *entry* that opens it is a slot occupant built elsewhere
- * (`SidebarEntry.tsx`) — the shell owns that button now. What is left here is
- * the window itself, which is deliberately imperative DOM on `document.body`:
+ * The sidebar *entry* that opens it lives here too, and sits directly under the
+ * New Session button. The shell declares no slot above the workspaces region,
+ * so the row is anchored to that button and re-anchored after a re-render.
+ * The window itself is deliberately imperative DOM on `document.body`:
  * it must outlive any React tree, survive shell re-renders, and be dragged and
  * resized like a desktop window. Hanging it inside the sidebar was never an
  * option — the sidebar clips overflow (the shell's own footer panel works
@@ -39,6 +40,8 @@ import type { SkillsMcpKey } from '../shared/locales.ts'
 import { fingerprintOf, sortedRows, type PanelSkillRow, type PanelView } from './panel-state.ts'
 
 const PANEL_ID = 'smc-fp'
+/** Attribute marking our sidebar entry; drives both lookup and the rail styling. */
+const ENTRY_ID = 'data-dsh-s-m-c-entry'
 const STYLE_ID = 'dsh-s-m-c-sidebar-style'
 const PANEL_Z = 9999
 /** localStorage key the dsh session controller persists its selection under. */
@@ -163,6 +166,12 @@ function ensureStyle(): void {
   const style = document.createElement('style')
   style.id = STYLE_ID
   style.textContent = `
+/* Collapsed rail: the shell publishes data-sidebar-collapsed on the AppFrame
+   root (only while collapsed) and lays controls out as 36x36 boxes with 12px
+   rounding — match that so the icon-only entry reads like its neighbours. */
+[data-sidebar-collapsed] [${ENTRY_ID}]{justify-content:center!important;width:36px!important;height:36px!important;min-height:36px!important;margin:0!important;padding:0!important;border-radius:12px!important}
+[data-sidebar-collapsed] [${ENTRY_ID}]:hover{background:var(--dsw-alias-interactive-bg-hover,#f0f1f3)!important}
+[data-sidebar-collapsed] [${ENTRY_ID}]>span:not(:first-child){display:none!important}
 /* Default size matches the shell's other status window (dsh-perf-monitor) so the
    two read as siblings; drag and corner-resize still override it, and the
    clamps keep a resized window from growing past the viewport. */
@@ -706,4 +715,146 @@ export function openPanel(anchor: HTMLElement, t: PanelTranslate): void {
 
   bodyEl.textContent = t('loading')
   void tick()
+}
+
+/** The entry's glyph: a document with a skill mark, matching the guide's icon family. */
+const ENTRY_GLYPH = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">'
+  + '<path d="M3 2h7l3 3v9H3z" stroke="currentColor" stroke-width="1.4" fill="none"/>'
+  + '<path d="M6 8h4M6 11h4" stroke="currentColor" stroke-width="1.4"/></svg>'
+
+/**
+ * Build the sidebar entry: icon plus the window's title.
+ * @param label - already localised; used for the visible text and both a11y names.
+ * @param onClick - toggle. The caller owns the open/close decision.
+ * @returns the button, styled to sit in the sidebar's own row rhythm.
+ */
+function buildEntry(label: string, onClick: () => void): HTMLButtonElement {
+  const button = document.createElement('button')
+  button.type = 'button'
+  button.setAttribute(ENTRY_ID, '')
+  button.setAttribute('aria-label', label)
+  button.title = label
+  button.style.cssText = [
+    'display:flex', 'align-items:center', 'gap:8px', 'width:100%', 'padding:8px 10px',
+    'border:none', 'background:transparent', 'color:inherit', 'cursor:pointer', 'text-align:left',
+    'font:inherit', 'border-radius:8px',
+  ].join(';')
+  const icon = document.createElement('span')
+  icon.style.display = 'flex'
+  icon.innerHTML = ENTRY_GLYPH
+  const text = document.createElement('span')
+  text.textContent = label
+  button.append(icon, text)
+  button.addEventListener('click', onClick)
+  return button
+}
+
+/**
+ * Place the entry directly under the New Session button.
+ *
+ * The button is found by the CSS-module class that keeps the original word
+ * (`newSession` survives hashing), with the localised aria-label as the backup;
+ * the brand button carries the same label, so the class is tried first. The
+ * column is matched by the `sidebarCol` fragment or the declared slot mark —
+ * the old `data-pane="sidebar"` no longer exists in the shell.
+ * @param entry - the row to place.
+ * @returns whether the entry now sits directly after New Session.
+ */
+export function placeEntry(entry: HTMLElement): boolean {
+  const column = document.querySelector('[data-slot="sidebar"], [class*="sidebarCol"]')
+  if (column === null) return false
+  const buttons = Array.from(column.querySelectorAll('button'))
+  const newSession = buttons.find((b) => /newSession/i.test(b.className))
+    ?? buttons.find((b) => {
+      const label = b.getAttribute('aria-label') ?? ''
+      return (label === '新建会话' || label === 'New session') && !/brand/i.test(b.className)
+    })
+  if (newSession === undefined) return false
+  if (entry.parentElement === newSession.parentElement && entry.previousElementSibling === newSession) return true
+  newSession.after(entry)
+  return true
+}
+
+/**
+ * Mount the entry under New Session, and keep it there.
+ *
+ * The sidebar is the shell's tree and it re-renders: a node inserted into it
+ * can be evicted. Placement is therefore re-asserted on mutations, but only
+ * placement — the window, its geometry and any drag in progress are untouched,
+ * so a re-render never costs the user their position.
+ *
+ * Two observers, because they watch different things: one on the column for
+ * re-renders that keep us mounted, one on the document for the case where the
+ * shell replaced the whole column and dropped us. Watching only the document
+ * would fire on every streamed token in the message column.
+ * @param ctx - client root context; owns the effect's lifetime.
+ * @param t - translator, captured for the click handler.
+ */
+export function mountSidebarEntry(
+  ctx: { effect: (run: () => () => void, label?: string) => () => void },
+  t: PanelTranslate,
+): void {
+  try {
+    ctx.effect(() => {
+      ensureStyle()
+      const entry = buildEntry(t('panelTitle'), () => {
+        if (isPanelOpen()) closePanel()
+        else openPanel(entry, t)
+      })
+      document.body.appendChild(entry)
+
+      /** Mirror the window's state onto the button, whoever opened or closed it. */
+      const sync = (): void => {
+        const open = isPanelOpen()
+        entry.setAttribute('aria-expanded', open ? 'true' : 'false')
+        if (open) entry.setAttribute('data-active', '')
+        else entry.removeAttribute('data-active')
+      }
+      const unsubscribe = subscribePanel(sync)
+
+      const openOnBoot = readOpenFlag()
+      let bootOpened = false
+      const openIfPending = (): void => {
+        if (!openOnBoot || bootOpened) return
+        bootOpened = true
+        openPanel(entry, t)
+      }
+
+      let column: Element | null = null
+      const columnObserver = new MutationObserver(() => { place() })
+      /** Re-point the column observer and re-assert placement. */
+      function place(): boolean {
+        const target = document.querySelector('[data-slot="sidebar"], [class*="sidebarCol"]')
+        if (target === null) return false
+        if (target !== column) {
+          columnObserver.disconnect()
+          columnObserver.observe(target, { childList: true, subtree: true })
+          column = target
+        }
+        return placeEntry(entry)
+      }
+
+      let placed = place()
+      sync()
+      if (placed) openIfPending()
+
+      // The column can be replaced wholesale; in that case our node leaves the
+      // document and no column mutation is left to hear about it.
+      const rootObserver = new MutationObserver(() => {
+        if (placed && entry.isConnected) return
+        placed = place()
+        if (placed) openIfPending()
+      })
+      rootObserver.observe(document.body, { childList: true, subtree: true })
+
+      return () => {
+        rootObserver.disconnect()
+        columnObserver.disconnect()
+        unsubscribe()
+        entry.remove()
+      }
+    }, 'dsh-s-m-c-center: sidebar entry')
+  } catch (error) {
+    console.warn('[dsh-s-m-c-center] sidebar mount failed:', error)
+  }
 }

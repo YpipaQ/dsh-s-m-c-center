@@ -59,7 +59,7 @@ A self-contained DSH web plugin: it adds one first-class **settings page** for t
 
 | | |
 |---|---|
-| **Conversation skills panel** ｜ adjust this conversation's injection from the sidebar foot | **MCP servers** ｜ real connections, one activate / archive switch each |
+| **Conversation skills panel** ｜ adjust this conversation's injection from the sidebar, under New Session | **MCP servers** ｜ real connections, one activate / archive switch each |
 | <a href="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-session.png"><img src="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-session.png" alt="Sidebar conversation skills panel" width="98%" /></a> | <a href="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-mcp.png"><img src="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-mcp.png" alt="MCP servers tab" width="98%" /></a> |
 | **CLI tools** ｜ discover / probe / register local CLIs | **Guide** ｜ how the three kinds work + uninstall escape hatch |
 | <a href="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-cli.png"><img src="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-cli.png" alt="CLI tools tab" width="98%" /></a> | <a href="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-guide.png"><img src="https://raw.githubusercontent.com/YpipaQ/dsh-s-m-c-center/main/docs/shots/shot-guide.png" alt="Guide tab" width="98%" /></a> |
@@ -90,7 +90,7 @@ A self-contained DSH web plugin: it adds one first-class **settings page** for t
   | 2. Trace the source | Only rows that do appear in the list: does the path still exist, and does it still *hold* a skill? | A failure is written onto the ledger row (`missing`, with a timestamp and reason) and shown as `⚠ source gone` |
 
   A traced failure **stays visibly broken** across reloads instead of looking healthy again and offering a link that cannot work. Orphans that get cleaned up are reported alongside the verdicts.
-- **Session default and per-conversation injection**: the session default is what a brand-new conversation starts with; each conversation can also carry its own differences (one skill turned off, another added). The agent can flip its own skills in-conversation (written to that conversation's own file), and a small "conversation skills" panel at the sidebar foot (directly above Settings) lets you adjust them by hand at any time — both switches list **linked** skills only. The window **re-checks itself once a second and redraws only when something actually changed**, so switching conversations or renaming one is followed within a second — which is why it has no refresh button. A pointerdown outside closes it; the **pin** keeps it open (the pin governs dismissal only, never dragging or resizing). See the next section.
+- **Session default and per-conversation injection**: the session default is what a brand-new conversation starts with; each conversation can also carry its own differences (one skill turned off, another added). The agent can flip its own skills in-conversation (written to that conversation's own file), and a small "conversation skills" panel right under New Session in the sidebar lets you adjust them by hand at any time — both switches list **linked** skills only. The window **re-checks itself once a second and redraws only when something actually changed**, so switching conversations or renaming one is followed within a second — which is why it has no refresh button. A pointerdown outside closes it; the **pin** keeps it open (the pin governs dismissal only, never dragging or resizing). See the next section.
 - **MCP**: two sub-tabs — "manage" gives each server one **activate / archive** switch (plus delete), "create" offers a form or raw JSON with a one-off **connection test** before saving. Activating connects for real and registers `mcp__<server>__<tool>`; archiving disconnects and moves the definition to `S-M-C/mcp-archive.json`, fully preserved. Live status: connecting / running / failed / stopped.
 - **CLI**: discovers skill-wrapped CLIs (`scripts/run-cli.*` / `cli-state.*`) and registers system CLIs (`gh`, `git`, … in `S-M-C/cli.json`). Each entry is probed for installed / version / needs-update / API-key state / subcommands, and the row shows where it came from and where it lives. The **announce / hide** switch only decides whether the CLI is written into the announcement handed to the agent — the plugin cannot start or stop a system-installed CLI, so entries default to hidden.
 - **Guide**: explains all three kinds and holds the pre-uninstall escape hatch. "Undo migration" moves stored skills back to their original paths; when the store is empty and the skill roots still hold skills, the same button turns into a green "Migrate" — **reversible both ways**. "Inject all MCP" moves every archived server back and reconnects. The page also lists the directories and config blocks to remove manually after uninstalling.
@@ -163,7 +163,7 @@ dsh plugin --profile web add dsh-s-m-c-center
 dsh plugin --profile web add <absolute path to this folder>
 
 # Or from a packed tarball
-dsh plugin --profile web add <path>/dsh-s-m-c-center-0.2.7.tgz
+dsh plugin --profile web add <path>/dsh-s-m-c-center-0.2.8.tgz
 
 # Or the one-shot scripts
 bash scripts/install.sh                                        # macOS / Linux / Git Bash
@@ -258,7 +258,7 @@ dsh-s-m-c-center/
 
 ## 🧰 Development
 
-See [`docs/development.md`](./docs/development.md): dual-half builds (`tsdown` rebuilds `lib/index.js` + `lib/client.js`), type checking (`tsc --noEmit`) and the test suite (`vitest`, 19 files / 285 cases).
+See [`docs/development.md`](./docs/development.md): dual-half builds (`tsdown` rebuilds `lib/index.js` + `lib/client.js`), type checking (`tsc --noEmit`) and the test suite (`vitest`, 20 files / 287 cases).
 
 ## 📄 License
 

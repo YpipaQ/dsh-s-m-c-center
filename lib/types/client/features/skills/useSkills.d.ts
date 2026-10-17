@@ -14,6 +14,8 @@ export interface ScanState {
     error: string;
     /** Success/info note ('' when none). */
     note: string;
+    /** This host has no native chooser (remote/Linux), so the button cannot work. */
+    pickerUnavailable: boolean;
 }
 export interface UseSkillsOptions {
     /** Workspace cwd passed to the Host (project-scoped skill roots). */

@@ -3,13 +3,13 @@
  *
  * Registers this plugin's locale dictionary and contributes two things: a
  * `settings.section` — a whole page, sibling to the Plugins page, not a card
- * inside a group — and a `sidebar.footer.action`, the sidebar-foot row that
- * opens the conversation-skills window. The manager UI lives behind that page
- * and reaches the host through the `/api/dsh-s-m-c-center` routes.
+ * inside a group — and the sidebar row under New Session that opens the
+ * conversation-skills window. The manager UI lives behind that page and reaches
+ * the host through the `/api/dsh-s-m-c-center` routes.
  *
- * Both contributions are declarative slots. Neither guesses at the shell's DOM
- * nor re-anchors itself after a re-render: the shell owns where they sit, how
- * they collapse with the column, and when they are remounted.
+ * The page is a declarative slot. The row is anchored: the shell declares no
+ * slot above the workspaces region, so it is placed after New Session and
+ * re-asserted whenever the shell re-renders the sidebar.
  *
  * The settings scope is deliberately left unbound: third-party namespaces are
  * not exposed to the browser's configuration surface, so a scope-backed

@@ -10,6 +10,7 @@ import type { ScannedSkill, SkillGroup, SkillSummary, StoreStatus } from '../../
 import { api } from '../../shared/useApi.ts'
 import { useAsyncList } from '../../shared/useAsyncList.ts'
 import { errorText, format, normalizeQuery } from '../../shared/format.ts'
+import { pickFailureState } from '../../shared/picker.ts'
 import type { SkillsMcpKey, Translate } from '../../shared/locales.ts'
 
 /** Scan/register sub-panel state. */
@@ -26,6 +27,8 @@ export interface ScanState {
   error: string
   /** Success/info note ('' when none). */
   note: string
+  /** This host has no native chooser (remote/Linux), so the button cannot work. */
+  pickerUnavailable: boolean
 }
 
 export interface UseSkillsOptions {
@@ -126,7 +129,7 @@ export function useSkills(options: UseSkillsOptions): UseSkillsResult {
   const [detail, setDetail] = useState<{ path: string; data: any } | null>(null)
   const [store, setStore] = useState<StoreStatus | null>(null)
   const [scan, setScan] = useState<ScanState>({
-    dir: '', busy: false, items: [], selected: {}, error: '', note: '',
+    dir: '', busy: false, items: [], selected: {}, error: '', note: '', pickerUnavailable: false,
   })
 
   // The store banner answers "why is my skill in ~/.dsh/S-M-C/skills now?", so
@@ -233,7 +236,9 @@ export function useSkills(options: UseSkillsOptions): UseSkillsResult {
     pickDirectory().then((path) => {
       if (path) setScan((prev) => ({ ...prev, dir: path, error: '' }))
     }).catch((e) => {
-      setScan((prev) => ({ ...prev, error: errorText(e) }))
+      // No native chooser here: record it so the button stops inviting a click
+      // that cannot work, and let the hint under the row carry the advice.
+      setScan((prev) => ({ ...prev, ...pickFailureState(e) }))
     })
   }, [pickDirectory])
 

@@ -191,6 +191,7 @@ export type SkillsMcpKey =
   | 'msgRollbackOk'
   | 'msgRollbackPartial'
   | 'msgEnterDir'
+  | 'msgPickerUnavailable'
   | 'msgNoImportable'
   | 'msgSelectFirst'
   | 'msgRegistered'
@@ -435,6 +436,7 @@ export const zh: Record<SkillsMcpKey, string> = {
   msgRollbackOk: '已撤销迁移，恢复 {moved} 个技能到原位置',
   msgRollbackPartial: '恢复 {moved} 个技能，{failed} 个失败',
   msgEnterDir: '请输入目录路径',
+  msgPickerUnavailable: '当前环境没有系统文件夹选择框（远端 / Linux 服务端）—— 请直接把目录路径粘贴到左侧输入框',
   msgNoImportable: '未发现可登记的技能',
   msgSelectFirst: '请先勾选要登记的技能',
   msgRegistered: '已登记 {n} 个技能',
@@ -675,6 +677,7 @@ export const en: Record<SkillsMcpKey, string> = {
   msgRollbackOk: 'Migration undone: {moved} skills restored to their original locations',
   msgRollbackPartial: 'Restored {moved} skills, {failed} failed',
   msgEnterDir: 'Enter a directory path',
+  msgPickerUnavailable: 'This environment has no native folder chooser (remote or Linux host) — paste the directory path into the field instead',
   msgNoImportable: 'No registrable skills found',
   msgSelectFirst: 'Select the skills to register first',
   msgRegistered: 'Registered {n} skills',

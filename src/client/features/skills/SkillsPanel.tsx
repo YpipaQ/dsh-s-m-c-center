@@ -167,12 +167,19 @@ function RegisterSection({ skills, t }: { skills: UseSkillsResult; t: Translate 
           value={scan.dir}
           onChange={(e) => { skills.setScanDir(e.target.value) }}
         />
-        <Button onClick={skills.chooseDir}>{t('chooseFolder')}</Button>
+        <Button
+          onClick={skills.chooseDir}
+          disabled={scan.pickerUnavailable}
+          title={scan.pickerUnavailable ? t('msgPickerUnavailable') : undefined}
+        >
+          {t('chooseFolder')}
+        </Button>
         <Button disabled={scan.busy} onClick={skills.doScan}>
           {scan.busy ? t('scanning') : t('scanDir')}
         </Button>
       </div>
       {scan.error ? <ErrorText>{scan.error}</ErrorText> : null}
+      {scan.pickerUnavailable ? <div className={css.note}>{t('msgPickerUnavailable')}</div> : null}
       {scan.items.length > 0
         ? (
           <div className={css.scanList}>

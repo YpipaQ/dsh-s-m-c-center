@@ -1,9 +1,10 @@
 /**
  * The conversation-skills window: a floating panel, and only that.
  *
- * The sidebar *entry* that opens it is a slot occupant built elsewhere
- * (`SidebarEntry.tsx`) — the shell owns that button now. What is left here is
- * the window itself, which is deliberately imperative DOM on `document.body`:
+ * The sidebar *entry* that opens it lives here too, and sits directly under the
+ * New Session button. The shell declares no slot above the workspaces region,
+ * so the row is anchored to that button and re-anchored after a re-render.
+ * The window itself is deliberately imperative DOM on `document.body`:
  * it must outlive any React tree, survive shell re-renders, and be dragged and
  * resized like a desktop window. Hanging it inside the sidebar was never an
  * option — the sidebar clips overflow (the shell's own footer panel works
@@ -65,4 +66,34 @@ export declare function mountConversationPanel(): () => void;
  * @param t - the translator, so every string in the window follows the locale.
  */
 export declare function openPanel(anchor: HTMLElement, t: PanelTranslate): void;
+/**
+ * Place the entry directly under the New Session button.
+ *
+ * The button is found by the CSS-module class that keeps the original word
+ * (`newSession` survives hashing), with the localised aria-label as the backup;
+ * the brand button carries the same label, so the class is tried first. The
+ * column is matched by the `sidebarCol` fragment or the declared slot mark —
+ * the old `data-pane="sidebar"` no longer exists in the shell.
+ * @param entry - the row to place.
+ * @returns whether the entry now sits directly after New Session.
+ */
+export declare function placeEntry(entry: HTMLElement): boolean;
+/**
+ * Mount the entry under New Session, and keep it there.
+ *
+ * The sidebar is the shell's tree and it re-renders: a node inserted into it
+ * can be evicted. Placement is therefore re-asserted on mutations, but only
+ * placement — the window, its geometry and any drag in progress are untouched,
+ * so a re-render never costs the user their position.
+ *
+ * Two observers, because they watch different things: one on the column for
+ * re-renders that keep us mounted, one on the document for the case where the
+ * shell replaced the whole column and dropped us. Watching only the document
+ * would fire on every streamed token in the message column.
+ * @param ctx - client root context; owns the effect's lifetime.
+ * @param t - translator, captured for the click handler.
+ */
+export declare function mountSidebarEntry(ctx: {
+    effect: (run: () => () => void, label?: string) => () => void;
+}, t: PanelTranslate): void;
 //# sourceMappingURL=sidebar.d.ts.map
