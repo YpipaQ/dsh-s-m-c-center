@@ -723,10 +723,33 @@ export function openPanel(anchor: HTMLElement, t: PanelTranslate): void {
   void tick()
 }
 
-/** The entry's glyph: a document with a skill mark, matching the guide's icon family. */
-const ENTRY_GLYPH = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">'
+/** Host sprite symbol: the `skill-outline` artwork the shell's own rows are drawn from. */
+const GLYPH_SYMBOL = 'dsw-icon-skill-outline-regular'
+
+/**
+ * Hand-drawn stand-in for a document without the sprite (older shell, or
+ * ui-theme not mounted yet). Kept at the same 1px weight so it still sits in
+ * the set rather than looking bolder than its neighbours.
+ */
+const GLYPH_FALLBACK = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">'
   + '<path d="M3 2h7l3 3v9H3z" stroke="currentColor" stroke-width="1" fill="none"/>'
   + '<path d="M6 8h4M6 11h4" stroke="currentColor" stroke-width="1"/></svg>'
+
+/**
+ * The entry's glyph.
+ *
+ * Prefers the host's own sprite symbol — `skill-outline` is drawn by the same
+ * artwork set as 插件 / 自动化任务, down to the 1px regular weight — so this
+ * row reads as a member of that list instead of carrying its own drawing.
+ * Falls back to the hand-drawn document only when the sprite is absent.
+ * @returns the SVG markup for the icon slot.
+ */
+function entryGlyph(): string {
+  if (document.getElementById(GLYPH_SYMBOL) !== null) {
+    return `<svg width="16" height="16" aria-hidden="true"><use href="#${GLYPH_SYMBOL}"/></svg>`
+  }
+  return GLYPH_FALLBACK
+}
 
 /**
  * Build the sidebar entry: icon plus the window's title.
@@ -759,7 +782,7 @@ function buildEntry(label: string, onClick: () => void): HTMLButtonElement {
   ].join(';')
   const icon = document.createElement('span')
   icon.style.display = 'flex'
-  icon.innerHTML = ENTRY_GLYPH
+  icon.innerHTML = entryGlyph()
   const text = document.createElement('span')
   text.textContent = label
   button.append(icon, text)

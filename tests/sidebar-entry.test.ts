@@ -161,13 +161,28 @@ describe('sidebar entry geometry', () => {
     dispose()
   })
 
-  it('draws the glyph at the shell regular weight: 1px strokes, 16px box', () => {
+  it('uses the host sprite glyph when it is present, so it belongs to the set', () => {
     sidebar({ withRow: true })
+    // The shell injects its icon sprite into the document at boot.
+    const sprite = document.createElementNS('http://www.w3.org/2000/svg', 'symbol')
+    sprite.id = 'dsw-icon-skill-outline-regular'
+    document.body.append(sprite)
+
     const dispose = mount()
     const svg = document.querySelector('[data-dsh-s-m-c-entry] svg')
-    const paths = document.querySelectorAll('[data-dsh-s-m-c-entry] svg path')
+    const use = document.querySelector('[data-dsh-s-m-c-entry] use')
 
     expect(svg?.getAttribute('width')).toBe('16')
+    expect(use?.getAttribute('href')).toBe('#dsw-icon-skill-outline-regular')
+    dispose()
+    sprite.remove()
+  })
+
+  it('falls back to a 1px hand-drawn glyph when the sprite is absent', () => {
+    sidebar({ withRow: true })
+    const dispose = mount()
+    const paths = document.querySelectorAll('[data-dsh-s-m-c-entry] svg path')
+
     expect(paths.length).toBe(2)
     expect(paths[0]?.getAttribute('stroke-width')).toBe('1')
     expect(paths[1]?.getAttribute('stroke-width')).toBe('1')
