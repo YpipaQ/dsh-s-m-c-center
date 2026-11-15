@@ -748,7 +748,7 @@ function buildEntry(label: string, onClick: () => void): HTMLButtonElement {
   button.style.cssText = [
     'display:flex', 'align-items:center',
     'gap:var(--dsh-sidebar-label-gap,6px)',
-    'box-sizing:border-box', 'width:calc(100% - 8px)', 'margin:0 4px',
+    'box-sizing:border-box', 'width:100%', 'margin:0',
     'min-height:32px',
     'padding:5px calc(var(--dsh-sidebar-row-padding,12px) - var(--dsh-sidebar-paint-inset,3px))',
     'border:none',

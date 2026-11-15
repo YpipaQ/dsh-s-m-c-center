@@ -153,10 +153,11 @@ describe('sidebar entry geometry', () => {
     expect(css).toContain('--dsh-sidebar-row-padding,12px')
     expect(css).toContain('--dsh-sidebar-paint-inset,3px')
     expect(css).toContain('--dsw-radius-md,8px')
-    // Sits inside the column's 8px padding with the same 4px inset as the
-    // New Session row above it.
-    expect(css).toContain('calc(100% - 8px)')
-    expect(css).toContain('margin: 0px 4px')
+    // Full column width, no horizontal margin: the row must share the panel
+    // rows' left edge so the glyphs line up at 20px from the sidebar edge.
+    // A 4px margin plus the 3px painted border put ours at 24px instead.
+    expect(css).toContain('width: 100%')
+    expect(css).toContain('margin: 0px')
     dispose()
   })
 
