@@ -258,7 +258,7 @@ dsh-s-m-c-center/
 
 ## 🧰 开发
 
-见 [`docs/development.md`](./docs/development.md)：双半区构建（`tsdown` 重建 `lib/index.js` + `lib/client.js`）、类型检查（`tsc --noEmit`）与测试套件（`vitest`，20 个文件 / 287 个用例）。
+见 [`docs/development.md`](./docs/development.md)：双半区构建（`tsdown` 重建 `lib/index.js` + `lib/client.js`）、类型检查（`tsc --noEmit`）与测试套件（`vitest`，20 个文件 / 290 个用例）。
 
 ## 📄 许可
 

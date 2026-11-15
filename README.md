@@ -258,7 +258,7 @@ dsh-s-m-c-center/
 
 ## 🧰 Development
 
-See [`docs/development.md`](./docs/development.md): dual-half builds (`tsdown` rebuilds `lib/index.js` + `lib/client.js`), type checking (`tsc --noEmit`) and the test suite (`vitest`, 20 files / 287 cases).
+See [`docs/development.md`](./docs/development.md): dual-half builds (`tsdown` rebuilds `lib/index.js` + `lib/client.js`), type checking (`tsc --noEmit`) and the test suite (`vitest`, 20 files / 290 cases).
 
 ## 📄 License
 

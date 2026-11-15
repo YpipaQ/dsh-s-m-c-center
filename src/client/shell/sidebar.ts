@@ -166,11 +166,17 @@ function ensureStyle(): void {
   const style = document.createElement('style')
   style.id = STYLE_ID
   style.textContent = `
+/* Match the shell's own panel row (panelRow): same hover wash, same focus
+   ring, and glyph size stepping 16 -> 18 in the rail. The row's static geometry
+   lives inline in buildEntry; only state and icon sizing need rules here. */
+[${ENTRY_ID}]:hover{background-color:var(--dsw-alias-interactive-bg-hover,#f0f1f3)}
+[${ENTRY_ID}]:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary,#3d6bff));outline-offset:-2px}
+[${ENTRY_ID}] svg{width:16px;height:16px}
 /* Collapsed rail: the shell publishes data-sidebar-collapsed on the AppFrame
    root (only while collapsed) and lays controls out as 36x36 boxes with 12px
    rounding — match that so the icon-only entry reads like its neighbours. */
-[data-sidebar-collapsed] [${ENTRY_ID}]{justify-content:center!important;width:36px!important;height:36px!important;min-height:36px!important;margin:0!important;padding:0!important;border-radius:12px!important}
-[data-sidebar-collapsed] [${ENTRY_ID}]:hover{background:var(--dsw-alias-interactive-bg-hover,#f0f1f3)!important}
+[data-sidebar-collapsed] [${ENTRY_ID}]{justify-content:center!important;width:36px!important;height:36px!important;min-height:36px!important;margin:0 auto!important;padding:0!important;border-inline:0!important;border-radius:12px!important}
+[data-sidebar-collapsed] [${ENTRY_ID}] svg{width:18px;height:18px}
 [data-sidebar-collapsed] [${ENTRY_ID}]>span:not(:first-child){display:none!important}
 /* Default size matches the shell's other status window (dsh-perf-monitor) so the
    two read as siblings; drag and corner-resize still override it, and the
@@ -719,8 +725,8 @@ export function openPanel(anchor: HTMLElement, t: PanelTranslate): void {
 
 /** The entry's glyph: a document with a skill mark, matching the guide's icon family. */
 const ENTRY_GLYPH = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">'
-  + '<path d="M3 2h7l3 3v9H3z" stroke="currentColor" stroke-width="1.4" fill="none"/>'
-  + '<path d="M6 8h4M6 11h4" stroke="currentColor" stroke-width="1.4"/></svg>'
+  + '<path d="M3 2h7l3 3v9H3z" stroke="currentColor" stroke-width="1" fill="none"/>'
+  + '<path d="M6 8h4M6 11h4" stroke="currentColor" stroke-width="1"/></svg>'
 
 /**
  * Build the sidebar entry: icon plus the window's title.
@@ -734,10 +740,22 @@ function buildEntry(label: string, onClick: () => void): HTMLButtonElement {
   button.setAttribute(ENTRY_ID, '')
   button.setAttribute('aria-label', label)
   button.title = label
+  // Geometry copied from the shell's own panel rows (`panelRow`): 32px tall,
+  // inherited 14px text on a 22px line, a 6px glyph gap, and the paint inset
+  // carried as a transparent border. Matching the numbers — rather than
+  // approximating them — is what makes this row read as a sibling of 插件 /
+  // 自动化任务 instead of something bolted on.
   button.style.cssText = [
-    'display:flex', 'align-items:center', 'gap:8px', 'width:100%', 'padding:8px 10px',
-    'border:none', 'background:transparent', 'color:inherit', 'cursor:pointer', 'text-align:left',
-    'font:inherit', 'border-radius:8px',
+    'display:flex', 'align-items:center',
+    'gap:var(--dsh-sidebar-label-gap,6px)',
+    'box-sizing:border-box', 'width:calc(100% - 8px)', 'margin:0 4px',
+    'min-height:32px',
+    'padding:5px calc(var(--dsh-sidebar-row-padding,12px) - var(--dsh-sidebar-paint-inset,3px))',
+    'border:none',
+    'border-inline:var(--dsh-sidebar-paint-inset,3px) solid transparent',
+    'border-radius:var(--dsw-radius-md,8px)',
+    'background:transparent', 'background-clip:padding-box',
+    'color:inherit', 'font:inherit', 'line-height:22px', 'text-align:left', 'cursor:pointer',
   ].join(';')
   const icon = document.createElement('span')
   icon.style.display = 'flex'
@@ -770,8 +788,14 @@ export function placeEntry(entry: HTMLElement): boolean {
       return (label === '新建会话' || label === 'New session') && !/brand/i.test(b.className)
     })
   if (newSession === undefined) return false
-  if (entry.parentElement === newSession.parentElement && entry.previousElementSibling === newSession) return true
-  newSession.after(entry)
+  // dsh 0.2.2 wraps New Session in its own flex row (`newSessionRow`) holding
+  // the icon button and its label mask. Inserting after the *button* would put
+  // this row inside that line — sharing its width and squeezing New Session to
+  // a stub, which is exactly the overlap users saw. Anchor to the row when
+  // there is one; only the older flat layout anchors to the button itself.
+  const anchor = newSession.closest('[class*="newSessionRow"]') ?? newSession
+  if (entry.parentElement === anchor.parentElement && entry.previousElementSibling === anchor) return true
+  anchor.after(entry)
   return true
 }
 
