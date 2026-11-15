@@ -163,7 +163,7 @@ dsh plugin --profile web add dsh-s-m-c-center
 dsh plugin --profile web add <absolute path to this folder>
 
 # Or from a packed tarball
-dsh plugin --profile web add <path>/dsh-s-m-c-center-0.2.8.tgz
+dsh plugin --profile web add <path>/dsh-s-m-c-center-0.2.9.tgz
 
 # Or the one-shot scripts
 bash scripts/install.sh                                        # macOS / Linux / Git Bash
